@@ -2,12 +2,16 @@
 # ------------------------------------------------------------------------------
 USE_DOCKER=yes
 IPYTHONDIR=/app/.ipython
+COLD_EMAIL_API_KEY=
+
+
 # Redis
 # ------------------------------------------------------------------------------
 REDIS_URL=redis://redis:6379/0
 
 # Celery
 # ------------------------------------------------------------------------------
+CELERY_BROKER_URL=
 
 # Flower
 CELERY_FLOWER_USER=KCyXHEipuPVOPffaZveoymyvvFhAGNAU

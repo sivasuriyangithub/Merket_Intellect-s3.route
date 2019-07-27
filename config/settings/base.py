@@ -58,6 +58,7 @@ DJANGO_APPS = [
     "django.contrib.sites",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.postgres",
     # "django.contrib.humanize", # Handy template tags
     "django.contrib.admin",
 ]
@@ -70,6 +71,7 @@ THIRD_PARTY_APPS = [
     "django_celery_beat",
     "django_filters",
     "guardian",
+    "organizations",
 ]
 
 LOCAL_APPS = [
@@ -290,4 +292,5 @@ REST_FRAMEWORK = {
 }
 # Your stuff...
 # ------------------------------------------------------------------------------
-COLD_EMAIL_API_KEY = env("COLD_EMAIL_API_KEY")
+COLD_EMAIL_KEY = env("COLD_EMAIL_KEY")
+COLD_ROUTER_API_KEY = env("COLD_ROUTER_API_KEY")

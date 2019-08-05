@@ -11,8 +11,10 @@ from whoweb.coldemail.api.resource import RoutesObject
 
 class ReplyTo(TimeStampedModel):
     id = models.CharField(primary_key=True, max_length=100, default=bson.ObjectId)
-    campaign = models.ForeignKey("ColdCampaign", on_delete=models.SET_NULL)
-    single_email = models.ForeignKey("ColdSingleEmail", on_delete=models.SET_NULL)
+    # campaign = models.ForeignKey("ColdCampaign", on_delete=models.SET_NULL, null=True)
+    # single_email = models.ForeignKey(
+    #     "ColdSingleEmail", on_delete=models.SET_NULL, null=True
+    # )
     mailgun_route_id = models.CharField(max_length=50, null=True)
     coldemail_route_id = models.CharField(
         max_length=50, null=True, help_text="ID of reply route in ColdEmail Router."

@@ -18,6 +18,13 @@ class JSONString(str):
 
 
 class EmbeddedModelFormField(JSONField):
+
+    default_error_messages = {
+        "invalid": _(
+            "'%(value)s' value must be valid JSON and convertible to the specified model."
+        )
+    }
+
     def __init__(self, model_container=None, **kwargs):
         super(EmbeddedModelFormField, self).__init__(**kwargs)
         self.model_container = model_container
@@ -31,11 +38,9 @@ class EmbeddedModelFormField(JSONField):
             value = serialize_model(value)
         return super(EmbeddedModelFormField, self).prepare_value(value)
 
-    #
-    # def has_changed(self, initial, data):
-    #     if super().has_changed(initial, data):
-    #         return True
-    #     # For purposes of seeing whether something has changed, True isn't the
-    #     # same as 1 and the order of keys doesn't matter.
-    #     data = self.to_python(data)
-    #     return json.dumps(initial, sort_keys=True) != json.dumps(data, sort_keys=True)
+    def clean(self, value):
+        return super().clean(value)
+
+    def has_changed(self, initial, data):
+        if super(JSONField, self).has_changed(initial, data):  # skip JSONField
+            return True

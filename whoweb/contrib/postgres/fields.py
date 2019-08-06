@@ -1,13 +1,14 @@
 import typing
+
 from django import forms
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import JSONField
 from django.core import exceptions
-from django.db.models import Model
 from django.forms import SelectMultiple
 from django.utils.translation import ugettext_lazy as _
 
-from whoweb.contrib.postgres.utils import useful_field, make_mdl, serialize_model
+from whoweb.contrib.postgres.abstract_models import AbstractEmbeddedModel
+from whoweb.contrib.postgres.utils import make_mdl, serialize_model
 from .forms import EmbeddedModelFormField
 
 
@@ -41,8 +42,11 @@ class EmbeddedModelField(JSONField):
     description = _(
         "Allows for the inclusion of an instance of an abstract model as a field inside a document"
     )
+    default_error_messages = {
+        "invalid": _("Value must be a valid instance of an abstract Model.")
+    }
 
-    def __init__(self, model_container: typing.Type[Model], **kwargs):
+    def __init__(self, model_container: typing.Type[AbstractEmbeddedModel], **kwargs):
         super(EmbeddedModelField, self).__init__(**kwargs)
         self.model_container = model_container
 
@@ -70,25 +74,23 @@ class EmbeddedModelField(JSONField):
         return instance
 
     def validate(self, value, model_instance):
+        if value is not None:
+            if not isinstance(value, self.model_container):
+                raise ValueError(
+                    f"Value: {value} must be an instance of {self.model_container}"
+                )
         try:
-            val = self.get_db_prep_value(value)
+            value = serialize_model(value)
         except TypeError:
             raise exceptions.ValidationError(
                 self.error_messages["invalid"], code="invalid", params={"value": value}
             )
-        super().validate(val, model_instance)
+        super().validate(value, model_instance)
 
-    def get_db_prep_value(self, value, connection=None, prepared=False):
-        if value is None and self.blank:
-            return None
-        if not isinstance(value, self.model_container):
-            raise ValueError(
-                f"Value: {value} must be an instance of {self.model_container}"
-            )
-        model_object = serialize_model(value, connection, prepared)
-        return super(EmbeddedModelField, self).get_db_prep_value(
-            model_object, connection, prepared
-        )
+    def get_prep_value(self, value):
+        if value is not None:
+            value = serialize_model(value)
+        return super().get_prep_value(value)
 
     def formfield(self, **kwargs):
         return super().formfield(

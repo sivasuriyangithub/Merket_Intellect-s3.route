@@ -13,7 +13,7 @@ from model_utils.managers import QueryManager
 from model_utils.models import TimeStampedModel
 
 from whoweb.contrib.postgres.fields import EmbeddedModelField, ChoiceArrayField
-from whoweb.contrib.utils import CompressedBinaryField
+from whoweb.contrib.fields import CompressedBinaryField
 from whoweb.search.models import FilteredSearchQuery
 
 User = get_user_model()
@@ -81,12 +81,12 @@ class SearchExport(TimeStampedModel):
     status = StatusField(_("status"), default="created")
     status_changed = MonitorField(_("status changed"), monitor="status")
     sent = models.CharField(max_length=255, editable=False)
-    sent_at = MonitorField(_("sent at"), monitor="sent", editable=False)
+    sent_at = models.DateTimeField()
     progress_counter = models.IntegerField(default=0)
     target = models.IntegerField(default=0)
     notify = models.BooleanField(default=False)
     charge = models.BooleanField(default=False)
-    uploadable = models.BooleanField(default=False)
+    uploadable = models.BooleanField(default=False, editable=False)
 
     on_trial = models.BooleanField(default=False)  # ????
 

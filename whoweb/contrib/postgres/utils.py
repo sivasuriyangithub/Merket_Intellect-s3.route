@@ -33,7 +33,6 @@ def make_mdl(model, model_dict):
     for field_name in model_dict:
         field = model._meta.get_field(field_name)
         model_dict[field_name] = field.to_python(model_dict[field_name])
-
     return model(**model_dict)
 
 

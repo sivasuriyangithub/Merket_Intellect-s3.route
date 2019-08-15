@@ -3,6 +3,7 @@ import json
 from django import forms
 from django.contrib.postgres.forms import JSONField
 from django.utils.translation import gettext_lazy as _
+from prettyjson import PrettyJSONWidget
 
 from whoweb.contrib.postgres.utils import make_mdl, serialize_model
 
@@ -24,6 +25,8 @@ class EmbeddedModelFormField(JSONField):
             "'%(value)s' value must be valid JSON and convertible to the specified model."
         )
     }
+
+    widget = PrettyJSONWidget
 
     def __init__(self, model_container=None, **kwargs):
         super(EmbeddedModelFormField, self).__init__(**kwargs)

@@ -70,18 +70,23 @@ class SearchExport(TimeStampedModel):
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     uuid = models.UUIDField(default=uuid.uuid4)
-    query = EmbeddedModelField(FilteredSearchQuery, blank=False)
+    query = EmbeddedModelField(
+        FilteredSearchQuery, blank=False, default=FilteredSearchQuery
+    )
     validation_list_id = models.CharField(max_length=50, null=True, editable=False)
     columns = ChoiceArrayField(
         base_field=models.IntegerField(
             choices=[(k, v) for k, v in ALL_COLUMNS.items()]
         ),
         default=partial(list, BASE_COLS),
+        editable=False,
     )
     status = StatusField(_("status"), default="created")
     status_changed = MonitorField(_("status changed"), monitor="status")
     sent = models.CharField(max_length=255, editable=False)
-    sent_at = models.DateTimeField()
+    sent_at = MonitorField(
+        _("sent at"), monitor="sent", editable=False, null=True, default=None
+    )
     progress_counter = models.IntegerField(default=0)
     target = models.IntegerField(default=0)
     notify = models.BooleanField(default=False)
@@ -94,13 +99,17 @@ class SearchExport(TimeStampedModel):
     objects = models.Manager()
     internal = QueryManager(uploadable=False)
 
-    @property
-    def with_invites(self):
-        return self.should_derive_email and self.query.with_invites
-
-    @property
     def should_derive_email(self):
-        return "contact" not in self.query.defer or []
+        return bool("contact" not in (self.query.defer or []))
+
+    should_derive_email.boolean = True
+    should_derive_email.short_description = "Derive Emails"
+
+    def with_invites(self):
+        return bool(self.should_derive_email() and self.query.with_invites)
+
+    with_invites.boolean = True
+    with_invites = property(with_invites)
 
     def set_columns(self, indexes=(), save=False):
         if indexes:

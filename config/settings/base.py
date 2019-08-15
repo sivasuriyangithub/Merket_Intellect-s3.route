@@ -72,6 +72,7 @@ THIRD_PARTY_APPS = [
     "django_filters",
     "guardian",
     "organizations",
+    "prettyjson",
 ]
 
 LOCAL_APPS = [
@@ -296,3 +297,10 @@ REST_FRAMEWORK = {
 # ------------------------------------------------------------------------------
 COLD_EMAIL_KEY = env("COLD_EMAIL_KEY")
 COLD_ROUTER_API_KEY = env("COLD_ROUTER_API_KEY")
+
+
+# Services
+namespace_prefix = env("NAMESPACE_PREFIX", default="")
+
+DERIVE_SERVICE = env("DERIVE_URI", default=f"http://{namespace_prefix}derive")
+ANALYTICS_SERVICE = env("XPERDATA_URI", default=f"http://{namespace_prefix}xperdata:80")

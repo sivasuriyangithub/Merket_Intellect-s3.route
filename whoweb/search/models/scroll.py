@@ -1,13 +1,17 @@
+import hashlib
+import json
 import logging
 import time
 import uuid
 from copy import deepcopy
 
 import requests
+from bson import json_util
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.utils.timezone import now
+from model_utils.fields import MonitorField
 from model_utils.models import TimeStampedModel
 
 from whoweb.contrib.postgres.fields import EmbeddedModelField
@@ -18,13 +22,6 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
-class ScrollKey(TimeStampedModel):
-    id = models.UUIDField(default=uuid.uuid4, primary_key=True)
-
-    def is_valid(self):
-        return self.created and (now() - self.created).total_seconds() < 60 * 14
-
-
 class ScrollSearchManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().prefetch_related("pages")
@@ -33,7 +30,8 @@ class ScrollSearchManager(models.Manager):
 class ScrollSearch(TimeStampedModel):
     MAX_PAGE_SIZE = 300
 
-    scroll_key = models.ForeignKey(ScrollKey, on_delete=models.SET_NULL, null=True)
+    scroll_key = models.UUIDField(default=uuid.uuid4)
+    scroll_key_modified = MonitorField(monitor="scroll_key")
     page_size = models.IntegerField(default=MAX_PAGE_SIZE)
     query_hash = models.CharField(max_length=255)
     total = models.IntegerField(null=True)
@@ -45,8 +43,34 @@ class ScrollSearch(TimeStampedModel):
     def scroll_id(self):
         return str(self.scroll_key.pk.hex)
 
-    def refresh_scroll_key(self):
-        self.scroll_key.save()
+    @staticmethod
+    def get_query_hash(user_id, query):
+        unique_query = (
+            json.dumps(query["filters"], default=json_util.default, sort_keys=True)
+            + "_"
+            + str(user_id)
+        )
+        hash_id = hashlib.sha224(unique_query).hexdigest()
+        logger.debug("Hash for query: %s, %s", hash_id, unique_query)
+        return hash_id
+
+    @classmethod
+    def get_or_create(cls, user_id, query):
+        hash = cls.get_query_hash(user_id, query)
+        return cls.objects.get_or_create(query_hash=hash, defaults=dict(query=query))
+
+    def touch_scroll_key(self):
+        self.scroll_key_modified = now()
+        self.save()
+
+    def scroll_key_is_valid(self):
+        return (now() - self.scroll_key_modified).total_seconds() < 60 * 14
+
+    def ensure_live(self, force=False):
+        if not self.scroll_key_is_valid() or force:
+            self.scroll_key = uuid.uuid4()
+            self.save()
+        return self
 
     def page_from_cache(self, page):
         try:
@@ -88,7 +112,7 @@ class ScrollSearch(TimeStampedModel):
         else:
             raise
 
-        self.refresh_scroll_key()
+        self.touch_scroll_key()
         return [result["profile_id"] for result in results.get("results", [])]
 
     def set_web_ids(self, ids, page):

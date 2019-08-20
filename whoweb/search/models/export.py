@@ -2,11 +2,15 @@ import logging
 import uuid as uuid
 from copy import deepcopy
 from functools import partial
+from math import ceil
+from typing import Optional, List
 
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.postgres.fields import JSONField
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models, DatabaseError, transaction
+from django.utils.six import string_types
 from django.utils.translation import ugettext_lazy as _
 from model_utils import Choices
 from model_utils.fields import MonitorField, StatusField
@@ -15,8 +19,10 @@ from model_utils.models import TimeStampedModel
 
 from whoweb.contrib.fields import CompressedBinaryField
 from whoweb.contrib.postgres.fields import EmbeddedModelField, ChoiceArrayField
+from whoweb.core.models import ModelEvent
 from whoweb.core.router import router
-from whoweb.search.models import FilteredSearchQuery, ScrollSearch
+from whoweb.search.events import GENERATING_PAGES
+from .scroll import FilteredSearchQuery, ScrollSearch
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -102,9 +108,14 @@ class SearchExport(TimeStampedModel):
 
     on_trial = models.BooleanField(default=False)  # ????
 
+    events = GenericRelation(ModelEvent, related_query_name="export")
+
     # Managers
     objects = models.Manager()
     internal = QueryManager(uploadable=False)
+
+    class Meta:
+        verbose_name = "export"
 
     def should_derive_email(self):
         return bool("contact" not in (self.query.defer or []))
@@ -181,19 +192,7 @@ class SearchExport(TimeStampedModel):
         else:
             return [SearchExport.ALL_COLUMNS[idx] for idx in self.columns]
 
-    def simple_search(self):
-        query = self.query.serialize()
-        query["ids_only"] = True
-        query["filters"]["limit"] = self.num_ids_needed
-        query["filters"]["skip"] = self.start_from_count
-
-        results = router.unified_search(
-            json=query, timeout=120, encoder=DjangoJSONEncoder
-        ).get("results", [])
-        ids = [result["profile_id"] for result in results]
-        return ids
-
-    def ensure_scroll_interface(self, force=False):
+    def ensure_search_interface(self, force=False):
         if self.scroll is None:
             search, created = ScrollSearch.get_or_create(
                 query=self.query, user_id=self.user_id
@@ -202,37 +201,42 @@ class SearchExport(TimeStampedModel):
             self.save()
         return self.scroll.ensure_live(force=force)
 
-    def _generate_pages(self):
+    def _generate_pages(self) -> Optional[List["SearchExportPage"]]:
+        """
+
+        :return: List of export pages for which search cache has been primed.
+        :rtype:
+        """
         if self.specified_ids:
             ids = self.specified_ids[self.start_from_count :]
             if not ids:
                 return
         elif self.num_ids_needed < self.SIMPLE_CAP:
-            ids = self.simple_search()
+            search = self.ensure_search_interface()
+            ids = search.send_simple_search(
+                limit=self.num_ids_needed, skip=self.start_from_count
+            )
             if not ids:
                 return
         else:
             ids = []
 
-        search = self.ensure_scroll_interface(force=True)
+        search = self.ensure_search_interface(force=True)
 
         pages = []
 
         if ids:
             num_ids_needed = min(self.num_ids_needed, len(ids))
-        elif self.start_from_count >= self.population():
+        elif self.start_from_count >= search.population():
             return
-        elif self.num_ids_needed + self.start_from_count > self.population():
-            num_ids_needed = self.population() - self.start_from_count
+        elif self.num_ids_needed + self.start_from_count > search.population():
+            num_ids_needed = search.population() - self.start_from_count
         else:
             num_ids_needed = self.num_ids_needed
 
         num_pages = int(ceil(float(num_ids_needed) / search.page_size))
-        last_completed_page = (
-            ExportPage.objects(pk__in=self.page_ids, data__exists=True)
-            .order_by("-page")
-            .first()
-        )
+        last_completed_page = self.pages.filter(data__isnull=False).last()
+
         if not last_completed_page:
             start_page = int(ceil(float(self.start_from_count) / search.page_size))
         else:
@@ -245,7 +249,7 @@ class SearchExport(TimeStampedModel):
                 search.set_web_ids(
                     ids=page_ids, page=page
                 )  # mock the page results so we don't store ids over and over again
-                pages.append(ExportPage.create(page_num=page, export=self))
+                pages.append(SearchExportPage(page_num=page, export=self))
                 ids = ids[search.page_size :]
                 if len(ids) == 0:
                     break
@@ -256,7 +260,7 @@ class SearchExport(TimeStampedModel):
                 logger.debug("Eagerly fetching page %d of scroll", page)
                 profile_ids = search.get_page(page=page, ids_only=True)
                 if profile_ids:
-                    pages.append(ExportPage.create(page_num=page, export=self))
+                    pages.append(SearchExportPage(page_num=page, export=self))
                 else:
                     break
 
@@ -264,12 +268,9 @@ class SearchExport(TimeStampedModel):
             # Last page
             remainder = num_ids_needed % search.page_size
             if remainder > 0:
-                pages[-1].modify(
-                    target=remainder
-                )  # set target so we dont try to derive the whole page
-            for page in pages:
-                self.modify(add_to_set__pages=page)
-            return pages
+                pages[-1].limit = remainder
+                # set limit so we dont try to derive the whole page
+            return SearchExportPage.objects.bulk_create(pages)
 
     def generate_pages(self, task_context=None):
         try:
@@ -279,9 +280,22 @@ class SearchExport(TimeStampedModel):
         except DatabaseError as e:
             logger.exception(e)
             return
-        self.log_event(message=GENERATING_PAGES, task=task_context)
+        self.log_event(GENERATING_PAGES, task=task_context)
         with transaction.atomic():
-            export._generate_pages()
+            return export._generate_pages()
+
+    def log_event(self, evt, *, start=None, end=None, task=None, **data):
+        if hasattr(task, "id"):
+            data["task_id"] = task.id
+        if isinstance(evt, string_types):
+            code = 0
+            message = evt
+        else:
+            code = evt[0]
+            message = evt[1]
+        ModelEvent.objects.create(
+            ref=self, code=code, message=message, start=start, end=end, data=data
+        )
 
 
 class SearchExportPage(TimeStampedModel):
@@ -289,7 +303,11 @@ class SearchExportPage(TimeStampedModel):
         SearchExport, on_delete=models.CASCADE, related_name="pages"
     )
     data = CompressedBinaryField(null=True, editable=False)
-    page = models.PositiveIntegerField()
+    page_num = models.PositiveIntegerField()
     working_data = JSONField(editable=False)
     count = models.IntegerField(default=0)
-    target = models.IntegerField(null=True)
+    limit = models.IntegerField(null=True)
+
+    class Meta:
+        unique_together = ["export", "page_num"]
+        ordering = ["export", "page_num"]

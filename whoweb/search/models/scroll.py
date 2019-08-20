@@ -34,14 +34,14 @@ class ScrollSearch(TimeStampedModel):
     scroll_key_modified = MonitorField(monitor="scroll_key")
     page_size = models.IntegerField(default=MAX_PAGE_SIZE)
     query_hash = models.CharField(max_length=255)
-    total = models.IntegerField(null=True)
+    total = models.IntegerField(null=True, default=None)
     query = EmbeddedModelField(
         FilteredSearchQuery, blank=False, default=FilteredSearchQuery
     )
     objects = ScrollSearchManager()
 
     def scroll_id(self):
-        return str(self.scroll_key.pk.hex)
+        return str(self.scroll_key.hex)
 
     @staticmethod
     def get_query_hash(user_id, query):
@@ -78,8 +78,34 @@ class ScrollSearch(TimeStampedModel):
         except ScrollSearchPage.DoesNotExist:
             return None
 
+    def population(self):
+        if self.total is None:
+            query = self.query.serialize()
+            query["ids_only"] = True
+            query["filters"]["skip"] = 0
+            query["filters"]["limit"] = 1
+            results = router.unified_search(json=query, timeout=30)
+            self.total = results.get("total_results", 0)
+            self.save()
+        return self.total
+
+    def send_simple_search(self, limit=None, skip=None, ids_only=True):
+        query = self.query.serialize()
+        query["ids_only"] = True
+        if limit:
+            query["filters"]["limit"] = limit
+        if skip:
+            query["filters"]["skip"] = skip
+        results = router.unified_search(json=query, timeout=120).get("results", [])
+        ids = [result["profile_id"] for result in results]
+        if ids_only:
+            return ids
+        else:
+            full_profiles = self.convert_to_profiles(ids)
+            return full_profiles
+
     def send_scroll_search(self):
-        filters = deepcopy(self.query.filters)
+        filters = self.query.serialize()["filters"]
         filters.pop("skip", None)
         filters["scroll"] = self.scroll_id()
         filters["sorted"] = True
@@ -177,7 +203,7 @@ class ScrollSearch(TimeStampedModel):
 
 class ScrollSearchPage(TimeStampedModel):
     class Meta:
-        ordering = ["page_number"]
+        ordering = ["scroll", "page_number"]
         unique_together = (["scroll", "page_number"],)
 
     scroll = models.ForeignKey(

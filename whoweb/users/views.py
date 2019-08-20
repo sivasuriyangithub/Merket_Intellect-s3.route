@@ -5,6 +5,8 @@ from django.views.generic import DetailView, RedirectView, UpdateView
 from django.contrib import messages
 from django.utils.translation import ugettext_lazy as _
 
+from whoweb.users.models import UserProfile
+
 User = get_user_model()
 
 
@@ -20,7 +22,7 @@ user_detail_view = UserDetailView.as_view()
 
 class UserUpdateView(LoginRequiredMixin, UpdateView):
 
-    model = User
+    model = UserProfile
     fields = ["name"]
 
     def get_success_url(self):

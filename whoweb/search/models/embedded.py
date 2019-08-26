@@ -48,6 +48,7 @@ class FilteredSearchQuery(AbstractEmbeddedModel):
     DEFER_CONTACT = "contact"
     DEFER_COMPANY_Q = "company_counts"
     DEFER_DEGREE_LVL = "degree_levels"
+    DEFER_VALIDATION = "validation"
     WORK = "work"
     PERSONAL = "personal"
     SOCIAL = "social"

@@ -1,16 +1,18 @@
+import csv
 import logging
 import uuid as uuid
-from copy import deepcopy
+import zipfile
 from functools import partial
 from math import ceil
 from typing import Optional, List
 
+import requests
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.postgres.fields import JSONField
-from django.core.serializers.json import DjangoJSONEncoder
-from django.db import models, DatabaseError, transaction
-from django.utils.six import string_types
+from django.db import models, transaction
+from django.utils.six import string_types, StringIO
 from django.utils.translation import ugettext_lazy as _
 from model_utils import Choices
 from model_utils.fields import MonitorField, StatusField
@@ -21,7 +23,12 @@ from whoweb.contrib.fields import CompressedBinaryField
 from whoweb.contrib.postgres.fields import EmbeddedModelField, ChoiceArrayField
 from whoweb.core.models import ModelEvent
 from whoweb.core.router import router
-from whoweb.search.events import GENERATING_PAGES
+from whoweb.search.events import (
+    GENERATING_PAGES,
+    FINALIZING,
+    POST_VALIDATION,
+    FETCH_VALIDATION,
+)
 from .scroll import FilteredSearchQuery, ScrollSearch
 
 logger = logging.getLogger(__name__)
@@ -72,12 +79,12 @@ class SearchExport(TimeStampedModel):
     EXPANDABLE_COLS = [10, 11, 12, 16, 17]
 
     STATUS = Choices(
-        ("created", "Created"),
-        ("pages_working", "Pages Running"),
-        ("pages_complete", "Pages Complete"),
-        ("validating", "Awaiting External Validation"),
-        ("post_processing", "Running Post Processing Hooks"),
-        ("complete", "Export Complete"),
+        (0, "created", "Created"),
+        (2, "pages_working", "Pages Running"),
+        (4, "pages_complete", "Pages Complete"),
+        (8, "validating", "Awaiting External Validation"),
+        (16, "post_processing", "Running Post Processing Hooks"),
+        (32, "complete", "Export Complete"),
     )
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -94,7 +101,7 @@ class SearchExport(TimeStampedModel):
         default=partial(list, BASE_COLS),
         editable=False,
     )
-    status = StatusField(_("status"), default="created")
+    status = StatusField(_("status"), db_index=True)
     status_changed = MonitorField(_("status changed"), monitor="status")
     sent = models.CharField(max_length=255, editable=False)
     sent_at = MonitorField(
@@ -117,14 +124,37 @@ class SearchExport(TimeStampedModel):
     class Meta:
         verbose_name = "export"
 
+    def locked(self):
+        return (
+            self.__class__.objects.filter(id=self.pk)
+            .select_for_update(skip_locked=True, of=("self",))
+            .first()
+        )
+
+    def is_done_processing_pages(self):
+        return (
+            int(self.status) >= SearchExport.STATUS.pages_complete
+            or self.progress_counter >= self.target
+        )
+
+    is_done_processing_pages.boolean = True
+    is_done_processing_pages = property(is_done_processing_pages)
+
     def should_derive_email(self):
         return bool("contact" not in (self.query.defer or []))
 
     should_derive_email.boolean = True
     should_derive_email.short_description = "Derive Emails"
+    should_derive_email = property(should_derive_email)
+
+    def defer_validation(self):
+        return FilteredSearchQuery.DEFER_VALIDATION in self.query.defer
+
+    defer_validation.boolean = True
+    defer_validation = property(defer_validation)
 
     def with_invites(self):
-        return bool(self.should_derive_email() and self.query.with_invites)
+        return bool(self.should_derive_email and self.query.with_invites)
 
     with_invites.boolean = True
     with_invites = property(with_invites)
@@ -273,16 +303,147 @@ class SearchExport(TimeStampedModel):
             return SearchExportPage.objects.bulk_create(pages)
 
     def generate_pages(self, task_context=None):
-        try:
-            export = SearchExport.objects.select_for_update(
-                nowait=True, of=("self",)
-            ).get(pk=self.pk)
-        except DatabaseError as e:
-            logger.exception(e)
-            return
-        self.log_event(GENERATING_PAGES, task=task_context)
         with transaction.atomic():
-            return export._generate_pages()
+            export = self.locked()
+            if export:
+                self.log_event(GENERATING_PAGES, task=task_context)
+                export.status = SearchExport.STATUS.pages_working
+                export.save()
+                return export._generate_pages()
+
+    def _do_post_page_completion(self):
+        if self.charge:
+            if self.progress_counter < self.target:
+                # TODO: refunds
+                # self.user(inc__credits=self.target - self.progress_counter)
+                self.charged = self.target - self.progress_counter
+            else:
+                self.charged = self.target
+            self.status = SearchExport.STATUS.pages_complete
+            self.save()
+
+    def do_post_page_completion(self, task_context=None):
+        with transaction.atomic():
+            export = self.locked()
+            if export:
+                self.log_event(FINALIZING, task=task_context)
+                return export._do_post_page_completion()
+
+    def upload_validation(self, task_context=None):
+        self.log_event(POST_VALIDATION, task=task_context)
+        self.status = SearchExport.STATUS.validating
+
+        if len(self.generate_validation_csv(self.get_raw())) == 0:
+            self.validation_list_id = self.SKIP_CODE
+            self.save()
+            return
+
+        r = requests.post(
+            "{}/list/create_from_url/".format(settings.DATAVALIDATION_URL),
+            headers={"Authorization": "Bearer {}".format(settings.DATAVALIDATION_KEY)},
+            data=dict(
+                url=self.generate_validation_url(),
+                name=self.uuid.hex,
+                email_column_index=0,
+                has_header=0,
+                start_validation=True,
+            ),
+        )
+        if not r.ok:
+            logger.error(
+                "Validation API Error: %s. Response: %s ", r.status_code, r.content
+            )
+        self.validation_list_id = r.json()
+        self.save()
+
+    def get_validation_status(self, task_context=None):
+        if self.validation_list_id == self.SKIP_CODE:
+            return True
+
+        self.log_event(FETCH_VALIDATION, task=task_context)
+
+        status = requests.get(
+            "{}/list/{}/".format(settings.DATAVALIDATION_URL, self.validation_list_id),
+            headers={"Authorization": "Bearer {}".format(settings.DATAVALIDATION_KEY)},
+        ).json()
+
+        if status.get("status_value") == "FAILED":
+            return False
+
+        if status.get("status_percent_complete", 0) < 100:
+            return False
+
+    def get_validation_results(self):
+        if self.validation_list_id == self.SKIP_CODE:
+            return []
+        r = requests.get(
+            "{}/list/{}/download_result/".format(
+                settings.DATAVALIDATION_URL, self.validation_list_id
+            ),
+            headers={"Authorization": "Bearer {}".format(settings.DATAVALIDATION_KEY)},
+            stream=True,
+        )
+        r.raise_for_status()
+
+        z = zipfile.ZipFile(StringIO(r.content))
+
+        for name in z.namelist():
+            data = StringIO(z.read(name))
+            reader = csv.reader(data)
+            for row in reader:
+                logger.debug(row)
+                if len(row) != 3:
+                    continue
+                yield {"email": row[0], "profile_id": row[1], "grade": row[2]}
+
+    def return_validation_results_to_cache(self):
+        upload_limit = 250
+        results_gen = self.get_validation_results()
+        while True:
+            secondary_validations = []
+            i = 0
+            for row in results_gen:
+                i += 1
+                secondary_validations.append(row)
+                if i == upload_limit:
+                    break
+
+            if secondary_validations:
+                try:
+                    router.update_validations(
+                        json={"bulk_validations": secondary_validations}, timeout=90
+                    )
+                except Exception as e:
+                    logger.exception("Error setting validation cache: %s " % e)
+            else:
+                return True
+
+    def processing_signatures(self, on_complete=None):
+        from whoweb.search.tasks import (
+            process_export,
+            check_export_has_data,
+            validate_rows,
+            fetch_validation_results,
+            send_notification,
+            refund_against_target,
+            spawn_mx_group,
+            header_check,
+        )
+
+        sigs = process_export.si(self.pk) | check_export_has_data.si(export_id=self.pk)
+        if on_complete:
+            sigs |= on_complete
+        if self.defer_validation:
+            sigs |= validate_rows.si(self.pk) | fetch_validation_results.si(self.pk)
+        sigs |= refund_against_target.si(self.pk)
+        if self.notify:
+            sigs |= send_notification.si(self.pk)
+        if self.uploadable:
+            sigs |= (
+                spawn_mx_group.si(self.pk)
+                | header_check.s()  # mutable signature to accept group_id
+            )
+        return sigs
 
     def log_event(self, evt, *, start=None, end=None, task=None, **data):
         if hasattr(task, "id"):

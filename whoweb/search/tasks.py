@@ -75,7 +75,7 @@ def fetch_validation_results(self, export_id):
     except SearchExport.DoesNotExist:
         return
 
-    complete = export.get_validation_results(task_context=self.request)
+    complete = export.get_validation_status(task_context=self.request)
     if complete is False:
         raise self.retry(cooldown=60, max_retries=24 * 60)
 

@@ -2,6 +2,7 @@ import re
 from copy import deepcopy
 
 import requests
+import typing
 from django.conf import settings
 from django.contrib.auth import get_user_model
 
@@ -59,6 +60,30 @@ class Skill(dict):
 
 
 class ResultProfile(object):
+    id: str
+    web_id: typing.Optional[str]
+    first_name: str
+    last_name: str
+    title: str
+    country: str
+    relevance_score: str
+    email: typing.Optional[str]
+    grade: typing.Optional[str]
+    passing_grade: typing.Union[str, False]
+    emails: typing.List[str]
+    graded_emails: typing.List[typing.Dict[str, str]]
+    social_profiles: typing.List[typing.Dict[str, str]]
+    social_profiles_by_type: typing.Dict[str, str]
+    li_url: typing.Optional[str]
+    phone: typing.List[str]
+    company: str
+    industry: str
+    city: str
+    state: str
+    mx_domain: typing.Optional[str]
+    derivation_status: typing.Optional[str]
+    _invite_key: typing.Optional[str]
+
     grade_values = {"A+": 100, "A": 90, "B+": 75, "B": 60}
 
     social_link_type_names = [
@@ -95,7 +120,6 @@ class ResultProfile(object):
         "li_url",
         "phone",
         "company",
-        "title",
         "industry",
         "city",
         "state",
@@ -332,8 +356,8 @@ class ResultProfile(object):
                 url_args.append(("defer", deferred))
             if not filters:
                 filters = [WORK, PERSONAL, SOCIAL, PROFILE]
-            for filter in filters:
-                url_args.append(("filter", filter))
+            for filt in filters:
+                url_args.append(("filter", filt))
             try:
                 derivation = router.derive_email(params=url_args, timeout=timeout)
             except requests.Timeout:
@@ -343,10 +367,8 @@ class ResultProfile(object):
                 return self.derivation_status
         else:
             try:
-                user = User.objects.get(self.id)
-                email = user.email
+                email = User.objects.get(self.id).email
             except User.DoesNotExist:
-                user = None
                 email = None
 
         if email:

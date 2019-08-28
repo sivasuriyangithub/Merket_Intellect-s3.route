@@ -29,6 +29,7 @@ from whoweb.search.events import (
     POST_VALIDATION,
     FETCH_VALIDATION,
 )
+from whoweb.search.models import ResultProfile
 from .scroll import FilteredSearchQuery, ScrollSearch
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,7 @@ User = get_user_model()
 class SearchExport(TimeStampedModel):
     DERIVATION_RATIO = 5.2
     SIMPLE_CAP = 1000
+    SKIP_CODE = "MAGIC_SKIP_CODE_NO_VALIDATION_NEEDED"
 
     ALL_COLUMNS = {
         0: "invitekey",
@@ -332,8 +334,10 @@ class SearchExport(TimeStampedModel):
     def upload_validation(self, task_context=None):
         self.log_event(POST_VALIDATION, task=task_context)
         self.status = SearchExport.STATUS.validating
-
-        if len(self.generate_validation_csv(self.get_raw())) == 0:
+        try:
+            _ = self.get_ungraded_email_rows().__next__()
+        except StopIteration:
+            # empty
             self.validation_list_id = self.SKIP_CODE
             self.save()
             return
@@ -372,6 +376,15 @@ class SearchExport(TimeStampedModel):
 
         if status.get("status_percent_complete", 0) < 100:
             return False
+
+        r = requests.head(
+            "{}/list/{}/download_result/".format(
+                settings.DATAVALIDATION_URL, self.validation_list_id
+            ),
+            headers={"Authorization": "Bearer {}".format(settings.DATAVALIDATION_KEY)},
+            stream=True,
+        )
+        return r.ok
 
     def get_validation_results(self):
         if self.validation_list_id == self.SKIP_CODE:
@@ -444,6 +457,29 @@ class SearchExport(TimeStampedModel):
                 | header_check.s()  # mutable signature to accept group_id
             )
         return sigs
+
+    def get_raw(self):
+        for page in self.pages.iterator(chunk_size=4):
+            for row in page.data():
+                yield row
+
+    def get_profiles(self, validation_registry=None):
+        for profile in self.get_raw():
+            if profile:
+                yield ResultProfile.from_json(
+                    profile, validation_registry=validation_registry
+                )
+
+    def get_ungraded_email_rows(self):
+        for profile in self.get_profiles():
+            if profile.passing_grade:
+                continue
+            web_id = profile.web_id or profile.id
+            graded_emails = set(profile.graded_addresses())
+            non_validated_emails = set(profile.emails)
+            pending = non_validated_emails.difference(graded_emails)
+            for email in pending:
+                yield (email, web_id)
 
     def log_event(self, evt, *, start=None, end=None, task=None, **data):
         if hasattr(task, "id"):

@@ -1,10 +1,12 @@
 from __future__ import unicode_literals
 
 import json
+from datetime import timedelta
 
 import requests
 from bson import json_util
 from django.conf import settings
+from requests_cache import CachedSession
 
 
 class Requestor(object):
@@ -26,11 +28,24 @@ class Requestor(object):
     def post(cls, *args, **kwargs):
         return cls._act(requests.post, *args, **kwargs)
 
+    @classmethod
+    def get_with_cache(cls, cache_expires=None, *args, **kwargs):
+        if cache_expires is None:
+            cache_expires = timedelta(hours=1).total_seconds()
+        elif isinstance(cache_expires, timedelta):
+            cache_expires = cache_expires.total_seconds()
+        s = CachedSession(expire_after=cache_expires)
+        return cls._act(s.get, *args, **kwargs)
+
 
 class Router(object):
     @staticmethod
     def xperdata(path):
         return "{}/{}".format(settings.ANALYTICS_SERVICE, path)
+
+    @staticmethod
+    def xperweb(path):
+        return "{}/{}".format(settings.XPERWEB_URI, path)
 
     @staticmethod
     def derive_service(path):
@@ -47,6 +62,11 @@ class Router(object):
 
     def update_validations(self, **kwargs):
         return Requestor.post(self.derive_service("validation"), **kwargs)
+
+    def get_exportable_invite_key(self, **kwargs):
+        return Requestor.get_with_cache(
+            self.xperweb("invite_key"), cache_expires=timedelta(days=1), **kwargs
+        )
 
 
 router = Router()

@@ -4,7 +4,9 @@ from celery.result import GroupResult
 from requests import HTTPError, Timeout, ConnectionError
 
 from config import celery_app
-from whoweb.search.models import SearchExport
+from whoweb.search.models import SearchExport, ResultProfile
+from whoweb.search.models.export import MXDomain, SearchExportPage
+from whoweb.search.models.profile import VALIDATED, COMPLETE, FAILED, RETRY
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +24,12 @@ def process_export(self, export_id):
         return
 
     if export.is_done_processing_pages:
-        export.do_post_page_completion(task_context=self.request)
+        export.do_post_pages_completion(task_context=self.request)
         return True
 
-    next_page = export.get_next_page()
+    next_page = export.get_next_empty_page()
     if next_page:
-        done = next_page.process(task_context=self.request)
+        done = next_page.do_page_process(task_context=self.request)
         if done:
             raise self.retry(max_retries=2000, countdown=3)
     else:
@@ -98,6 +100,15 @@ def refund_against_target(export_id):
     return export.refund_against_target()
 
 
+@celery_app.task(ignore_result=False, autoretry_for=NETWORK_ERRORS)
+def fetch_mx_domain(domain):
+    try:
+        mxd = MXDomain.objects.get(domain=domain)
+    except MXDomain.DoesNotExist:
+        return
+    return mxd.fetch_mx()
+
+
 @celery_app.task(autoretry_for=NETWORK_ERRORS)
 def spawn_mx_group(export_id):
     try:
@@ -125,3 +136,89 @@ def header_check(self, group_result_id):
     results = GroupResult.restore(group_result_id)
     if any(not result.ready() for result in results) and self.request.retries < 80:
         raise self.retry(countdown=300)
+
+
+def process_derivation(
+    task, page_pk, profile_data, defer, omit_failures, add_invite_key, filters
+):
+    """
+    :type task: celery.Task
+    :type page_pk: basestring
+    :type profile: xperweb.search.models.ResultProfile
+    :type defer: list
+    :type omit_failures: boolean
+    :rtype: boolean
+    """
+    profile = ResultProfile.from_json(profile_data)
+    status = profile.derivation_status
+    if not status in [VALIDATED, COMPLETE]:
+        status = profile.derive_contact(defer, filters)
+
+    if status == RETRY:
+        raise task.retry()
+    elif status == FAILED and omit_failures:
+        return False
+    else:
+        if add_invite_key:
+            profile.get_invite_key()
+        return SearchExportPage.save_profile(page_pk, profile)
+
+
+@celery_app.task(
+    bind=True,
+    max_retries=5,
+    default_retry_delay=90,
+    retry_backoff=60,
+    ignore_result=False,
+    rate_limit="10/m",
+    autoretry_for=NETWORK_ERRORS,
+)
+def process_derivation_slow(
+    self, page_pk, profile_data, defer, omit_failures, add_invite_key, filters=None
+):
+    return process_derivation(
+        self,
+        page_pk,
+        profile_data,
+        defer,
+        omit_failures,
+        add_invite_key,
+        filters=filters,
+    )
+
+
+@celery_app.task(
+    bind=True,
+    max_retries=5,
+    default_retry_delay=60,
+    retry_backoff=60,
+    ignore_result=False,
+    rate_limit="40/m",
+    autoretry_for=NETWORK_ERRORS,
+)
+def process_derivation_fast(
+    self, page_pk, profile_data, defer, omit_failures, add_invite_key, filters=None
+):
+    return process_derivation(
+        self,
+        page_pk,
+        profile_data,
+        defer,
+        omit_failures,
+        add_invite_key,
+        filters=filters,
+    )
+
+
+@celery_app.task(
+    bind=True, max_retries=250, ignore_result=False, autoretry_for=NETWORK_ERRORS
+)
+def finalize_page(self, pk, group_result_id):
+    # Chords are buggy; this is the chord header check:
+    results = GroupResult.restore(group_result_id)
+    if any(not result.ready() for result in results) and self.request.retries < 240:
+        raise self.retry(countdown=30)
+
+    export_page = SearchExportPage.objects.get(pk)  # allow DoesNotExist exception
+    export_page.do_post_page_process(task_context=self.request)
+    process_export.delay(export_page.export.pk)

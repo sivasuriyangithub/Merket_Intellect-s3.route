@@ -41,6 +41,17 @@ class FilteredSearchFilters(AbstractEmbeddedModel):
     profiles = ArrayField(models.CharField(max_length=300), default=list)
 
 
+class ExportOptions(AbstractEmbeddedModel):
+    class Meta:
+        managed = False
+
+    webhooks = ArrayField(models.URLField(), default=list)
+    format = models.CharField(default="nested", max_length=255)
+
+    def is_flat(self):
+        return self.format == "flat"
+
+
 class FilteredSearchQuery(AbstractEmbeddedModel):
     class Meta:
         managed = False
@@ -82,3 +93,4 @@ class FilteredSearchQuery(AbstractEmbeddedModel):
         ),
         default=list,
     )
+    export = EmbeddedModelField(ExportOptions, default=ExportOptions)

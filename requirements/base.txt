@@ -9,6 +9,9 @@ celery==4.3.0  # pyup: < 5.0  # https://github.com/celery/celery
 django-celery-beat==1.5.0  # https://github.com/celery/django-celery-beat
 flower==0.9.3  # https://github.com/mher/flower
 pymongo==3.9.0 # for bson utils
+dnspython
+requests-cache
+python-dateutil
 
 # Django
 # ------------------------------------------------------------------------------

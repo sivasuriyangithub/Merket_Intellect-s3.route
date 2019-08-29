@@ -69,7 +69,7 @@ class ResultProfile(object):
     relevance_score: str
     email: typing.Optional[str]
     grade: typing.Optional[str]
-    passing_grade: typing.Union[str, False]
+    passing_grade: typing.Union[str, bool]
     emails: typing.List[str]
     graded_emails: typing.List[typing.Dict[str, str]]
     social_profiles: typing.List[typing.Dict[str, str]]

@@ -1,0 +1,15 @@
+{% extends "emails/base.html" %}
+
+{% block email_heading %}
+  Your search results are ready.
+{% endblock %}
+
+{% block call_to_action %}
+  Download Results
+{% endblock %}
+
+{% block extra_email_content %}
+  <br/>
+  <br/>
+  <a href="{{ json_link }}" style="font-size: 11px;">Your results are also available in json format here.</a>
+{% endblock %}

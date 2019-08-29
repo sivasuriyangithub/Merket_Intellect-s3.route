@@ -485,7 +485,7 @@ class RoutesObject(object):
 
         params = dict(
             enabled=True,
-            from_filter=match,
+            to_filter=match,
             destination=forwarding_address,
             webhook=forwarding_webhook,
         )

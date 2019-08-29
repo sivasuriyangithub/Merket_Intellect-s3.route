@@ -3,7 +3,6 @@ import json
 import logging
 import time
 import uuid
-from copy import deepcopy
 
 import requests
 from bson import json_util

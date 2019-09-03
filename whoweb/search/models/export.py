@@ -457,7 +457,7 @@ class SearchExport(TimeStampedModel):
             if self.progress_counter < self.target:
                 # TODO: refunds
                 # self.user(inc__credits=self.target - self.progress_counter)
-                self.charged = self.target - self.progress_counter
+                self.charged = self.progress_counter
             else:
                 self.charged = self.target
             self.status = SearchExport.STATUS.pages_complete

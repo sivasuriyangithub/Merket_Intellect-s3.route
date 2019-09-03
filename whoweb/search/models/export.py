@@ -139,6 +139,14 @@ class SearchExport(TimeStampedModel):
     class Meta:
         verbose_name = "export"
 
+    @classmethod
+    def create_from_query(cls, **kwargs):
+        export = cls(**kwargs)
+        export._set_target()
+        export._set_columns()
+        export.save()
+        return export
+
     def locked(self):
         return (
             self.__class__.objects.filter(id=self.pk)
@@ -163,7 +171,7 @@ class SearchExport(TimeStampedModel):
     should_derive_email = property(should_derive_email)
 
     def should_remove_derivation_failures(self):
-        return len(self.specified_ids) == 0
+        return len(self.specified_ids) == 0 or self.uploadable
 
     should_remove_derivation_failures.boolean = True
     should_remove_derivation_failures = property(should_remove_derivation_failures)
@@ -219,7 +227,7 @@ class SearchExport(TimeStampedModel):
         else:
             return progress_plus_skip
 
-    def set_columns(self, indexes=(), save=False):
+    def _set_columns(self, indexes=(), save=False):
         if indexes:
             self.columns = indexes
         elif self.with_invites:
@@ -230,9 +238,21 @@ class SearchExport(TimeStampedModel):
             self.columns = self.BASE_COLS
         if self.uploadable and not indexes:
             self.columns = self.columns + self.UPLOADABLE_COLS
-
         if save:
             self.save()
+        return self
+
+    def _set_target(self, save=False):
+        limit = self.query.filters.limit or 0
+        skip = self.query.filters.skip or 0
+        initial_query_target = limit - skip
+        specified_target = len(self.specified_ids)
+        if specified_target > 0:
+            initial_query_target = specified_target
+        self.target = initial_query_target
+        if save:
+            self.save()
+        return self
 
     def get_column_names(self):
         if self.uploadable:
@@ -318,6 +338,8 @@ class SearchExport(TimeStampedModel):
             if not key:
                 return
             row = [key.encode("utf8")] + row
+        if self.uploadable:
+            row += [profile.domain or "", profile.mx_domain or ""]
         return [
             ("; ".join(col) if isinstance(col, (list, tuple)) else col) for col in row
         ]

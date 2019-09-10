@@ -1,16 +1,14 @@
 from unittest.mock import patch
 
 import pytest
-from django.conf import settings
-from django.db import transaction
 
 from whoweb.search.models import SearchExport
 from whoweb.search.tests.factories import SearchExportFactory
 
-pytestmark = pytest.mark.django_db(transaction=True)
+pytestmark = pytest.mark.django_db
 
 
-def validation_result_generator():
+def validation_result_generator(only_valid=True):
     results = [
         ("a@a.com", "wp:1", "A"),
         ("b@b.com", "wp:2", "B"),
@@ -19,6 +17,8 @@ def validation_result_generator():
         ("f@af.com", "wp:5", "F"),
     ] * 101
     for row in results:
+        if only_valid and row[2][0] not in ["A", "B"]:
+            continue
         yield {"email": row[0], "profile_id": row[1], "grade": row[2]}
 
 
@@ -33,32 +33,5 @@ def test_return_validation_results_to_cache(result_mock, cache_mock):
     assert cache_mock.call_count == 3  # (250, 250, 5)
 
 
-@patch("whoweb.search.models.SearchExport._generate_pages")
-@pytest.mark.django_db(transaction=False)
-def test_generate_pages_in_serial_ok(gen_mock):
-    export: SearchExport = SearchExportFactory()
-    with transaction.atomic():
-        res = e.generate_pages()
-        assert res is not None
-    with transaction.atomic():
-        e = SearchExport.objects.get(pk=export.pk)
-        res = export.generate_pages()
-        assert res is not None
-
-    assert gen_mock.call_count == 2
-
-
-@patch("whoweb.search.models.SearchExport._generate_pages")
-@pytest.mark.django_db(transaction=False)
-def test_generate_pages_in_serial_fails_quietly(gen_mock):
-    export: SearchExport = SearchExportFactory()
-    with transaction.atomic():
-        e = SearchExport.objects.get(pk=export.pk)
-        res = e.generate_pages()
-        assert res is not None
-        with transaction.atomic():
-            e = SearchExport.objects.get(pk=export.pk)
-            res = e.generate_pages()
-            assert res is None
-
-    assert gen_mock.call_count == 1
+# def test_create_from_query()
+#     User

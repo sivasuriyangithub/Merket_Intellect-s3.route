@@ -25,6 +25,7 @@ from model_utils import Choices
 from model_utils.fields import MonitorField, StatusField
 from model_utils.managers import QueryManager
 from model_utils.models import TimeStampedModel
+from organizations.models import OrganizationUser
 from requests_cache import CachedSession
 
 from whoweb.contrib.fields import CompressedBinaryField
@@ -41,12 +42,17 @@ from whoweb.search.events import (
     DERIVATION_SPAWN,
     FINALIZE_PAGE,
 )
+from whoweb.users.models import UserProfile
 from .profile import ResultProfile, WORK, PERSONAL, SOCIAL, PROFILE
 from .profile_spec import ensure_profile_matches_spec, ensure_contact_info_matches_spec
 from .scroll import FilteredSearchQuery, ScrollSearch
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
+
+
+class SubscriptionError(Exception):
+    pass
 
 
 class SearchExport(TimeStampedModel):
@@ -98,11 +104,12 @@ class SearchExport(TimeStampedModel):
         (2, "pages_working", "Pages Running"),
         (4, "pages_complete", "Pages Complete"),
         (8, "validating", "Awaiting External Validation"),
-        (16, "post_processing", "Running Post Processing Hooks"),
-        (32, "complete", "Export Complete"),
+        (16, "validated", "Validation Complete"),
+        (32, "post_processed", "Post Processing Hooks Done"),
+        (128, "complete", "Export Complete"),
     )
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(OrganizationUser, on_delete=models.CASCADE)
     scroll = models.ForeignKey(ScrollSearch, on_delete=models.SET_NULL, null=True)
     uuid = models.UUIDField(default=uuid.uuid4)
     query = EmbeddedModelField(
@@ -124,6 +131,9 @@ class SearchExport(TimeStampedModel):
     )
     progress_counter = models.IntegerField(default=0)
     target = models.IntegerField(default=0)
+    charged = models.IntegerField(default=0)
+    refunded = models.IntegerField(default=0)
+
     notify = models.BooleanField(default=False)
     charge = models.BooleanField(default=False)
     uploadable = models.BooleanField(default=False, editable=False)
@@ -141,15 +151,23 @@ class SearchExport(TimeStampedModel):
 
     @classmethod
     def create_from_query(cls, **kwargs):
-        export = cls(**kwargs)
-        export._set_target()
-        export._set_columns()
-        export.save()
+        with transaction.atomic():
+            export = cls(**kwargs)
+            export._set_target()
+            if export.should_derive_email:
+                charged = UserProfile.charge(export.target)
+                if not charged:
+                    raise SubscriptionError(
+                        "Not enough credits to complete this export"
+                    )
+                export.charged = charged
+            export._set_columns()
+            export.save()
         return export
 
-    def locked(self):
+    def locked(self, **kwargs):
         return (
-            self.__class__.objects.filter(id=self.pk)
+            self.__class__.objects.filter(id=self.pk, **kwargs)
             .select_for_update(skip_locked=True, of=("self",))
             .first()
         )
@@ -452,23 +470,35 @@ class SearchExport(TimeStampedModel):
     def get_next_empty_page(self) -> Optional["SearchExportPage"]:
         return self.pages.filter(data__isnull=True).first()
 
-    def _do_post_pages_completion(self):
-        if self.charge:
-            if self.progress_counter < self.target:
-                # TODO: refunds
-                # self.user(inc__credits=self.target - self.progress_counter)
-                self.charged = self.progress_counter
-            else:
-                self.charged = self.target
-            self.status = SearchExport.STATUS.pages_complete
-            self.save()
-
     def do_post_pages_completion(self, task_context=None):
         with transaction.atomic():
-            export = self.locked()
+            export = self.locked(status__lt=SearchExport.STATUS.pages_complete)
             if export:
-                self.log_event(FINALIZING, task=task_context)
-                return export._do_post_pages_completion()
+                export.log_event(FINALIZING, task=task_context)
+                if export.charge:
+                    refund = export.target - min(export.progress_counter, export.target)
+                    export.user.profile.refund(refund)
+                    export.charged = F("charged") - refund
+                    export.refunded = F("refunded") + refund
+                export.status = SearchExport.STATUS.pages_complete
+                export.save()
+
+    def do_post_validation_completion(self):
+        with transaction.atomic():
+            export = self.locked(status__lt=SearchExport.STATUS.validated)
+            if not export:
+                return
+            if export.charge:
+                valid = sum(1 for _ in export.get_validation_results())
+                refund = export.charged - valid
+                if refund > 0:
+                    export.user.profile.refund(refund)
+                    export.charged = F("charged") - refund  # == valid, one would hope.
+                    export.refunded = F("refunded") + refund
+                    export.valid_count = valid
+            export.status = SearchExport.STATUS.validated
+            export.save()
+        export.return_validation_results_to_cache()
 
     def upload_validation(self, task_context=None):
         self.log_event(POST_VALIDATION, task=task_context)
@@ -533,7 +563,7 @@ class SearchExport(TimeStampedModel):
         )
         return r.ok
 
-    def get_validation_results(self):
+    def get_validation_results(self, only_valid=True):
         if self.validation_list_id == self.SKIP_CODE:
             return []
 
@@ -552,15 +582,18 @@ class SearchExport(TimeStampedModel):
         for name in z.namelist():
             data = StringIO(z.read(name))
             reader = csv.reader(data)
+            row: List[str]
             for row in reader:
                 logger.debug(row)
                 if len(row) != 3:
+                    continue
+                if only_valid and row[2][0] not in ["A", "B"]:
                     continue
                 yield {"email": row[0], "profile_id": row[1], "grade": row[2]}
 
     def return_validation_results_to_cache(self):
         upload_limit = 250
-        results_gen = self.get_validation_results()
+        results_gen = self.get_validation_results(only_valid=False)
         while True:
             secondary_validations = []
             i = 0
@@ -662,7 +695,7 @@ class SearchExport(TimeStampedModel):
             validate_rows,
             fetch_validation_results,
             send_notification,
-            refund_against_target,
+            do_post_validation_completion,
             spawn_mx_group,
             header_check,
         )
@@ -672,7 +705,7 @@ class SearchExport(TimeStampedModel):
             sigs |= on_complete
         if self.defer_validation:
             sigs |= validate_rows.si(self.pk) | fetch_validation_results.si(self.pk)
-        sigs |= refund_against_target.si(self.pk)
+        sigs |= do_post_validation_completion.si(self.pk)
         if self.notify:
             sigs |= send_notification.si(self.pk)
         if self.uploadable:

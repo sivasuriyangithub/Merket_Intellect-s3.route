@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.db.models import CharField
+from django.db.models import CharField, F, Value
+from django.db.models.functions import Greatest
 from django.utils.translation import ugettext_lazy as _
 from model_utils.models import TimeStampedModel
 
@@ -21,6 +22,10 @@ class User(AbstractUser):
     def get_username(self):
         """Return the username for this User."""
         return str(getattr(self, self.EMAIL_FIELD))
+
+    def get_full_name(self):
+        """Return the username for this User."""
+        return self.get_username()
 
 
 class UserProfile(TimeStampedModel):

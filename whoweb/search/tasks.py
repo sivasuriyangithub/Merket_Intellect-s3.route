@@ -92,12 +92,12 @@ def send_notification(export_id):
 
 
 @celery_app.task(autoretry_for=NETWORK_ERRORS)
-def refund_against_target(export_id):
+def do_post_validation_completion(export_id):
     try:
         export = SearchExport.objects.get(export_id)
     except SearchExport.DoesNotExist:
         return
-    return export.refund_against_target()
+    return export.do_post_validation_completion()
 
 
 @celery_app.task(ignore_result=False, autoretry_for=NETWORK_ERRORS)

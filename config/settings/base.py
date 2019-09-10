@@ -80,6 +80,7 @@ LOCAL_APPS = [
     "whoweb.users.apps.UsersConfig",
     "whoweb.coldemail.apps.ColdemailConfig",
     "whoweb.search.apps.SearchConfig",
+    "whoweb.payments.apps.AccountsConfig",
     # Your stuff: custom apps go here
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps

@@ -8,7 +8,6 @@ from math import ceil
 from typing import Optional, List
 
 import requests
-from allauth.account.models import EmailAddress
 from celery import group
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -25,7 +24,6 @@ from model_utils import Choices
 from model_utils.fields import MonitorField, StatusField
 from model_utils.managers import QueryManager
 from model_utils.models import TimeStampedModel
-from organizations.models import OrganizationUser
 from requests_cache import CachedSession
 
 from whoweb.contrib.fields import CompressedBinaryField
@@ -42,7 +40,7 @@ from whoweb.search.events import (
     DERIVATION_SPAWN,
     FINALIZE_PAGE,
 )
-from whoweb.users.models import UserProfile
+from whoweb.users.models import Seat
 from .profile import ResultProfile, WORK, PERSONAL, SOCIAL, PROFILE
 from .profile_spec import ensure_profile_matches_spec, ensure_contact_info_matches_spec
 from .scroll import FilteredSearchQuery, ScrollSearch
@@ -109,7 +107,7 @@ class SearchExport(TimeStampedModel):
         (128, "complete", "Export Complete"),
     )
 
-    user = models.ForeignKey(OrganizationUser, on_delete=models.CASCADE)
+    seat = models.ForeignKey(Seat, on_delete=models.CASCADE)
     scroll = models.ForeignKey(ScrollSearch, on_delete=models.SET_NULL, null=True)
     uuid = models.UUIDField(default=uuid.uuid4)
     query = EmbeddedModelField(
@@ -150,12 +148,12 @@ class SearchExport(TimeStampedModel):
         verbose_name = "export"
 
     @classmethod
-    def create_from_query(cls, **kwargs):
+    def create_from_query(cls, seat: Seat, **kwargs):
         with transaction.atomic():
-            export = cls(**kwargs)
+            export = cls(seat=seat, **kwargs)
             export._set_target()
             if export.should_derive_email:
-                charged = UserProfile.charge(export.target)
+                charged = seat.billing.charge(export.target)
                 if not charged:
                     raise SubscriptionError(
                         "Not enough credits to complete this export"
@@ -284,7 +282,7 @@ class SearchExport(TimeStampedModel):
     def ensure_search_interface(self, force=False):
         if self.scroll is None:
             search, created = ScrollSearch.get_or_create(
-                query=self.query, user_id=self.user_id
+                query=self.query, user_id=self.seat_id
             )
             self.scroll = search
             self.save()
@@ -477,7 +475,7 @@ class SearchExport(TimeStampedModel):
                 export.log_event(FINALIZING, task=task_context)
                 if export.charge:
                     refund = export.target - min(export.progress_counter, export.target)
-                    export.user.profile.refund(refund)
+                    export.seat.billing.refund(refund)
                     export.charged = F("charged") - refund
                     export.refunded = F("refunded") + refund
                 export.status = SearchExport.STATUS.pages_complete
@@ -492,7 +490,7 @@ class SearchExport(TimeStampedModel):
                 valid = sum(1 for _ in export.get_validation_results())
                 refund = export.charged - valid
                 if refund > 0:
-                    export.user.profile.refund(refund)
+                    export.seat.billing.refund(refund)
                     export.charged = F("charged") - refund  # == valid, one would hope.
                     export.refunded = F("refunded") + refund
                     export.valid_count = valid
@@ -662,7 +660,7 @@ class SearchExport(TimeStampedModel):
                 return
             if export.sent:
                 return
-            email = EmailAddress.objects.get_primary(user=self.user)
+            email = self.seat.email
             link = self.get_absolute_url()
             json_link = link + ".json"
             subject = "Your WhoKnows Export Results"

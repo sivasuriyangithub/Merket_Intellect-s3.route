@@ -269,6 +269,20 @@ campaign_clicklog_empty = campaign_openlog_empty = """
     "uniquerecords": "0"
 }
 """
+campaign_clicklog_single = """
+{
+    "records": "1",
+    "uniquerecords": "1",
+    "log": {
+            "email": "myriam.mogollon@orlandohealth.com",
+            "datecreated": "July 23, 2019, 04:12:49 pm",
+            "link": "https://&lt;#url#&gt;",
+            "ip": "194.99.104.30",
+            "country": "DE",
+            "useragent": "GNU/Linux x64 IceWeasel 17.0.1"
+        }
+}
+"""
 create_coldlist = """
 {
     "success": "List Created",

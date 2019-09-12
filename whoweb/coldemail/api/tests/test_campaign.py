@@ -11,6 +11,12 @@ def mock_return(data):
     return json.loads(data), None
 
 
+def mock_log_return(data, pages):
+    return [(json.loads(data), None)] * pages + [
+        ({"record": "20", "uniquerecords": "11"}, None)
+    ]
+
+
 @patch("whoweb.coldemail.api.requestor.ColdEmailApiRequestor.request")
 class TestCampaign(SimpleTestCase):
     def test_create(self, request_mock):
@@ -39,33 +45,48 @@ class TestCampaign(SimpleTestCase):
         self.assertEqual(sorted(campaign_records, key=lambda c: c.id)[0].id, "2070437")
 
     def test_click_log(self, request_mock):
-        request_mock.return_value = mock_return(fixtures.campaign_clicklog)
+        request_mock.side_effect = mock_log_return(fixtures.campaign_clicklog, 1)
         campaign = Campaign("0")
         log = campaign.click_log()
-        request_mock.assert_called_once_with("email", "getclicklog", id="0", limit=1000)
+        assert request_mock.call_count == 2
         self.assertEqual(log.uniquerecords, "4")
         self.assertEqual(len(log.log), 10)
 
     def test_empty_click_log(self, request_mock):
-        request_mock.return_value = mock_return(fixtures.campaign_clicklog_empty)
+        request_mock.side_effect = mock_log_return(fixtures.campaign_clicklog_empty, 1)
         campaign = Campaign("0")
         log = campaign.click_log()
-        request_mock.assert_called_once_with("email", "getclicklog", id="0", limit=1000)
+        request_mock.assert_called_once_with(
+            "email", "getclicklog", id="0", limit=1000, start=0
+        )
         self.assertEqual(log.uniquerecords, "0")
         self.assertEqual(len(log.log), 0)
 
+    def test_single_entry_click_log(self, request_mock):
+        request_mock.side_effect = mock_log_return(fixtures.campaign_clicklog_single, 1)
+        campaign = Campaign("0")
+        log = campaign.click_log()
+        assert request_mock.call_count == 2
+        self.assertEqual(log.uniquerecords, "1")
+        self.assertEqual(len(log.log), 1)
+
     def test_open_log(self, request_mock):
-        request_mock.return_value = mock_return(fixtures.campaign_openlog)
+        request_mock.side_effect = mock_log_return(fixtures.campaign_openlog, pages=1)
         campaign = Campaign("0")
         log = campaign.open_log()
-        request_mock.assert_called_once_with("email", "getopenlog", id="0", limit=1000)
+        request_mock.assert_called_with(
+            "email", "getopenlog", id="0", limit=1000, start=1000
+        )
+        assert request_mock.call_count == 2
         self.assertEqual(log.uniquerecords, "4")
         self.assertEqual(len(log.log), 10)
 
     def test_empty_open_log(self, request_mock):
-        request_mock.return_value = mock_return(fixtures.campaign_openlog_empty)
+        request_mock.side_effect = mock_log_return(fixtures.campaign_openlog_empty, 1)
         campaign = Campaign("0")
         log = campaign.open_log()
-        request_mock.assert_called_once_with("email", "getopenlog", id="0", limit=1000)
+        request_mock.assert_called_once_with(
+            "email", "getopenlog", id="0", limit=1000, start=0
+        )
         self.assertEqual(log.uniquerecords, "0")
         self.assertEqual(len(log.log), 0)

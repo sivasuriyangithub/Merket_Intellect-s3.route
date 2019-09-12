@@ -10,14 +10,14 @@ class ExportAdmin(admin.ModelAdmin):
     list_display = (
         "pk",
         "uuid",
-        "user",
+        "seat",
         "status",
         "progress_counter",
         "should_derive_email",
     )
     list_display_links = ("pk", "uuid")
     list_filter = ("status",)
-    search_fields = ("user__email", "user__username")
+    search_fields = ("seat__user__email", "seat__user__username")
     readonly_fields = (
         "validation_list_id",
         "sent",

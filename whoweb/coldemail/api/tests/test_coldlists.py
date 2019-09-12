@@ -47,17 +47,17 @@ class TestColdlist(SimpleTestCase):
         self.assertEqual("OMFM", sorted(list_records, key=lambda c: c.id)[0].title)
 
     def test_good_log(self, request_mock):
-        request_mock.return_value = mock_return(fixtures.coldlist_records)
+        request_mock.side_effect = [mock_return(fixtures.coldlist_records), ({}, None)]
         list_record = CampaignList("0")
         good_log = list_record.good_log()
-        request_mock.assert_called_once_with(
-            "email", "getlistdetail", filter="active", limit=100000, id="0"
+        request_mock.assert_called_with(
+            "email", "getlistdetail", filter="active", limit=1000, id="0", start=1000
         )
 
         self.assertIsInstance(good_log.log[0], ColdEmailObject)
         self.assertEqual(3, len(good_log.log))
 
         # Assert cached
-        self.assertEqual(1, request_mock.call_count)
+        self.assertEqual(2, request_mock.call_count)
         list_record.good_log()
-        self.assertEqual(1, request_mock.call_count)
+        self.assertEqual(2, request_mock.call_count)

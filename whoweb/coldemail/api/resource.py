@@ -1,7 +1,7 @@
 import json
 import logging
 from copy import deepcopy
-from typing import Union, List, Optional
+from typing import Optional, Union, List
 
 import requests
 import six
@@ -15,7 +15,7 @@ logger = logging.getLogger("coldEmail")
 
 
 def convert_to_coldemail_object(
-    resp: Union[dict, list, "ColdEmailObject"], api_key: Optional[str]
+    action: str, resp: Union[dict, list, "ColdEmailObject"], api_key: Optional[str]
 ) -> Union["ColdEmailObject", List["ColdEmailObject"], None]:
     types = {
         "campaign": Campaign,
@@ -25,7 +25,7 @@ def convert_to_coldemail_object(
         "single_email": SingleEmail,
     }
     if isinstance(resp, list):
-        return [convert_to_coldemail_object(i, api_key) for i in resp]
+        return [convert_to_coldemail_object(action, i, api_key) for i in resp]
     elif isinstance(resp, dict) and not isinstance(resp, ColdEmailObject):
         resp = resp.copy()
 
@@ -40,13 +40,14 @@ def convert_to_coldemail_object(
             klass = ColdEmailObject
 
         if klass_name in resp:
-            obj_or_array: Union[dict, list] = resp[klass_name]
+            obj_or_array = resp[klass_name]
             if isinstance(obj_or_array, list):
-                return [klass.construct_from(obj, api_key) for obj in obj_or_array]
-            else:
-                return klass.construct_from(obj_or_array, api_key)
+                return [
+                    klass.construct_from(action, obj, api_key) for obj in obj_or_array
+                ]
+            return klass.construct_from(action, obj_or_array, api_key)
         else:
-            return klass.construct_from(resp, api_key)
+            return klass.construct_from(action, resp, api_key)
     else:
         return resp
 
@@ -80,7 +81,7 @@ class ColdEmailObject(dict):
     object_name = None
 
     def __init__(self, id=None, api_key=None, **params):
-        super(ColdEmailObject, self).__init__()
+        super().__init__()
 
         self._unsaved_values = set()
         self._transient_values = set()
@@ -97,11 +98,11 @@ class ColdEmailObject(dict):
         for k in update_dict:
             self._unsaved_values.add(k)
 
-        return super(ColdEmailObject, self).update(update_dict)
+        return super().update(update_dict)
 
     def __setattr__(self, k, v):
         if k[0] == "_" or k in self.__dict__:
-            return super(ColdEmailObject, self).__setattr__(k, v)
+            return super().__setattr__(k, v)
 
         self[k] = v
         return None
@@ -117,7 +118,7 @@ class ColdEmailObject(dict):
 
     def __delattr__(self, k):
         if k[0] == "_" or k in self.__dict__:
-            return super(ColdEmailObject, self).__delattr__(k)
+            return super().__delattr__(k)
         else:
             del self[k]
 
@@ -129,7 +130,7 @@ class ColdEmailObject(dict):
                 "You may set %s.%s = None to delete the property" % (k, str(self), k)
             )
 
-        super(ColdEmailObject, self).__setitem__(k, v)
+        super().__setitem__(k, v)
 
         # Allows for unpickling in Python 3.x
         if not hasattr(self, "_unsaved_values"):
@@ -139,7 +140,7 @@ class ColdEmailObject(dict):
 
     def __getitem__(self, k):
         try:
-            return super(ColdEmailObject, self).__getitem__(k)
+            return super().__getitem__(k)
         except KeyError as err:
             if k in self._transient_values:
                 raise KeyError(
@@ -153,7 +154,7 @@ class ColdEmailObject(dict):
                 raise err
 
     def __delitem__(self, k):
-        super(ColdEmailObject, self).__delitem__(k)
+        super().__delitem__(k)
 
         # Allows for unpickling in Python 3.x
         if hasattr(self, "_unsaved_values"):
@@ -177,11 +178,8 @@ class ColdEmailObject(dict):
         return reduce_value
 
     @classmethod
-    def construct_from(cls, values, key):
+    def construct_from(cls, action, values, key):
         instance = cls(values.get("id"), api_key=key)
-        # if cls.object_name:
-        #     values = values.get(cls.object_name, values)
-        # logger.debug(values)
         instance.refresh_from(values, api_key=key)
         return instance
 
@@ -200,9 +198,7 @@ class ColdEmailObject(dict):
         self._transient_values = self._transient_values - set(values)
 
         for k, v in six.iteritems(values):
-            super(ColdEmailObject, self).__setitem__(
-                k, convert_to_coldemail_object(v, api_key)
-            )
+            super().__setitem__(k, convert_to_coldemail_object(None, v, api_key))
 
         self._previous = values
 
@@ -265,7 +261,7 @@ class ColdEmailObject(dict):
         for k, v in six.iteritems(self):
             # Call parent's __setitem__ to avoid checks that we've added in the
             # overridden version that can throw exceptions.
-            super(ColdEmailObject, copied).__setitem__(k, v)
+            super().__setitem__(k, v)
 
         return copied
 
@@ -281,7 +277,7 @@ class ColdEmailObject(dict):
         for k, v in six.iteritems(self):
             # Call parent's __setitem__ to avoid checks that we've added in the
             # overridden version that can throw exceptions.
-            super(ColdEmailObject, copied).__setitem__(k, deepcopy(v, memo))
+            super().__setitem__(k, deepcopy(v, memo))
 
         return copied
 
@@ -293,13 +289,13 @@ class APIResource(ColdEmailObject):
         instance.refresh()
         return instance
 
-    def request(self, area: str, action: str, **params):
+    def request(self, area, action, **params):
         if not params:
             params = self._retrieve_params
 
         requestor = ColdEmailApiRequestor(self.api_key)
         response, api_key = requestor.request(area, action, **params)
-        return convert_to_coldemail_object(response, api_key)
+        return self.construct_from(action, response, api_key)
 
     def refresh(self):
         data = self.request(
@@ -329,8 +325,8 @@ class CreateableResource(APIResource):
     def create(cls, api_key=None, **params):
         requestor = ColdEmailApiRequestor(api_key)
         response, api_key = requestor.request(cls.area, cls.create_action, **params)
-        result = convert_to_coldemail_object(response, api_key)
-        return cls.construct_from(result, api_key)
+        result = convert_to_coldemail_object(cls.create_action, response, api_key)
+        return cls.construct_from(cls.create_action, result, api_key)
 
 
 class UpdateableResource(APIResource):
@@ -360,8 +356,27 @@ class ListableResource(APIResource):
     def list(cls, api_key=None, **params):
         requestor = ColdEmailApiRequestor(api_key)
         response, api_key = requestor.request(cls.area, cls.list_action, **params)
-        coldemail_object = convert_to_coldemail_object(response, api_key)
+        coldemail_object = convert_to_coldemail_object(
+            cls.list_action, response, api_key
+        )
         return coldemail_object
+
+
+class LogEntry(ColdEmailObject):
+    object_name = "log_entry"
+
+
+class Log(ColdEmailObject):
+    object_name = "log"
+
+    @classmethod
+    def construct_from(cls, action, values, key):
+        vals = values.get("log", [])
+        if isinstance(vals, list):
+            values["log"] = [LogEntry.construct_from(action, obj, key) for obj in vals]
+        else:
+            values["log"] = [LogEntry.construct_from(action, vals, key)]
+        return super().construct_from(action, values, key)
 
 
 # API objects
@@ -375,27 +390,55 @@ class Campaign(
     modify_action = "editcampaign"
     delete_action = "deletecampaign"
     list_action = "getcampaigns"
+    click_log_action = "getclicklog"
+    open_log_action = "getopenlog"
+
+    @classmethod
+    def construct_from(cls, action, values, key):
+        if action in [cls.open_log_action, cls.click_log_action]:
+            return Log.construct_from(action, values, key)
+        if cls.object_name in values:
+            return super().construct_from(action, values[cls.object_name], key)
+        else:
+            return super().construct_from(action, values, key)
+
+    def _log(self, action, target_limit=100000, **kwargs):
+        kwargs.update(self.instance_args())
+        kwargs.update(area=self.area, action=action)
+        if target_limit <= 1000:
+            return self.request(limit=target_limit, **kwargs)
+        start = 0
+        limit = 1000
+        result = None
+        while start < target_limit:
+            data = self.request(limit=limit, start=start, **kwargs)
+            if result is None:
+                result = data
+            else:
+                result.log.extend(data.log)
+            if not data.log:
+                return result
+            start += limit
+        return result
 
     def pause(self, **kwargs):
         kwargs.update(self.instance_args())
-        res = self.request(self.area, "pausecampaign", limit=1000, **kwargs)
-        return res and res.success
+        return self.request(self.area, "pausecampaign", **kwargs).success
 
     def resume(self, **kwargs):
         kwargs.update(self.instance_args())
-        res = self.request(self.area, "resumecampaign", limit=1000, **kwargs)
-        return res and res.success
+        return self.request(self.area, "resumecampaign", **kwargs).success
 
     def click_log(self, **kwargs):
         kwargs.update(self.instance_args())
-        result = self.request(self.area, "getclicklog", limit=1000, **kwargs)
+        result = self._log(self.click_log_action, target_limit=100000, **kwargs)
         if "log" not in result:
             result.log = []
         return result
 
     def open_log(self, **kwargs):
         kwargs.update(self.instance_args())
-        result = self.request(self.area, "getopenlog", limit=1000, **kwargs)
+        result = self._log(self.open_log_action, target_limit=100000, **kwargs)
         if "log" not in result:
             result.log = []
         return result
@@ -419,33 +462,74 @@ class CampaignList(CreateableResource, DeleteableResource, ListableResource):
     list_action = "getlists"
     create_action = "createlist"
     delete_action = "deletelist"
+    records_action = "getlistdetail"
 
-    def __init__(self, *args, **kwargs):
-        super(CampaignList, self).__init__(*args, **kwargs)
-        object.__setattr__(self, "records", [])
+    @classmethod
+    def construct_from(cls, action, values, key):
+        if action == cls.records_action:
+            records = values.get("record", [])
+            if not isinstance(records, list):
+                records = [records]
+            return [ListRecord.construct_from(action, obj, key) for obj in records]
+        if cls.object_name in values:
+            return super().construct_from(action, values[cls.object_name], key)
+        else:
+            return super().construct_from(action, values, key)
 
     @classmethod
     def create_by_url(cls, api_key=None, **params):
         requestor = ColdEmailApiRequestor(api_key)
         response, api_key = requestor.request(cls.area, "uploadlistbyurl", **params)
         return convert_to_coldemail_object(
+            "uploadlistbyurl",
             {"list": {"id": response.get("listid"), "status": response.get("status")}},
             api_key,
         )
 
-    def _records(self, **kwargs):
+    def _records(self, target_limit=100000, **kwargs):
         kwargs.update(self.instance_args())
-        return self.request(area=self.area, action="getlistdetail", **kwargs)
+        kwargs.update(area=self.area, action="getlistdetail")
+        if target_limit <= 1000:
+            return self.request(limit=target_limit, **kwargs)
+        start = 0
+        limit = 1000
+        result = None
+        while start < target_limit:
+            data = self.request(limit=limit, start=start, **kwargs)
+            if result is None:
+                result = data
+            elif isinstance(data, list):
+                result.extend(data)
+            if not data or not isinstance(data, list):
+                return result
+            start += limit
+        return result
 
     def good_log(self, refresh=False, **kwargs):
-        if not self.records or refresh is True:
-            self.records = self._records(filter="active", limit=100000, **kwargs)
+        if not getattr(self, "records", None) or refresh == True:
+            self.records = self._records(filter="active", target_limit=100000, **kwargs)
         return convert_to_coldemail_object(
+            None,
             {
                 "log": [
                     {"email": row.good_email()}
                     for row in self.records
                     if row.good_email()
+                ]
+            },
+            None,
+        )
+
+    def bad_log(self, refresh=False, **kwargs):
+        if not getattr(self, "records", None) or refresh == True:
+            self.records = self._records(filter="active", target_limit=100000, **kwargs)
+        return convert_to_coldemail_object(
+            None,
+            {
+                "log": [
+                    {"email": row.good_email()}
+                    for row in self.records
+                    if not row.good_email()
                 ]
             },
             None,
@@ -464,13 +548,27 @@ class Message(
     delete_action = "deletemessage"
     list_action = "getmessages"
 
-    pass
+    @classmethod
+    def construct_from(cls, action, values, key):
+        if cls.object_name in values:
+            return super().construct_from(action, values[cls.object_name], key)
+        else:
+            return super().construct_from(action, values, key)
 
 
 class SingleEmail(CreateableResource):
     area = areas.EMAIL
+
+    object_name = "single_email"
     create_action = "sendsingleemail"
     detail_action = "getresultsendsingleemail"
+
+    @classmethod
+    def construct_from(cls, action, values, key):
+        if cls.object_name in values:
+            return super().construct_from(action, values[cls.object_name], key)
+        else:
+            return super().construct_from(action, values, key)
 
 
 class RoutesObject(object):

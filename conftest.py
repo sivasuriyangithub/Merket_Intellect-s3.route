@@ -4,6 +4,8 @@ from django.test import RequestFactory
 
 from whoweb.users.tests.factories import UserFactory
 
+pytest_plugins = ["whoweb.search.tests.fixtures"]
+
 
 @pytest.fixture(autouse=True)
 def media_storage(settings, tmpdir):

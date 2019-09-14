@@ -1,8 +1,10 @@
 import typing
+from json import JSONEncoder
 
 from django import forms
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import JSONField
+from django.contrib.postgres.fields.jsonb import JsonAdapter
 from django.core import exceptions
 from django.forms import SelectMultiple
 from django.utils.translation import ugettext_lazy as _
@@ -16,6 +18,33 @@ from .forms import EmbeddedModelFormField
 #     def __init__(self, embedded_model):
 #         self.subterfuge = embedded_model
 #
+class EmbeddedJSONEncoder(JSONEncoder):
+    def default(self, o):
+        try:
+            return o.adapted
+        except AttributeError:
+            return o
+
+
+class CastOnAssignDescriptor(object):
+    """
+    A property descriptor which ensures that `field.to_python()` is called on _every_ assignment to the field.
+    This used to be provided by the `django.db.models.subclassing.Creator` class, which in turn
+    was used by the deprecated-in-Django-1.10 `SubfieldBase` class, hence the reimplementation here.
+
+    https://stackoverflow.com/a/39471064
+    """
+
+    def __init__(self, field):
+        self.field = field
+
+    def __get__(self, obj, type=None):
+        if obj is None:
+            return self
+        return obj.__dict__[self.field.name]
+
+    def __set__(self, obj, value):
+        obj.__dict__[self.field.name] = self.field.to_python(value)
 
 
 class EmbeddedModelField(JSONField):
@@ -46,8 +75,13 @@ class EmbeddedModelField(JSONField):
         "invalid": _("Value must be a valid instance of an abstract Model.")
     }
 
-    def __init__(self, model_container: typing.Type[AbstractEmbeddedModel], **kwargs):
-        super(EmbeddedModelField, self).__init__(**kwargs)
+    def __init__(
+        self,
+        model_container: typing.Type[AbstractEmbeddedModel],
+        encoder: typing.Optional[JSONEncoder] = EmbeddedJSONEncoder,
+        **kwargs,
+    ):
+        super(EmbeddedModelField, self).__init__(encoder=encoder, **kwargs)
         self.model_container = model_container
 
     def deconstruct(self):
@@ -89,6 +123,7 @@ class EmbeddedModelField(JSONField):
 
     def get_prep_value(self, value):
         if value is not None:
+            value = self.to_python(value)
             value = serialize_model(value)
         return super().get_prep_value(value)
 
@@ -100,6 +135,10 @@ class EmbeddedModelField(JSONField):
                 **kwargs,
             }
         )
+
+    def contribute_to_class(self, cls, name, private_only=False):
+        super().contribute_to_class(cls, name, private_only)
+        setattr(cls, name, CastOnAssignDescriptor(self))
 
 
 class ChoiceArrayField(ArrayField):

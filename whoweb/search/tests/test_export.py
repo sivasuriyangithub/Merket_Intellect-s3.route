@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import pytest
+from pytest_cases import fixture_ref, pytest_parametrize_plus
 
 from whoweb.search.models import SearchExport
 from whoweb.search.tests.factories import SearchExportFactory
@@ -33,5 +34,35 @@ def test_return_validation_results_to_cache(result_mock, cache_mock):
     assert cache_mock.call_count == 3  # (250, 250, 5)
 
 
-# def test_create_from_query()
-#     User
+@pytest_parametrize_plus(
+    "query,cols",
+    [
+        (fixture_ref("query_no_contact"), SearchExport.BASE_COLS),
+        (
+            fixture_ref("query_contact_no_invites"),
+            SearchExport.BASE_COLS + SearchExport.DERIVATION_COLS,
+        ),
+        (
+            fixture_ref("query_contact_invites"),
+            SearchExport.INTRO_COLS
+            + SearchExport.BASE_COLS
+            + SearchExport.DERIVATION_COLS,
+        ),
+    ],
+)
+def test_export_set_columns(query, cols):
+    export = SearchExportFactory(query=query)
+    export._set_columns()
+    assert export.columns == cols
+
+
+def test_export_set_columns_for_upload(query_contact_invites):
+    export = SearchExportFactory(query=query_contact_invites, uploadable=True)
+    export._set_columns()
+    assert (
+        export.columns
+        == SearchExport.INTRO_COLS
+        + SearchExport.BASE_COLS
+        + SearchExport.DERIVATION_COLS
+        + SearchExport.UPLOADABLE_COLS
+    )

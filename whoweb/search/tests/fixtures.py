@@ -2,7 +2,8 @@
 
 import json
 
-import bson
+import pytest
+from bson.json_util import object_hook
 
 PENDING = r"""
     [
@@ -50506,5 +50507,307 @@ DONE = r"""
 ]
 """
 
-pending = json.loads(PENDING, object_hook=bson.json_util.object_hook, strict=False)
-done = json.loads(DONE, object_hook=bson.json_util.object_hook, strict=False)
+pending = json.loads(PENDING, object_hook=object_hook, strict=False)
+done = json.loads(DONE, object_hook=object_hook, strict=False)
+
+
+@pytest.fixture
+def query_no_contact():
+    return {
+        "defer": ["degree_levels", "company_counts", "contact"],
+        "user_id": "512cce8c7cc2133a2be3543d",
+        "filters": {
+            "desired": [
+                {
+                    "field": "current_experience.seniority_level",
+                    "value": ["CXO"],
+                    "truth": True,
+                }
+            ],
+            "required": [
+                {
+                    "field": "near",
+                    "value": [{"locale": "United States", "miles": "1"}],
+                    "truth": True,
+                },
+                {
+                    "field": "keyword",
+                    "value": [
+                        "Fundraising",
+                        "Philanthropy",
+                        "Development",
+                        "Annual Fund",
+                        "Direct Marketing",
+                        "Direct Response",
+                        "Digital Marketing",
+                        "Advancement",
+                        "Donor",
+                        "Donors",
+                        "Donor Relations",
+                    ],
+                    "truth": True,
+                },
+                {
+                    "field": "industry",
+                    "value": [
+                        "Nonprofit Organization Management",
+                        "Religious Institutions",
+                    ],
+                    "truth": True,
+                },
+                {
+                    "field": "current_experience.title",
+                    "value": [
+                        "Development",
+                        "Annual Fund",
+                        "Philanthropy",
+                        "Marketing",
+                        "Fundraising",
+                        "Advancement",
+                        "Prospect Research",
+                        "Communications",
+                    ],
+                    "truth": True,
+                },
+                {
+                    "field": "current_experience.title",
+                    "value": ["retired", "former"],
+                    "truth": False,
+                },
+                {
+                    "field": "current_experience.seniority_level",
+                    "value": ["CXO", "VP", "Director"],
+                    "truth": True,
+                },
+            ],
+            "limit": 5000,
+            "skip": 0,
+        },
+    }
+
+
+@pytest.fixture
+def query_contact_invites():
+    return {
+        "defer": ["degree_levels", "company_counts"],
+        "user_id": "512cce8c7cc2133a2be3543d",
+        "with_invites": True,
+        "filters": {
+            "desired": [
+                {
+                    "field": "current_experience.seniority_level",
+                    "value": ["CXO"],
+                    "truth": True,
+                }
+            ],
+            "required": [
+                {
+                    "field": "near",
+                    "value": [{"locale": "United States", "miles": "1"}],
+                    "truth": True,
+                },
+                {
+                    "field": "keyword",
+                    "value": [
+                        "Fundraising",
+                        "Philanthropy",
+                        "Development",
+                        "Annual Fund",
+                        "Direct Marketing",
+                        "Direct Response",
+                        "Digital Marketing",
+                        "Advancement",
+                        "Donor",
+                        "Donors",
+                        "Donor Relations",
+                    ],
+                    "truth": True,
+                },
+                {
+                    "field": "industry",
+                    "value": [
+                        "Nonprofit Organization Management",
+                        "Religious Institutions",
+                    ],
+                    "truth": True,
+                },
+                {
+                    "field": "current_experience.title",
+                    "value": [
+                        "Development",
+                        "Annual Fund",
+                        "Philanthropy",
+                        "Marketing",
+                        "Fundraising",
+                        "Advancement",
+                        "Prospect Research",
+                        "Communications",
+                    ],
+                    "truth": True,
+                },
+                {
+                    "field": "current_experience.title",
+                    "value": ["retired", "former"],
+                    "truth": False,
+                },
+                {
+                    "field": "current_experience.seniority_level",
+                    "value": ["CXO", "VP", "Director"],
+                    "truth": True,
+                },
+            ],
+            "limit": 5000,
+            "skip": 0,
+        },
+    }
+
+
+@pytest.fixture
+def query_contact_no_invites():
+    return {
+        "defer": ["degree_levels", "company_counts"],
+        "user_id": "512cce8c7cc2133a2be3543d",
+        "filters": {
+            "desired": [
+                {
+                    "field": "current_experience.seniority_level",
+                    "value": ["CXO"],
+                    "truth": True,
+                }
+            ],
+            "required": [
+                {
+                    "field": "near",
+                    "value": [{"locale": "United States", "miles": "1"}],
+                    "truth": True,
+                },
+                {
+                    "field": "keyword",
+                    "value": [
+                        "Fundraising",
+                        "Philanthropy",
+                        "Development",
+                        "Annual Fund",
+                        "Direct Marketing",
+                        "Direct Response",
+                        "Digital Marketing",
+                        "Advancement",
+                        "Donor",
+                        "Donors",
+                        "Donor Relations",
+                    ],
+                    "truth": True,
+                },
+                {
+                    "field": "industry",
+                    "value": [
+                        "Nonprofit Organization Management",
+                        "Religious Institutions",
+                    ],
+                    "truth": True,
+                },
+                {
+                    "field": "current_experience.title",
+                    "value": [
+                        "Development",
+                        "Annual Fund",
+                        "Philanthropy",
+                        "Marketing",
+                        "Fundraising",
+                        "Advancement",
+                        "Prospect Research",
+                        "Communications",
+                    ],
+                    "truth": True,
+                },
+                {
+                    "field": "current_experience.title",
+                    "value": ["retired", "former"],
+                    "truth": False,
+                },
+                {
+                    "field": "current_experience.seniority_level",
+                    "value": ["CXO", "VP", "Director"],
+                    "truth": True,
+                },
+            ],
+            "limit": 5000,
+            "skip": 0,
+        },
+    }
+
+
+@pytest.fixture
+def query_contact_invites():
+    return {
+        "defer": ["degree_levels", "company_counts"],
+        "user_id": "512cce8c7cc2133a2be3543d",
+        "with_invites": True,
+        "filters": {
+            "desired": [
+                {
+                    "field": "current_experience.seniority_level",
+                    "value": ["CXO"],
+                    "truth": True,
+                }
+            ],
+            "required": [
+                {
+                    "field": "near",
+                    "value": [{"locale": "United States", "miles": "1"}],
+                    "truth": True,
+                },
+                {
+                    "field": "keyword",
+                    "value": [
+                        "Fundraising",
+                        "Philanthropy",
+                        "Development",
+                        "Annual Fund",
+                        "Direct Marketing",
+                        "Direct Response",
+                        "Digital Marketing",
+                        "Advancement",
+                        "Donor",
+                        "Donors",
+                        "Donor Relations",
+                    ],
+                    "truth": True,
+                },
+                {
+                    "field": "industry",
+                    "value": [
+                        "Nonprofit Organization Management",
+                        "Religious Institutions",
+                    ],
+                    "truth": True,
+                },
+                {
+                    "field": "current_experience.title",
+                    "value": [
+                        "Development",
+                        "Annual Fund",
+                        "Philanthropy",
+                        "Marketing",
+                        "Fundraising",
+                        "Advancement",
+                        "Prospect Research",
+                        "Communications",
+                    ],
+                    "truth": True,
+                },
+                {
+                    "field": "current_experience.title",
+                    "value": ["retired", "former"],
+                    "truth": False,
+                },
+                {
+                    "field": "current_experience.seniority_level",
+                    "value": ["CXO", "VP", "Director"],
+                    "truth": True,
+                },
+            ],
+            "limit": 5000,
+            "skip": 0,
+        },
+    }

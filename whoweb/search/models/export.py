@@ -142,7 +142,7 @@ class SearchExport(TimeStampedModel):
 
     # Managers
     objects = models.Manager()
-    internal = QueryManager(uploadable=False)
+    internal = QueryManager(uploadable=True)
 
     class Meta:
         verbose_name = "export"

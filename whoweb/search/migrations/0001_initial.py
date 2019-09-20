@@ -468,7 +468,7 @@ class Migration(migrations.Migration):
                         verbose_name="modified",
                     ),
                 ),
-                ("data", whoweb.contrib.fields.CompressedBinaryField(null=True)),
+                ("data", whoweb.contrib.fields.CompressedBinaryJSONField(null=True)),
                 ("page_num", models.PositiveIntegerField()),
                 (
                     "working_data",

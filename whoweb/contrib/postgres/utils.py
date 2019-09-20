@@ -4,9 +4,19 @@ from django import forms
 from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields.jsonb import JsonAdapter
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import AutoField, BigAutoField
 from django.forms import modelform_factory
 from factory.django import get_model
+
+
+class EmbeddedJSONEncoder(DjangoJSONEncoder):
+    def default(self, o):
+        try:
+            return o.adapted
+            # return super().default(o.adapted)
+        except AttributeError:
+            return super().default(o)
 
 
 def find_model(model_name):
@@ -46,6 +56,11 @@ def serialize_model(instance, connection=None, prepared=None):
         prep_value = fld.get_db_prep_value(fld_value, connection, prepared)
         if isinstance(prep_value, JsonAdapter):  # nested embed
             prep_value = prep_value.adapted
+        if isinstance(prep_value, (tuple, list)):  # nested embed array
+            prep_value = [
+                (val.adapted if isinstance(val, JsonAdapter) else val)
+                for val in prep_value
+            ]
         model_obj[fld.attname] = prep_value
     return model_obj
 

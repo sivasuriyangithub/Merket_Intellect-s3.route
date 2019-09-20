@@ -5,7 +5,7 @@ from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
 
 from whoweb.contrib.postgres.abstract_models import AbstractEmbeddedModel
-from whoweb.contrib.postgres.fields import EmbeddedModelField
+from whoweb.contrib.postgres.fields import EmbeddedModelField, EmbeddedArrayField
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -26,13 +26,13 @@ class FilteredSearchFilters(AbstractEmbeddedModel):
 
     limit = models.IntegerField(null=True)
     skip = models.IntegerField(null=True, default=0)
-    required = ArrayField(
+    required = EmbeddedArrayField(
         EmbeddedModelField(
             FilteredSearchFilterElement, default=FilteredSearchFilterElement
         ),
         default=list,
     )
-    desired = ArrayField(
+    desired = EmbeddedArrayField(
         EmbeddedModelField(
             FilteredSearchFilterElement, default=FilteredSearchFilterElement
         ),

@@ -5,7 +5,7 @@ import zipfile
 from datetime import timedelta
 from functools import partial
 from math import ceil
-from typing import Optional, List
+from typing import Optional, List, Iterable
 
 import requests
 from celery import group
@@ -17,6 +17,7 @@ from django.core.mail import send_mail
 from django.db import models, transaction
 from django.db.models import F
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils.six import string_types, StringIO
 from django.utils.translation import ugettext_lazy as _
 from dns import resolver
@@ -26,10 +27,10 @@ from model_utils.managers import QueryManager
 from model_utils.models import TimeStampedModel
 from requests_cache import CachedSession
 
-from whoweb.contrib.fields import CompressedBinaryField
+from whoweb.contrib.fields import CompressedBinaryJSONField
 from whoweb.contrib.postgres.fields import EmbeddedModelField, ChoiceArrayField
 from whoweb.core.models import ModelEvent
-from whoweb.core.router import router
+from whoweb.core.router import router, external_link
 from whoweb.search.events import (
     GENERATING_PAGES,
     FINALIZING,
@@ -47,6 +48,7 @@ from .scroll import FilteredSearchQuery, ScrollSearch
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
+DATAVALIDATION_URL = "https://dv3.datavalidation.com/api/v2/user/me"
 
 
 class SubscriptionError(Exception):
@@ -109,7 +111,7 @@ class SearchExport(TimeStampedModel):
 
     seat = models.ForeignKey(Seat, on_delete=models.CASCADE)
     scroll = models.ForeignKey(ScrollSearch, on_delete=models.SET_NULL, null=True)
-    uuid = models.UUIDField(default=uuid.uuid4)
+    uuid = models.UUIDField(default=uuid.uuid4, db_index=True)
     query = EmbeddedModelField(
         FilteredSearchQuery, blank=False, default=FilteredSearchQuery
     )
@@ -131,6 +133,7 @@ class SearchExport(TimeStampedModel):
     target = models.IntegerField(default=0)
     charged = models.IntegerField(default=0)
     refunded = models.IntegerField(default=0)
+    valid_count = models.IntegerField(null=True)
 
     notify = models.BooleanField(default=False)
     charge = models.BooleanField(default=False)
@@ -290,7 +293,7 @@ class SearchExport(TimeStampedModel):
 
     def get_raw(self):
         for page in self.pages.iterator(chunk_size=4):
-            for row in page.data():
+            for row in page.data:
                 yield row
 
     def get_profiles(self, validation_registry=None, raw=None):
@@ -377,7 +380,7 @@ class SearchExport(TimeStampedModel):
         mx_profiles = (
             profile.set_mx(mx_registry=mx_registry) for profile in profiles()
         )
-
+        yield self.get_column_names()
         for _ in range(self.target):
             yield self.get_csv_row(
                 mx_profiles.__next__(),
@@ -424,7 +427,7 @@ class SearchExport(TimeStampedModel):
         if not last_completed_page:
             start_page = int(ceil(float(self.start_from_count) / search.page_size))
         else:
-            start_page = last_completed_page.page + 1
+            start_page = last_completed_page.page_num + 1
 
         if ids:
             # Mock scroll with given ids.
@@ -454,7 +457,7 @@ class SearchExport(TimeStampedModel):
             if remainder > 0:
                 pages[-1].limit = remainder
                 # set limit so we dont try to derive the whole page
-            return SearchExportPage.objects.bulk_create(pages)
+            return SearchExportPage.objects.bulk_create(pages, ignore_conflicts=True)
 
     def generate_pages(self, task_context=None):
         with transaction.atomic():
@@ -493,7 +496,7 @@ class SearchExport(TimeStampedModel):
                     export.seat.billing.refund(refund)
                     export.charged = F("charged") - refund  # == valid, one would hope.
                     export.refunded = F("refunded") + refund
-                    export.valid_count = valid
+                export.valid_count = valid
             export.status = SearchExport.STATUS.validated
             export.save()
         export.return_validation_results_to_cache()
@@ -510,10 +513,10 @@ class SearchExport(TimeStampedModel):
             return
 
         r = requests.post(
-            "{}/list/create_from_url/".format(settings.DATAVALIDATION_URL),
-            headers={"Authorization": "Bearer {}".format(settings.DATAVALIDATION_KEY)},
+            url=f"{DATAVALIDATION_URL}/list/create_from_url/",
+            headers={"Authorization": f"Bearer {settings.DATAVALIDATION_KEY}"},
             data=dict(
-                url=self.generate_validation_url(),
+                url=external_link(self.get_validation_url()),
                 name=self.uuid.hex,
                 email_column_index=0,
                 has_header=0,
@@ -534,8 +537,8 @@ class SearchExport(TimeStampedModel):
         self.log_event(FETCH_VALIDATION, task=task_context)
 
         status = requests.get(
-            "{}/list/{}/".format(settings.DATAVALIDATION_URL, self.validation_list_id),
-            headers={"Authorization": "Bearer {}".format(settings.DATAVALIDATION_KEY)},
+            f"{DATAVALIDATION_URL}/list/{self.validation_list_id}/",
+            headers={"Authorization": f"Bearer {settings.DATAVALIDATION_KEY}"},
         ).json()
 
         if status.get("status_value") == "FAILED":
@@ -544,19 +547,15 @@ class SearchExport(TimeStampedModel):
         if status.get("status_percent_complete", 0) < 100:
             return False
         r = requests.head(
-            "{}/list/{}/download_result/".format(
-                settings.DATAVALIDATION_URL, self.validation_list_id
-            ),
-            headers={"Authorization": "Bearer {}".format(settings.DATAVALIDATION_KEY)},
+            f"{DATAVALIDATION_URL}/list/{self.validation_list_id}/download_result/",
+            headers={"Authorization": f"Bearer {settings.DATAVALIDATION_KEY}"},
         )
         if not r.ok:
             return False
         s = CachedSession(expire_after=timedelta(days=30).total_seconds())
         r = s.get(
-            "{}/list/{}/download_result/".format(
-                settings.DATAVALIDATION_URL, self.validation_list_id
-            ),
-            headers={"Authorization": "Bearer {}".format(settings.DATAVALIDATION_KEY)},
+            f"{DATAVALIDATION_URL}/list/{self.validation_list_id}/download_result/",
+            headers={"Authorization": f"Bearer {settings.DATAVALIDATION_KEY}"},
             stream=True,
         )
         return r.ok
@@ -567,10 +566,8 @@ class SearchExport(TimeStampedModel):
 
         s = CachedSession(expire_after=timedelta(days=30).total_seconds())
         r = s.get(
-            "{}/list/{}/download_result/".format(
-                settings.DATAVALIDATION_URL, self.validation_list_id
-            ),
-            headers={"Authorization": "Bearer {}".format(settings.DATAVALIDATION_KEY)},
+            f"{DATAVALIDATION_URL}/list/{self.validation_list_id}/download_result/",
+            headers={"Authorization": f"Bearer {settings.DATAVALIDATION_KEY}"},
             stream=True,
         )
         r.raise_for_status()
@@ -579,8 +576,7 @@ class SearchExport(TimeStampedModel):
 
         for name in z.namelist():
             data = StringIO(z.read(name))
-            reader = csv.reader(data)
-            row: List[str]
+            reader: Iterable[List[str]] = csv.reader(data)
             for row in reader:
                 logger.debug(row)
                 if len(row) != 3:
@@ -661,7 +657,7 @@ class SearchExport(TimeStampedModel):
             if export.sent:
                 return
             email = self.seat.email
-            link = self.get_absolute_url()
+            link = external_link(self.get_absolute_url())
             json_link = link + ".json"
             subject = "Your WhoKnows Export Results"
             template = "search/download_export.html"
@@ -713,6 +709,18 @@ class SearchExport(TimeStampedModel):
             )
         return sigs
 
+    def get_validation_url(self):
+        return reverse("search:validate_export", kwargs={"uuid": self.uuid})
+
+    def get_named_fetch_url(self):
+        return reverse(
+            "search:download_export_with_named_file_ext",
+            kwargs={"uuid": self.uuid, "same_uuid": self.uuid},
+        )
+
+    def get_absolute_url(self):
+        return reverse("search:download_export", kwargs={"uuid": self.uuid})
+
     def log_event(self, evt, *, start=None, end=None, task=None, **data):
         if hasattr(task, "id"):
             data["task_id"] = task.id
@@ -731,7 +739,7 @@ class SearchExportPage(TimeStampedModel):
     export = models.ForeignKey(
         SearchExport, on_delete=models.CASCADE, related_name="pages"
     )
-    data = CompressedBinaryField(null=True, editable=False)
+    data = CompressedBinaryJSONField(null=True, editable=False)
     page_num = models.PositiveIntegerField()
     working_data: Optional[dict] = JSONField(editable=False, null=True)
     count = models.IntegerField(default=0)

@@ -44,12 +44,8 @@ class ScrollSearch(TimeStampedModel):
 
     @staticmethod
     def get_query_hash(user_id, query):
-        unique_query = (
-            json.dumps(query["filters"], default=json_util.default, sort_keys=True)
-            + "_"
-            + str(user_id)
-        )
-        hash_id = hashlib.sha224(unique_query).hexdigest()
+        unique_query = f"{query.pk}_{user_id}"
+        hash_id = hashlib.sha224(unique_query.encode("utf-8")).hexdigest()
         logger.debug("Hash for query: %s, %s", hash_id, unique_query)
         return hash_id
 

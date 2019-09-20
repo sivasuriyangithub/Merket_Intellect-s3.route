@@ -311,3 +311,5 @@ namespace_prefix = env("NAMESPACE_PREFIX", default="")
 
 DERIVE_SERVICE = env("DERIVE_URI", default=f"http://{namespace_prefix}derive")
 ANALYTICS_SERVICE = env("XPERDATA_URI", default=f"http://{namespace_prefix}xperdata:80")
+
+DATAVALIDATION_KEY = env("DATAVALIDATION_KEY")

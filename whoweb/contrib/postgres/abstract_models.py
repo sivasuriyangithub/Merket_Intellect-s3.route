@@ -2,12 +2,11 @@ import json
 
 # Create your models here.
 from django.core.exceptions import FieldDoesNotExist
-from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models.base import ModelBase, Model, DEFERRED, ModelState
 from django.db.models.fields.reverse_related import ForeignObjectRel
 from django.db.models.signals import pre_init, post_init
 
-from whoweb.contrib.postgres.utils import serialize_model
+from whoweb.contrib.postgres.utils import serialize_model, EmbeddedJSONEncoder
 
 
 class AbstractEmbeddedModel(metaclass=ModelBase):
@@ -128,7 +127,7 @@ class AbstractEmbeddedModel(metaclass=ModelBase):
     @property
     def pk(self):
         return hash(
-            json.dumps(serialize_model(self), sort_keys=True, cls=DjangoJSONEncoder)
+            json.dumps(serialize_model(self), sort_keys=True, cls=EmbeddedJSONEncoder)
         )
 
     def serialize(self):

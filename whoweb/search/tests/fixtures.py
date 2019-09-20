@@ -50512,6 +50512,11 @@ done = json.loads(DONE, object_hook=object_hook, strict=False)
 
 
 @pytest.fixture
+def raw_derived():
+    return done
+
+
+@pytest.fixture
 def query_no_contact():
     return {
         "defer": ["degree_levels", "company_counts", "contact"],
@@ -50581,6 +50586,40 @@ def query_no_contact():
                 },
             ],
             "limit": 5000,
+            "skip": 0,
+        },
+    }
+
+
+@pytest.fixture
+def query_specified_profiles_in_filters():
+    return {
+        "defer": ["degree_levels", "company_counts"],
+        "user_id": "512cce8c7cc2133a2be3543d",
+        "with_invites": True,
+        "filters": {
+            "required": [
+                {
+                    "field": "_id",
+                    "value": [
+                        "wp:1",
+                        "wp:2",
+                        "wp:3",
+                        "wp:4",
+                        "wp:5",
+                        "wp:6",
+                        "wp:11",
+                        "wp:12",
+                        "wp:13",
+                        "wp:14",
+                        "wp:15",
+                        "wp:16",
+                    ],
+                    "truth": True,
+                },
+                {"field": "_id", "value": ["wp:1"], "truth": False},
+            ],
+            "limit": 20,
             "skip": 0,
         },
     }
@@ -50811,3 +50850,74 @@ def query_contact_invites():
             "skip": 0,
         },
     }
+
+
+@pytest.fixture
+def user_facing_column_headers():
+    return [
+        "First Name",
+        "Last Name",
+        "Title",
+        "Company",
+        "Industry",
+        "City",
+        "State",
+        "Country",
+        "Profile URL",
+        "Experience",
+        "Education",
+        "Skills",
+        "Email",
+        "Email Grade",
+        "LinkedIn URL",
+        "Phone Number",
+        "Additional Emails",
+        "Facebook",
+        "Twitter",
+        "AngelList",
+        "Google Plus",
+        "Google Profile",
+        "Quora",
+        "GitHub",
+        "BitBucket",
+        "StackExchange",
+        "Flickr",
+        "YouTube",
+    ]
+
+
+@pytest.fixture
+def all_uploadable_column_headers():
+    return [
+        "invitekey",
+        "first_name",
+        "last_name",
+        "title",
+        "company",
+        "industry",
+        "city",
+        "state",
+        "country",
+        "profile_url",
+        "experience",
+        "education",
+        "skills",
+        "email",
+        "email_grade",
+        "linkedin_url",
+        "phone_number",
+        "additional_emails",
+        "facebook",
+        "twitter",
+        "angellist",
+        "google_plus",
+        "google_profile",
+        "quora",
+        "github",
+        "bitbucket",
+        "stackexchange",
+        "flickr",
+        "youtube",
+        "domain",
+        "mxdomain",
+    ]

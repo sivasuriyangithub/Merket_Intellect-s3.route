@@ -67,9 +67,8 @@ class SeatFactory(DjangoModelFactory):
 
 class GroupOwnerFactory(DjangoModelFactory):
 
-    seat = SubFactory(SeatFactory)
-    organization = SelfAttribute("seat.organization")
-    user = SelfAttribute("seat.user")
+    organization_user = SubFactory(SeatFactory)
+    organization = SelfAttribute("organization_user.organization")
 
     class Meta:
         model = GroupOwner

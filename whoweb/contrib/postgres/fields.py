@@ -4,13 +4,12 @@ from json import JSONEncoder
 from django import forms
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import JSONField
-from django.contrib.postgres.fields.jsonb import JsonAdapter
 from django.core import exceptions
 from django.forms import SelectMultiple
 from django.utils.translation import ugettext_lazy as _
 
 from whoweb.contrib.postgres.abstract_models import AbstractEmbeddedModel
-from whoweb.contrib.postgres.utils import make_mdl, serialize_model
+from whoweb.contrib.postgres.utils import make_mdl, serialize_model, EmbeddedJSONEncoder
 from .forms import EmbeddedModelFormField
 
 
@@ -18,12 +17,6 @@ from .forms import EmbeddedModelFormField
 #     def __init__(self, embedded_model):
 #         self.subterfuge = embedded_model
 #
-class EmbeddedJSONEncoder(JSONEncoder):
-    def default(self, o):
-        try:
-            return o.adapted
-        except AttributeError:
-            return o
 
 
 class CastOnAssignDescriptor(object):
@@ -45,6 +38,18 @@ class CastOnAssignDescriptor(object):
 
     def __set__(self, obj, value):
         obj.__dict__[self.field.name] = self.field.to_python(value)
+
+
+class EmbeddedArrayField(ArrayField):
+    def contribute_to_class(self, cls, name, private_only=False):
+        super().contribute_to_class(cls, name, private_only)
+        setattr(cls, name, CastOnAssignDescriptor(self))
+
+    def to_python(self, value):
+        values = super().to_python(value)
+        if isinstance(values, list):
+            values = [self.base_field.to_python(val) for val in values]
+        return values
 
 
 class EmbeddedModelField(JSONField):
@@ -89,7 +94,7 @@ class EmbeddedModelField(JSONField):
         kwargs["model_container"] = self.model_container
         return name, path, args, kwargs
 
-    def from_db_value(self, value, expression, connection, context):
+    def from_db_value(self, value, expression, connection):
         return self.to_python(value)
 
     def to_python(self, value):

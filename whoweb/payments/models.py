@@ -7,13 +7,12 @@ from organizations.abstract import (
     AbstractOrganizationUser,
     AbstractOrganizationOwner,
 )
-from organizations.models import Organization
 
-from whoweb.users.models import Seat
+from whoweb.users.models import Seat, Group
 
 
 class BillingAccount(AbstractOrganization):
-    org = models.ForeignKey(Organization, on_delete=models.SET_NULL, null=True)
+    group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True)
     seats = models.ManyToManyField(
         Seat, related_name="billing_account", through="BillingAccountMember"
     )
@@ -54,8 +53,8 @@ class BillingAccountMember(AbstractOrganizationUser):
     pool_credits = models.BooleanField(default=False)
 
     class Meta:
-        verbose_name = _("billing account seat")
-        verbose_name_plural = _("billing account seats")
+        verbose_name = _("billing account member")
+        verbose_name_plural = _("billing account members")
 
     @property
     def credits(self):

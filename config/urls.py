@@ -2,13 +2,20 @@ from django.conf import settings
 from django.urls import include, path
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.views.generic import TemplateView
 from django.views import defaults as default_views
+from rest_framework import routers
+from whoweb.search.urls import router as search_router
+from whoweb.users.urls import router as user_router
+
+router = routers.DefaultRouter()
+router.registry.extend(search_router.registry)
+router.registry.extend(user_router.registry)
 
 urlpatterns = [
     # Django Admin, use {% url 'admin:index' %}
     path(settings.ADMIN_URL, admin.site.urls),
     path("accounts/", include("allauth.urls")),
+    path("api/", include(router.urls)),
     # Your stuff: custom urls includes go here
     path("search/", include("whoweb.search.urls", namespace="search")),
     path("reply/", include("whoweb.coldemail.urls", namespace="coldemail")),

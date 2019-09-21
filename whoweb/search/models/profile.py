@@ -174,11 +174,11 @@ class ResultProfile(object):
         self._invite_key = kwargs.get("invite_key")
 
     def __repr__(self):
-        return "<ResultProfile {} email: {}>".format(self.id, self.email)
+        return f"<ResultProfile {self.id} email: {self.email}>"
 
     @property
     def absolute_profile_url(self):
-        return "{}/users/{}".format(settings.XPERWEB_ORIGIN, self.id)
+        return f"{settings.PUBLIC_ORIGIN}/users/{self.id}"
 
     @property
     def facebook(self):

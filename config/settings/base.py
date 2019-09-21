@@ -298,7 +298,9 @@ SOCIALACCOUNT_ADAPTER = "whoweb.users.adapters.SocialAccountAdapter"
 # django rest framework
 # ------------------------------------------------------------------------------
 REST_FRAMEWORK = {
-    "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",)
+    "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 50,
 }
 # Your stuff...
 # ------------------------------------------------------------------------------
@@ -309,6 +311,7 @@ COLD_ROUTER_API_KEY = env("COLD_ROUTER_API_KEY")
 # Services
 namespace_prefix = env("NAMESPACE_PREFIX", default="")
 
+PUBLIC_ORIGIN = env("PUBLIC_ORIGIN", default="https://whoknows.com")
 DERIVE_SERVICE = env("DERIVE_URI", default=f"http://{namespace_prefix}derive")
 ANALYTICS_SERVICE = env("XPERDATA_URI", default=f"http://{namespace_prefix}xperdata:80")
 

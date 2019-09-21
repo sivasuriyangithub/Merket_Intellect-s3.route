@@ -70,7 +70,7 @@ class Router(object):
 
 
 def external_link(uri):
-    return f"https://whoknows.com/api/v2/{uri}"
+    return f"{settings.PUBLIC_ORIGIN}/api/v2/{uri}"
 
 
 router = Router()

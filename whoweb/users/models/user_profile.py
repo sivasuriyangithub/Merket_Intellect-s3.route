@@ -1,3 +1,4 @@
+from allauth.account.models import EmailAddress
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
@@ -6,6 +7,25 @@ from model_utils.models import TimeStampedModel
 
 class UserProfile(TimeStampedModel):
     user = models.ForeignKey("User", on_delete=models.CASCADE, related_name="profile")
+
+    @classmethod
+    def get_or_create(cls, email, username=None, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", False)
+        extra_fields.setdefault("is_superuser", False)
+        email = User.objects.normalize_email(email)
+        username = User.normalize_username(username or email)
+        user, created = User.objects.get_or_create(
+            username=username, email=email, defaults=extra_fields
+        )
+        if created:
+            user.set_password(password)
+            user.save()
+        EmailAddress.objects.get_or_create(
+            user=user,
+            email__iexact=email,
+            defaults={"email": email, "verified": True, "primary": True},
+        )
+        return cls.objects.get_or_create(user=user)
 
 
 # WARN: See docstring.

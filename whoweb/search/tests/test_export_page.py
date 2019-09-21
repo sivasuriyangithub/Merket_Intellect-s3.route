@@ -5,7 +5,11 @@ import pytest
 
 from whoweb.search.models import SearchExport, ResultProfile
 from whoweb.search.models.export import SearchExportPage
-from whoweb.search.tests.factories import SearchExportFactory, SearchExportPageFactory
+from whoweb.search.tests.factories import (
+    SearchExportFactory,
+    SearchExportPageFactory,
+    ResultProfileFactory,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -130,3 +134,46 @@ def test_get_ungraded_email_rows(get_profile_mock, raw_derived):
             ("jcarmona@abu.edu.ng", "wp:GyvzBUofSuq6nYf5qA49giUskhMnWB9A8dXwWkDxFFah"),
         ]
     )
+
+
+@patch("whoweb.search.models.SearchExport.get_validation_results")
+@patch("whoweb.search.models.SearchExport.get_profiles")
+def test_generate_email_id_pairs(get_profile_mock, validation_mock, raw_derived):
+    validation_mock.return_value = []
+    get_profile_mock.return_value = (
+        ResultProfile.from_json(profile) for profile in raw_derived
+    )
+    export: SearchExport = SearchExportFactory()
+    rows = export.generate_email_id_pairs()
+    assert isinstance(rows, types.GeneratorType)
+    assert list(rows) == [
+        ("patrick@beast.vc", "wp:4XJFtuYgV6ZU756WQH9n96K75EUZdZhbQ3Z5iDK7Wz97")
+    ]
+
+
+@patch("whoweb.core.router.Router.get_exportable_invite_key")
+def test_get_csv_row(key_mock):
+    export: SearchExport = SearchExportFactory()
+    profile: ResultProfile = ResultProfileFactory()
+    key_mock.return_value = "invitation"
+    assert len(export.get_csv_row(profile)) == 12
+    assert len(export.get_csv_row(profile, with_invite=True)) == 13
+    assert export.get_csv_row(profile, with_invite=True)[0] == "invitation"
+    assert (
+        export.get_csv_row(profile, enforce_valid_email=True)[12] == "passing@email.com"
+    )
+    export.uploadable = True
+    assert len(export.get_csv_row(profile)) == 14
+
+
+@patch("whoweb.core.router.Router.get_exportable_invite_key")
+@patch("whoweb.search.models.SearchExport.get_profiles")
+def test_generate_csv_rows(get_profiles_mock, key_mock, query_contact_invites):
+    export: SearchExport = SearchExportFactory(target=200, query=query_contact_invites)
+    profiles: [ResultProfile] = ResultProfileFactory.create_batch(10)
+    get_profiles_mock.return_value = profiles
+    csv = export.generate_csv_rows(validation_registry={})
+    assert isinstance(csv, types.GeneratorType)
+    csv = list(csv)
+    assert len(csv) == 11
+    assert csv[0] == export.get_column_names()

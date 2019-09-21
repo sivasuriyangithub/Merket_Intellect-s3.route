@@ -151,9 +151,9 @@ class SearchExport(TimeStampedModel):
         verbose_name = "export"
 
     @classmethod
-    def create_from_query(cls, seat: Seat, **kwargs):
+    def create_from_query(cls, seat: Seat, query: dict, **kwargs):
         with transaction.atomic():
-            export = cls(seat=seat, **kwargs)
+            export = cls(seat=seat, query=query, **kwargs)
             export._set_target()
             if export.should_derive_email:
                 charged = seat.billing.charge(export.target)
@@ -317,13 +317,12 @@ class SearchExport(TimeStampedModel):
                 yield (email, profile_id)
 
     def generate_email_id_pairs(self):
-        flattened_validations = {
-            grade["email"]: grade["grade"]
-            for grade in self.get_validation_results() or []
-        }
-        for profile in self.get_profiles(validation_registry=flattened_validations):
+
+        for profile in self.get_profiles(
+            validation_registry=self.get_validation_registry()
+        ):
             if profile.email and profile.id:
-                yield profile.email, profile.id
+                yield (profile.email, profile.id)
 
     def get_csv_row(self, profile, enforce_valid_email=False, with_invite=False):
         if enforce_valid_email:
@@ -356,7 +355,7 @@ class SearchExport(TimeStampedModel):
             key = profile.get_invite_key(profile.email)
             if not key:
                 return
-            row = [key.encode("utf8")] + row
+            row = [key] + row
         if self.uploadable:
             row += [profile.domain or "", profile.mx_domain or ""]
         return [
@@ -365,10 +364,7 @@ class SearchExport(TimeStampedModel):
 
     def generate_csv_rows(self, rows=None, validation_registry=None):
         if validation_registry is None:
-            validation_registry = {
-                grade["email"]: grade["grade"]
-                for grade in self.get_validation_results() or []
-            }
+            validation_registry = self.get_validation_registry()
 
         profiles = partial(
             self.get_profiles, validation_registry=validation_registry, raw=rows
@@ -382,8 +378,12 @@ class SearchExport(TimeStampedModel):
         )
         yield self.get_column_names()
         for _ in range(self.target):
+            try:
+                profile = mx_profiles.__next__()
+            except StopIteration:
+                return
             yield self.get_csv_row(
-                mx_profiles.__next__(),
+                profile,
                 enforce_valid_email=self.should_derive_email,
                 with_invite=self.with_invites,
             )
@@ -584,6 +584,11 @@ class SearchExport(TimeStampedModel):
                 if only_valid and row[2][0] not in ["A", "B"]:
                     continue
                 yield {"email": row[0], "profile_id": row[1], "grade": row[2]}
+
+    def get_validation_registry(self):
+        return {
+            grade["email"]: grade["grade"] for grade in self.get_validation_results()
+        }
 
     def return_validation_results_to_cache(self):
         upload_limit = 250

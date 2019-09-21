@@ -7,6 +7,7 @@ from organizations.abstract import (
     AbstractOrganizationUser,
     AbstractOrganizationOwner,
 )
+from organizations.signals import user_added
 
 from whoweb.users.models import Seat, Group
 
@@ -38,6 +39,33 @@ class BillingAccount(AbstractOrganization):
     def refund(self, amount=0):
         self.credit_pool = F("credit_pool") + amount
         self.save()
+
+    def get_or_add_user(self, user, **kwargs):
+        """
+        Adds a new user to the organization, and if it's the first user makes
+        the user an admin and the owner. Uses the `get_or_create` method to
+        create or return the existing user.
+
+        `user` should be a user instance, e.g. `auth.User`.
+
+        Returns the same tuple as the `get_or_create` method, the
+        `OrganizationUser` and a boolean value indicating whether the
+        OrganizationUser was created or not.
+        """
+        users_count = self.users.all().count()
+        kwargs.setdefault("is_admin", users_count == 0)
+
+        org_user, created = self._org_user_model.objects.get_or_create(
+            organization=self, user=user, defaults=kwargs
+        )
+        if users_count == 0:
+            self._org_owner_model.objects.create(
+                organization=self, organization_user=org_user
+            )
+        if created:
+            # User added signal
+            user_added.send(sender=self, user=user)
+        return org_user, created
 
 
 class BillingAccountMember(AbstractOrganizationUser):

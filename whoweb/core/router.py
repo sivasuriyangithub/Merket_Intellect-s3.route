@@ -29,13 +29,16 @@ class Requestor(object):
         return cls._act(requests.post, *args, **kwargs)
 
     @classmethod
-    def get_with_cache(cls, cache_expires=None, *args, **kwargs):
+    def with_cache(cls, method="GET", cache_expires=None, *args, **kwargs):
         if cache_expires is None:
             cache_expires = timedelta(hours=1).total_seconds()
         elif isinstance(cache_expires, timedelta):
             cache_expires = cache_expires.total_seconds()
         s = CachedSession(expire_after=cache_expires)
-        return cls._act(s.get, *args, **kwargs)
+        if method == "GET":
+            return cls._act(s.get, *args, **kwargs)
+        elif method == "POST":
+            return cls._act(s.post, *args, **kwargs)
 
 
 class Router(object):
@@ -63,14 +66,17 @@ class Router(object):
     def update_validations(self, **kwargs):
         return Requestor.post(self.derive_service("validation"), **kwargs)
 
-    def get_exportable_invite_key(self, **kwargs):
-        return Requestor.get_with_cache(
-            self.xperweb("invite_key"), cache_expires=timedelta(days=1), **kwargs
+    def make_exportable_invite_key(self, **kwargs):
+        return Requestor.with_cache(
+            self.xperweb("api/v1/invite/keys"),
+            method="POST",
+            cache_expires=timedelta(days=1),
+            json=kwargs,
         )
+
+
+router = Router()
 
 
 def external_link(uri):
     return f"{settings.PUBLIC_ORIGIN}/api/v2/{uri}"
-
-
-router = Router()

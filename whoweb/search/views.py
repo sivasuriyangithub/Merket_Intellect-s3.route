@@ -1,7 +1,7 @@
 import csv
 import json
 
-from django.http import StreamingHttpResponse, Http404
+from django.http import StreamingHttpResponse, Http404, JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 from rest_framework import viewsets
 from slugify import slugify
@@ -46,7 +46,10 @@ def create(request):
     billing_member, _ = billing_account.get_or_add_user(
         user=profile.user, seat=seat, seat_credits=creds
     )
-    SearchExport.create_from_query(seat=seat, query=query, uploadable=uploadable)
+    export = SearchExport.create_from_query(
+        seat=seat, query=query, uploadable=uploadable
+    )
+    return JsonResponse(SearchExportSerializer(export).data)
 
 
 @require_GET
@@ -96,6 +99,6 @@ def validate(request, uuid):
     return response
 
 
-class SearchExportViewSet(viewsets.ModelViewSet):
+class SearchExportViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = SearchExport.objects.all().order_by("-created")
     serializer_class = SearchExportSerializer

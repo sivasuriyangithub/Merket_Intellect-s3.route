@@ -14,13 +14,17 @@ class FilteredSearchQuerySerializer(serializers.ModelSerializer):
 
 class SearchExportSerializer(serializers.ModelSerializer):
     query = FilteredSearchQuerySerializer()
+    status_name = serializers.SerializerMethodField()
 
     class Meta:
         model = SearchExport
+        depth = 1
         fields = [
-            "seat",
+            "id",
             "uuid",
+            "seat",
             "query",
+            "status_name",
             "status",
             "status_changed",
             "sent",
@@ -35,3 +39,6 @@ class SearchExportSerializer(serializers.ModelSerializer):
             "uploadable",
             "on_trial",
         ]
+
+    def get_status_name(self, obj):
+        return SearchExport.STATUS[int(obj.status)]

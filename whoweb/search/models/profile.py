@@ -234,12 +234,14 @@ class ResultProfile(object):
         if not (email or self.email):
             return
         if refresh or self._invite_key is None:
-            self._invite_key = router.get_exportable_invite_key(
-                email=email or self.email,
-                webprofile_id=self.id,
-                first_name=self.first_name,
-                last_name=self.last_name,
-            )
+            self._invite_key = router.make_exportable_invite_key(
+                json=dict(
+                    email=email or self.email,
+                    webprofile_id=self.id,
+                    first_name=self.first_name,
+                    last_name=self.last_name,
+                )
+            )["key"]
         return self._invite_key
 
     @property

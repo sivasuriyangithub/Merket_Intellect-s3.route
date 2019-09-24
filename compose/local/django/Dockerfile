@@ -1,5 +1,12 @@
 FROM python:3.6-alpine
 
+ARG pip_index_url="http://nexus/repository/pypi-all/simple"
+ARG pip_trusted_host="nexus"
+ARG pip_extra_index_url="https://nexus.jx.b.whoknows.com/repository/pypi-all/simple"
+
+ENV PIP_INDEX_URL=$pip_index_url
+ENV PIP_TRUSTED_HOST=$pip_trusted_host
+ENV PIP_EXTRA_INDEX_URL=$pip_extra_index_url
 ENV PYTHONUNBUFFERED 1
 
 RUN apk update \
@@ -38,6 +45,8 @@ RUN chmod +x /start-celerybeat
 COPY ./compose/local/django/celery/flower/start /start-flower
 RUN sed -i 's/\r$//g' /start-flower
 RUN chmod +x /start-flower
+
+COPY ./ /app
 
 WORKDIR /app
 

@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "jx.beat.fullname" . }}
+  labels:
+    chart: {{ template "jx.chart" . }}
+  {{- if .Values.deployment.reloadOnEnvChange }}
+  annotations:
+    {{- if .Values.deployment.envConfigMapRef }}
+    configmap.reloader.stakater.com/reload: "{{.Values.deployment.envConfigMapRef}}"
+    {{- end }}
+    {{- if .Values.deployment.envSecretRef }}
+    secret.reloader.stakater.com/reload: "{{.Values.deployment.envSecretRef}}"
+    {{- end }}
+  {{- end }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ template "jx.beat.fullname" . }}
+  replicas: 1
+  strategy:
+{{ toYaml .Values.deployment.strategy | indent 4 }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "jx.beat.fullname" . }}
+    spec:
+      terminationGracePeriodSeconds: {{ default 30 .Values.deployment.gracePeriod }}
+      hostAliases:
+      - ip: "10.10.0.2"
+        hostnames:
+        - "vm-mongo-cs-gce-01"
+      - ip: "10.10.0.4"
+        hostnames:
+        - "vm-mongo-cs-gce-02"
+      - ip: "10.10.0.7"
+        hostnames:
+        - "vm-mongo-cs-gce-03"
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command:
+          - /bin/bash
+          - -c
+          args:
+          {{- range .Values.beat.args }}
+          - {{ . | quote }}
+          {{- end }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+          - name: IMAGE
+            value: {{ .Values.image.repository }}
+          - name: REVISION
+            value: {{ .Values.image.tag }}
+          - name: ENVIRONMENT_NAME
+            value: {{ .Release.Name }}
+          envFrom:
+          - configMapRef:
+              name: {{ .Values.deployment.envConfigMapRef }}
+          - secretRef:
+              name: {{ .Values.deployment.envSecretRef }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}

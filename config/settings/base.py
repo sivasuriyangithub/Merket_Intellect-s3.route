@@ -130,6 +130,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#middleware
 MIDDLEWARE = [
+    "whoweb.core.middleware.HealthCheckMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
@@ -304,15 +305,10 @@ REST_FRAMEWORK = {
 }
 # Your stuff...
 # ------------------------------------------------------------------------------
-COLD_EMAIL_KEY = env("COLD_EMAIL_KEY")
-COLD_ROUTER_API_KEY = env("COLD_ROUTER_API_KEY")
 
 
 # Services
 namespace_prefix = env("NAMESPACE_PREFIX", default="")
-
 PUBLIC_ORIGIN = env("PUBLIC_ORIGIN", default="https://whoknows.com")
 DERIVE_SERVICE = env("DERIVE_URI", default=f"http://{namespace_prefix}derive")
 ANALYTICS_SERVICE = env("XPERDATA_URI", default=f"http://{namespace_prefix}xperdata:80")
-
-DATAVALIDATION_KEY = env("DATAVALIDATION_KEY")

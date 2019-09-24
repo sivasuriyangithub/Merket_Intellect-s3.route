@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Service
+metadata:
+  {{- if .Values.service.name }}
+  name: {{ .Values.service.name }}
+  {{- else }}
+  name: {{ template "jx.fullname" . }}
+  {{- end }}
+  labels:
+    chart: {{ template "jx.chart" . }}
+  {{- if .Values.service.annotations }}
+  annotations:
+{{ toYaml .Values.service.annotations | indent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  sessionAffinity: {{ default .Values.service.sessionAffinity "None" }}
+  ports:
+  {{- $relname := .Release.Namespace -}}
+  {{- range .Values.service.ports }}
+  - name: {{ .name | quote }}
+    port: {{ .port }}
+    targetPort: {{ .targetPort }}
+    {{- if or (or (and .productionNodePort (eq $relname "jx-prod")) (and .stagingNodePort (eq $relname "jx-staging"))) (and .cshsNodePort (eq $relname "jx-cshscshs"))}}
+    nodePort: {{ if eq $relname "jx-prod" }}{{ .productionNodePort }}{{ else if eq $relname "jx-staging" }}{{ .stagingNodePort }}{{ else if eq $relname "jx-cshs" }}{{ .cshsNodePort }}{{ end }}
+    {{- end }}
+    protocol: TCP
+  {{- end }}
+  selector:
+    app: {{ template "jx.fullname" . }}

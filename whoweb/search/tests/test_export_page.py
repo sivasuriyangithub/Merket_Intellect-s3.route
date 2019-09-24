@@ -151,11 +151,11 @@ def test_generate_email_id_pairs(get_profile_mock, validation_mock, raw_derived)
     ]
 
 
-@patch("whoweb.core.router.Router.get_exportable_invite_key")
+@patch("whoweb.core.router.Router.make_exportable_invite_key")
 def test_get_csv_row(key_mock):
     export: SearchExport = SearchExportFactory()
     profile: ResultProfile = ResultProfileFactory()
-    key_mock.return_value = "invitation"
+    key_mock.return_value = {"key": "invitation"}
     assert len(export.get_csv_row(profile)) == 12
     assert len(export.get_csv_row(profile, with_invite=True)) == 13
     assert export.get_csv_row(profile, with_invite=True)[0] == "invitation"
@@ -166,7 +166,7 @@ def test_get_csv_row(key_mock):
     assert len(export.get_csv_row(profile)) == 14
 
 
-@patch("whoweb.core.router.Router.get_exportable_invite_key")
+@patch("whoweb.core.router.Router.make_exportable_invite_key")
 @patch("whoweb.search.models.SearchExport.get_profiles")
 def test_generate_csv_rows(get_profiles_mock, key_mock, query_contact_invites):
     export: SearchExport = SearchExportFactory(target=200, query=query_contact_invites)

@@ -1,0 +1,7 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: staging-proxy
+spec:
+  type: ExternalName
+  externalName: staging.whoknows.com

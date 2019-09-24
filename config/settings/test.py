@@ -51,3 +51,6 @@ EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 
 # Your stuff...
 # ------------------------------------------------------------------------------
+COLD_EMAIL_KEY = "COLD_EMAIL_KEY"
+COLD_ROUTER_API_KEY = "COLD_ROUTER_API_KEY"
+DATAVALIDATION_KEY = "DATAVALIDATION_KEY"

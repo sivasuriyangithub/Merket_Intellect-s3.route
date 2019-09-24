@@ -187,3 +187,7 @@ sentry_sdk.init(
 
 # Your stuff...
 # ------------------------------------------------------------------------------
+
+DATAVALIDATION_KEY = env("DATAVALIDATION_KEY")
+COLD_EMAIL_KEY = env("COLD_EMAIL_KEY")
+COLD_ROUTER_API_KEY = env("COLD_ROUTER_API_KEY")

@@ -2,9 +2,9 @@ CHART_REPO := http://jenkins-x-chartmuseum:8080
 CURRENT=$(pwd)
 TEAM := wkpython
 IMAGE_NAME := xperweb
-NAME := xperweb-jobs
+NAME := whoweb-jobs
 OS := $(shell uname)
-VERSION := $(shell cat ../../../VERSION)
+VERSION := $(shell cat ../../../buildutils/vars/VERSION)
 REQUIREMENTS_PATH := ../../../charts/wkpython/requirements.yaml
 
 debug:
@@ -40,12 +40,12 @@ release: clean
 chart:
 ifeq ($(OS),Darwin)
 	sed -i "" -e "s/version:.*/version: $(VERSION)/" Chart.yaml
-	sed -i "" -e "s|repository:.*|repository: $(DOCKER_REGISTRY)/$(TEAM)/$(IMAGE_NAME)|" values.yaml
+	sed -i "" -e "s|repository:.*|repository: gcr.io/wkinfra-171623/wkpython/$(IMAGE_NAME)|" values.yaml
 	sed -i "" -e "s/tag:.*/tag: $(VERSION)/" values.yaml
 	gsed -i -e "/name: $(NAME)/!b;n;c\ \ \ \ version: $(VERSION)" $(REQUIREMENTS_PATH)
 else ifeq ($(OS),Linux)
 	sed -i -e "s/version:.*/version: $(VERSION)/" Chart.yaml
-	sed -i -e "s|repository:.*|repository: $(DOCKER_REGISTRY)/$(TEAM)/$(IMAGE_NAME)|" values.yaml
+	sed -i -e "s|repository:.*|repository: gcr.io/wkinfra-171623/wkpython/$(IMAGE_NAME)|" values.yaml
 	sed -i -e "s/tag:.*/tag: $(VERSION)/" values.yaml
 	sed -i -e "/name: $(NAME)/!b;n;c\ \ \ \ version: $(VERSION)" $(REQUIREMENTS_PATH)
 else

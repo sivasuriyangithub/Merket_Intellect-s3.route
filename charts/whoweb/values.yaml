@@ -6,8 +6,8 @@ image:
   tag:
 basedomain: whoknows.com
 service:
-  name: xperweb
-  type: NodePort
+  name: whoweb
+  type: ClusterIP
   ports:
     - name: http
       port: 80

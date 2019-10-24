@@ -160,7 +160,7 @@ STATICFILES_FINDERS = [
 # https://docs.djangoproject.com/en/dev/ref/settings/#media-root
 MEDIA_ROOT = str(APPS_DIR("media"))
 # https://docs.djangoproject.com/en/dev/ref/settings/#media-url
-MEDIA_URL = "/media/"
+MEDIA_URL = "/ww/media/"
 
 # TEMPLATES
 # ------------------------------------------------------------------------------
@@ -223,7 +223,7 @@ EMAIL_TIMEOUT = 5
 # ADMIN
 # ------------------------------------------------------------------------------
 # Django Admin URL.
-ADMIN_URL = "admin/"
+ADMIN_URL = "ww/admin/"
 # https://docs.djangoproject.com/en/dev/ref/settings/#admins
 ADMINS = [("""WhoKnows, Inc.""", "dev@whoknows.com")]
 # https://docs.djangoproject.com/en/dev/ref/settings/#managers

@@ -14,9 +14,7 @@ service:
       targetPort: 5000
   sessionAffinity: ClientIP
   externalPort: 80
-  annotations:
-    fabric8.io/expose: "true"
-    fabric8.io/ingress.annotations: "kubernetes.io/ingress.class: nginx"
+  paths: "/ww/"
 deployment:
   envConfigMapRef: "whoweb-config"
   envSecretRef: "whoweb-secrets"
@@ -51,26 +49,6 @@ resources:
   requests:
     cpu: "500m"
     memory: "1Gi"
-selfInitContainer:
-  name: xperweb-static-release
-  volumeMounts:
-    - name: google-cloud-key
-      mountPath: /var/secrets/google
-  envFrom:
-    - configMapRef:
-        name: "xperweb-config"
-    - secretRef:
-        name: "xperweb-secrets"
-  env:
-    - name: GOOGLE_APPLICATION_CREDENTIALS
-      value: "/var/secrets/google/key.json"
-    - name: STATIC_ASSET_BUCKET
-      valueFrom:
-        configMapKeyRef:
-          name: "xperweb-config"
-          key: STATIC_ASSET_BUCKET
-  command: ["python2.7", "-u", "xperweb/collect_static.py"]
-volumes:
-  - name: google-cloud-key
-    secret:
-      secretName: static-bucket-account
+preview:
+  required-by:
+    xperweb: true

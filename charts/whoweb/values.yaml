@@ -9,13 +9,17 @@ service:
   name: whoweb
   type: ClusterIP
   ports:
-    - name: http
+    http:
       port: 80
       targetPort: 5000
   sessionAffinity: ClientIP
   externalPort: 80
   paths: "/ww/"
 deployment:
+  replicas: 1
+  cpuRequest: "500m"
+  memoryRequest: "1Gi"
+  postgresql: true
   envConfigMapRef: "whoweb-config"
   envSecretRef: "whoweb-secrets"
   reloadOnEnvChange: 1
@@ -29,10 +33,7 @@ deployment:
     httpGet:
       path: /liveness
       port: 5000
-  strategy:
-    rollingUpdate:
-      maxSurge: 51%
-      maxUnavailable: 25%
+
 hpa:
   minReplicas: 1
   maxReplicas: 10
@@ -45,10 +46,6 @@ hpa:
     resource:
       name: memory
       targetAverageUtilization: 80
-resources:
-  requests:
-    cpu: "500m"
-    memory: "1Gi"
 preview:
   required-by:
     xperweb: true

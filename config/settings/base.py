@@ -38,11 +38,14 @@ LOCALE_PATHS = [ROOT_DIR.path("locale")]
 
 # DATABASES
 # ------------------------------------------------------------------------------
+pg_pass = env("postgresql-password", default="")  # allows preview env secret injection
+if pg_pass:
+    pg_url = f"postgresql://postgresql:{pg_pass}@postgresql/whodb"
+else:
+    pg_url = env.NOTSET  # should cause DATABASE_URL to be required
+
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
-DATABASE_URL = "postgresql://postgresql:{}@postgresql/whodb".format(
-    env("postgresql-password")
-)
-DATABASES = {"default": env.db("DATABASE_URL", default=DATABASE_URL)}
+DATABASES = {"default": env.db("DATABASE_URL", default=pg_url)}
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
 
 # URLS

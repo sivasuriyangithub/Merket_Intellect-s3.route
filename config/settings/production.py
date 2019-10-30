@@ -5,7 +5,8 @@ import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
 from sentry_sdk.integrations.celery import CeleryIntegration
-
+from google.cloud import logging as stackdriver
+from google.auth import compute_engine
 
 from .base import *  # noqa
 from .base import env
@@ -21,9 +22,7 @@ ALLOWED_HOSTS = env.list(
 
 # DATABASES
 # ------------------------------------------------------------------------------
-DATABASES["default"] = "postgresql://postgresql:{}@postgresql/whodb".format(
-    env("postgresql-password")
-)  # noqa F405
+DATABASES["default"] = env.db("DATABASE_URL")
 DATABASES["default"]["ATOMIC_REQUESTS"] = True  # noqa F405
 DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=60)  # noqa F405
 
@@ -31,14 +30,8 @@ DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=60)  # no
 # ------------------------------------------------------------------------------
 CACHES = {
     "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": env("REDIS_URL"),
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            # Mimicing memcache behavior.
-            # http://niwinz.github.io/django-redis/latest/#_memcached_exceptions_behavior
-            "IGNORE_EXCEPTIONS": True,
-        },
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": "/app/django_cache",
     }
 }
 
@@ -142,36 +135,41 @@ MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")  # noqa F405
 # See https://docs.djangoproject.com/en/dev/topics/logging for
 # more details on how to customize your logging configuration.
 
+# StackDriver setup
+credentials = compute_engine.Credentials()
+client = stackdriver.Client(
+    credentials=credentials, project=env.str("GCP_PROJECT", default="wkinfra-171623")
+)
+
 LOGGING = {
     "version": 1,
-    "disable_existing_loggers": True,
-    "formatters": {
-        "verbose": {
-            "format": "%(levelname)s %(asctime)s %(module)s "
-            "%(process)d %(thread)d %(message)s"
-        }
-    },
+    "disable_existing_loggers": False,
     "handlers": {
-        "console": {
-            "level": "DEBUG",
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-        }
-    },
-    "root": {"level": "INFO", "handlers": ["console"]},
-    "loggers": {
-        "django.db.backends": {
+        "stackdriver_logging": {
+            "class": "google.cloud.logging.handlers.CloudLoggingHandler",
+            "client": client,
+        },
+        "sentry_breadcrumbs": {
+            "level": "INFO",
+            "class": "sentry_sdk.integrations.logging.BreadcrumbHandler",
+        },
+        "sentry_logging": {
             "level": "ERROR",
-            "handlers": ["console"],
-            "propagate": False,
+            "class": "sentry_sdk.integrations.logging.EventHandler",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["stackdriver_logging", "sentry_breadcrumbs", "sentry_logging"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+        "django.request": {
+            "handlers": ["stackdriver_logging", "sentry_breadcrumbs", "sentry_logging"],
+            "level": "ERROR",
         },
         # Errors logged by the SDK itself
-        "sentry_sdk": {"level": "ERROR", "handlers": ["console"], "propagate": False},
-        "django.security.DisallowedHost": {
-            "level": "ERROR",
-            "handlers": ["console"],
-            "propagate": False,
-        },
+        "sentry_sdk": {"level": "ERROR", "handlers": ["stackdriver_logging"]},
     },
 }
 

@@ -36,16 +36,14 @@ deployment:
 
 hpa:
   minReplicas: 1
-  maxReplicas: 10
+  maxReplicas: 5
   metrics:
   - type: Resource
     resource:
       name: cpu
-      targetAverageUtilization: 60
-  - type: Resource
-    resource:
-      name: memory
-      targetAverageUtilization: 80
+      target:
+        type: Utilization
+        averageUtilization: 70
 global:
   tlsSecretName: tls-star-whoknows-com
 preview:

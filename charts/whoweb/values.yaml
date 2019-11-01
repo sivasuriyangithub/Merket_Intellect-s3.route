@@ -46,6 +46,8 @@ hpa:
     resource:
       name: memory
       targetAverageUtilization: 80
+global:
+  tlsSecretName: tls-star-whoknows-com
 preview:
   required-by:
     xperweb: true

@@ -57,4 +57,4 @@ spec:
           resources:
             requests:
               cpu: {{ .Values.deployment.cpuRequest }}
-              memoryRequest: {{ .Values.deployment.memoryRequest }}
+              memory: {{ .Values.deployment.memoryRequest }}

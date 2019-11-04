@@ -22,17 +22,6 @@ deployment:
   postgresql: true
   envConfigMapRef: "whoweb-config"
   envSecretRef: "whoweb-secrets"
-  reloadOnEnvChange: 1
-  readinessProbe:
-    httpGet:
-      path: /readiness
-      port: 5000
-      initialDelaySeconds: 20
-      timeoutSeconds: 5
-  livenessProbe:
-    httpGet:
-      path: /liveness
-      port: 5000
 
 hpa:
   minReplicas: 1

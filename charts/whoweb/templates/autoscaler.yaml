@@ -1,4 +1,4 @@
-apiVersion: autoscaling/v2beta2
+apiVersion: autoscaling/v2beta1
 kind: HorizontalPodAutoscaler
 metadata:
   name: {{ template "jx.fullname" . }}
@@ -15,12 +15,8 @@ spec:
   - type: Resource
     resource:
       name: cpu
-      target:
-        type: Utilization
-        averageUtilization: {{ default 100 .Values.hpa.cpu }}
+      targetAverageUtilization: {{ default 100 .Values.hpa.cpu }}
   - type: Resource
     resource:
       name: memory
-      target:
-        type: Utilization
-        averageUtilization: {{ default 100 .Values.hpa.memory }}
+      targetAverageUtilization: {{ default 100 .Values.hpa.memory }}

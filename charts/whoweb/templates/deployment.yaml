@@ -10,6 +10,7 @@ metadata:
     secret.reloader.stakater.com/reload: "{{ .Release.Name }}-postgresql"
 spec:
   strategy:
+    type: RollingUpdate
     rollingUpdate:
       maxSurge: 51%
       maxUnavailable: 25%
@@ -18,12 +19,12 @@ spec:
       labels:
         app: {{ template "jx.fullname" . }}
     spec:
-{{- if .Values.preemptible }}
+      {{- if .Values.preemptible }}
       tolerations:
       - key: "key"
         operator: "Exists"
         effect: "NoSchedule"
-{{- end }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -47,9 +48,15 @@ spec:
           - secretRef:
               name: {{ .Release.Name }}-postgresql
           readinessProbe:
-{{ toYaml .Values.deployment.readinessProbe | indent 12 }}
+            httpGet:
+              path: /readiness
+              port: 5000
+              initialDelaySeconds: 20
+              timeoutSeconds: 5
           livenessProbe:
-{{ toYaml .Values.deployment.livenessProbe | indent 12 }}
+            httpGet:
+              path: /liveness
+              port: 5000
           ports:
             {{- range $portName, $portConfig := .Values.service.ports }}
             - containerPort: {{ default $portConfig.port $portConfig.targetPort }}

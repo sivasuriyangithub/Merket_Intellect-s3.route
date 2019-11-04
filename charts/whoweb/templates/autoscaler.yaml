@@ -1,4 +1,4 @@
-apiVersion: autoscaling/v1
+apiVersion: autoscaling/v2beta2
 kind: HorizontalPodAutoscaler
 metadata:
   name: {{ template "jx.fullname" . }}
@@ -8,7 +8,7 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ template "jx.fullname" . }}.
+    name: {{ template "jx.fullname" . }}
   minReplicas: {{ default 1 .Values.hpa.minReplicas }}
   maxReplicas: {{ default 1 .Values.hpa.maxReplicas }}
   metrics:

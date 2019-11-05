@@ -40,6 +40,6 @@ staging.whoknows.com
 {{- else if eq .Release.Namespace "jx-cshs" -}}
 cshs.whoknows.com
 {{- else -}}
-{{- printf "%s.whoknows.com" .Release.Name -}}
+{{- printf "%s.whoknows.com" .Release.Namespace -}}
 {{- end -}}
 {{- end -}}

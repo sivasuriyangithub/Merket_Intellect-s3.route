@@ -109,7 +109,7 @@ EMAIL_HOST_PASSWORD = env("SMTP_PASSWORD")
 # ADMIN
 # ------------------------------------------------------------------------------
 # Django Admin URL regex.
-ADMIN_URL = env("DJANGO_ADMIN_URL", "ww/admin/")
+ADMIN_URL = env("DJANGO_ADMIN_URL", default="ww/admin/")
 
 # Anymail (Mailgun)
 # ------------------------------------------------------------------------------

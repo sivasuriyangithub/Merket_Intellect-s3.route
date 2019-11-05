@@ -10,7 +10,9 @@ metadata:
   annotations:
     configmap.reloader.stakater.com/reload: "{{.Values.deployment.envConfigMapRef}}"
     secret.reloader.stakater.com/reload: "{{.Values.deployment.envSecretRef}}"
+    {{- if .Values.deployment.postgresqlInNamespace }}
     secret.reloader.stakater.com/reload: "{{ .Release.Name }}-postgresql"
+    {{- end }}
 spec:
   selector:
     matchLabels:
@@ -54,8 +56,10 @@ spec:
               name: {{ .Values.deployment.envConfigMapRef }}
           - secretRef:
               name: {{ .Values.deployment.envSecretRef }}
+          {{- if .Values.deployment.postgresqlInNamespace }}
           - secretRef:
               name: {{ .Release.Name }}-postgresql
+          {{- end }}
           readinessProbe:
             httpGet:
               path: /readiness

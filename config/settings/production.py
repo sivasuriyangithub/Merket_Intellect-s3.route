@@ -140,36 +140,67 @@ credentials = compute_engine.Credentials()
 client = stackdriver.Client(
     credentials=credentials, project=env.str("GCP_PROJECT", default="wkinfra-171623")
 )
-
+# LOGGING = {
+#     "version": 1,
+#     "disable_existing_loggers": False,
+#     "handlers": {
+#         "stackdriver_logging": {
+#             "class": "google.cloud.logging.handlers.CloudLoggingHandler",
+#             "client": client,
+#         },
+#         "sentry_breadcrumbs": {
+#             "level": "INFO",
+#             "class": "sentry_sdk.integrations.logging.BreadcrumbHandler",
+#         },
+#         "sentry_logging": {
+#             "level": "ERROR",
+#             "class": "sentry_sdk.integrations.logging.EventHandler",
+#         },
+#     },
+#     "loggers": {
+#         "django": {
+#             "handlers": ["stackdriver_logging", "sentry_breadcrumbs", "sentry_logging"],
+#             "level": "DEBUG",
+#             "propagate": True,
+#         },
+#         "django.request": {
+#             "handlers": ["stackdriver_logging", "sentry_breadcrumbs", "sentry_logging"],
+#             "level": "ERROR",
+#         },
+#         # Errors logged by the SDK itself
+#         "sentry_sdk": {"level": "ERROR", "handlers": ["stackdriver_logging"]},
+#     },
+# }
 LOGGING = {
     "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {
-        "stackdriver_logging": {
-            "class": "google.cloud.logging.handlers.CloudLoggingHandler",
-            "client": client,
-        },
-        "sentry_breadcrumbs": {
-            "level": "INFO",
-            "class": "sentry_sdk.integrations.logging.BreadcrumbHandler",
-        },
-        "sentry_logging": {
-            "level": "ERROR",
-            "class": "sentry_sdk.integrations.logging.EventHandler",
-        },
+    "disable_existing_loggers": True,
+    "formatters": {
+        "verbose": {
+            "format": "%(levelname)s %(asctime)s %(module)s "
+            "%(process)d %(thread)d %(message)s"
+        }
     },
-    "loggers": {
-        "django": {
-            "handlers": ["stackdriver_logging", "sentry_breadcrumbs", "sentry_logging"],
+    "handlers": {
+        "console": {
             "level": "DEBUG",
-            "propagate": True,
-        },
-        "django.request": {
-            "handlers": ["stackdriver_logging", "sentry_breadcrumbs", "sentry_logging"],
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        }
+    },
+    "root": {"level": "INFO", "handlers": ["console"]},
+    "loggers": {
+        "django.db.backends": {
             "level": "ERROR",
+            "handlers": ["console"],
+            "propagate": False,
         },
         # Errors logged by the SDK itself
-        "sentry_sdk": {"level": "ERROR", "handlers": ["stackdriver_logging"]},
+        "sentry_sdk": {"level": "ERROR", "handlers": ["console"], "propagate": False},
+        "django.security.DisallowedHost": {
+            "level": "ERROR",
+            "handlers": ["console"],
+            "propagate": False,
+        },
     },
 }
 

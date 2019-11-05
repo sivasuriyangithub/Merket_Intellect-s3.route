@@ -34,19 +34,13 @@ spec:
           - name: REVISION
             value: {{ .Values.image.tag }}
           - name: ENVIRONMENT_NAME
-            value: {{ .Release.Name }}
-{{- if .Values.deployment.env}}
-{{ toYaml .Values.deployment.env | indent 10 -}}
-{{- end}}
-{{- if or .Values.deployment.envConfigMapRef .Values.deployment.envSecretRef }}
+            value: {{ .Release.Namespace }}
+          - name: DEFAULT_ORIGIN
+            value: https://{{- template "ingress.url" . }}
+          - name: DJANGO_ALLOWED_HOSTS
+            value: "{{- template "ingress.url" . -}},{{ .Values.service.name }}"
           envFrom:
-{{- if .Values.deployment.envConfigMapRef }}
           - configMapRef:
               name: {{ .Values.deployment.envConfigMapRef }}
-{{- end }}
-{{- if .Values.deployment.envSecretRef }}
           - secretRef:
               name: {{ .Values.deployment.envSecretRef }}
-{{- end }}
-{{- end }}
-{{ if .Values.deployment.volumeMounts }}{{ toYaml .Values.deployment.volumeMounts | indent 10 }}{{ end }}

@@ -19,7 +19,7 @@ deployment:
   replicas: 1
   cpuRequest: "500m"
   memoryRequest: "1Gi"
-  postgresql: true
+  postgresqlInNamespace: false
   envConfigMapRef: "whoweb-config"
   envSecretRef: "whoweb-secrets"
 

@@ -79,4 +79,4 @@ router = Router()
 
 
 def external_link(uri):
-    return f"{settings.PUBLIC_ORIGIN}/api/v2/{uri}"
+    return f"{settings.PUBLIC_ORIGIN}{uri}"

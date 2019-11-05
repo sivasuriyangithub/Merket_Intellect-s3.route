@@ -35,7 +35,7 @@ spec:
             value: {{ .Values.image.tag }}
           - name: ENVIRONMENT_NAME
             value: {{ .Release.Namespace }}
-          - name: DEFAULT_ORIGIN
+          - name: PUBLIC_ORIGIN
             value: https://{{- template "ingress.url" . }}
           - name: DJANGO_ALLOWED_HOSTS
             value: "{{- template "ingress.url" . -}},{{ .Values.service.name }}"

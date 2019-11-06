@@ -311,7 +311,7 @@ REST_FRAMEWORK = {
 }
 # Your stuff...
 # ------------------------------------------------------------------------------
-
+ORGS_SLUGFIELD = "autoslug.fields.AutoSlugField"
 
 # Services
 namespace_prefix = env("NAMESPACE_PREFIX", default="")

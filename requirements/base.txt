@@ -23,6 +23,7 @@ django-crispy-forms==1.7.2  # https://github.com/django-crispy-forms/django-cris
 django-redis==4.10.0  # https://github.com/niwinz/django-redis
 django-organizations==1.1.2 # https://github.com/bennylope/django-organizations
 django-prettyjson==0.4.1 # https://github.com/kevinmickey/django-prettyjson
+django-autoslug==1.9.6 # https://github.com/justinmayer/django-autoslug
 
 # Django REST Framework
 djangorestframework==3.10.0  # https://github.com/encode/django-rest-framework

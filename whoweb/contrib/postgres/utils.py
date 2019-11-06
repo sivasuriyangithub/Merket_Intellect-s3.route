@@ -7,7 +7,6 @@ from django.contrib.postgres.fields.jsonb import JsonAdapter
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import AutoField, BigAutoField
 from django.forms import modelform_factory
-from factory.django import get_model
 
 
 class EmbeddedJSONEncoder(DjangoJSONEncoder):
@@ -21,8 +20,10 @@ class EmbeddedJSONEncoder(DjangoJSONEncoder):
 
 def find_model(model_name):
     try:
-        return get_model(model_name, None)
-    except ValueError:
+        from django import apps as django_apps
+
+        return django_apps.apps.get_model(model_name, None)
+    except:
         for app_config in apps.get_apps_configs():
             try:
                 return app_config.get_model(model_name)

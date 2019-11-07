@@ -38,6 +38,8 @@ spec:
       {{- end }}
       containers:
         - name: {{ .Chart.Name }}
+          args:
+            - "/start"
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:

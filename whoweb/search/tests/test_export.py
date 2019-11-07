@@ -277,7 +277,7 @@ def test_get_named_fetch_url():
     export: SearchExport = SearchExportFactory()
     assert (
         export.get_named_fetch_url()
-        == f"/search/exports/{str(export.uuid)}/download/{str(export.uuid)}__fetch.csv"
+        == f"/ww/search/exports/{str(export.uuid)}/download/{str(export.uuid)}__fetch.csv"
     )
 
 
@@ -285,5 +285,5 @@ def test_get_absolute_url():
     export: SearchExport = SearchExportFactory()
     assert (
         export.get_absolute_url()
-        == f"/search/exports/{str(export.uuid)}/download/results.csv"
+        == f"/ww/search/exports/{str(export.uuid)}/download/results.csv"
     )

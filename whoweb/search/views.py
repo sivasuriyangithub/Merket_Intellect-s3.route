@@ -77,6 +77,7 @@ class SearchExportViewSet(
 ):
     queryset = SearchExport.objects.all().order_by("-created")
     serializer_class = SearchExportSerializer
+    lookup_field = "uuid"
 
     def get_permissions(self):
         if self.action == "create":

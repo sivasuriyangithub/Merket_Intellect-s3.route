@@ -14,9 +14,8 @@ class UserProfile(TimeStampedModel):
         extra_fields.setdefault("is_superuser", False)
         email = User.objects.normalize_email(email)
         username = User.normalize_username(username or email)
-        user, created = User.objects.get_or_create(
-            username=username, email=email, defaults=extra_fields
-        )
+        extra_fields["username"] = username
+        user, created = User.objects.get_or_create(email=email, defaults=extra_fields)
         if created:
             user.set_password(password)
             user.save()

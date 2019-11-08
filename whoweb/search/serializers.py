@@ -44,7 +44,7 @@ class FilteredSearchFiltersSerializer(serializers.ModelSerializer):
 
 class FilteredSearchQuerySerializer(serializers.ModelSerializer):
     filters = FilteredSearchFiltersSerializer()
-    export = ExportOptionsSerializer()
+    export = ExportOptionsSerializer(required=False)
 
     class Meta:
         model = FilteredSearchQuery
@@ -61,8 +61,8 @@ class SearchExportSerializer(serializers.ModelSerializer):
     group_name = serializers.CharField(write_only=True)
     group_id = serializers.CharField(allow_blank=True, write_only=True)
     email = serializers.EmailField(write_only=True)
-    seat_credits = serializers.IntegerField(label="credits", write_only=True)
-    uploadable = serializers.BooleanField(label="for_campaign")
+    seat_credits = serializers.IntegerField(write_only=True)
+    for_campaign = serializers.BooleanField(source="uploadable", required=False)
 
     class Meta:
         model = SearchExport
@@ -84,7 +84,7 @@ class SearchExportSerializer(serializers.ModelSerializer):
             "valid_count",
             "notify",
             "charge",
-            "uploadable",
+            "for_campaign",
             "on_trial",
             "xperweb_id",
             "group_name",
@@ -106,7 +106,9 @@ class SearchExportSerializer(serializers.ModelSerializer):
         email = validated_data["email"]
         profile, _ = UserProfile.get_or_create(username=xperweb_id, email=email)
         group, _ = Group.objects.get_or_create(name=group_name, slug=slugify(group_id))
-        seat, _ = group.get_or_add_user(user=profile.user)
+        seat, _ = group.get_or_add_user(
+            user=profile.user, display_name=profile.user.get_full_name()
+        )
         billing_account, _ = BillingAccount.objects.get_or_create(
             name=billing_account_name, slug=slugify(billing_account_name), group=group
         )

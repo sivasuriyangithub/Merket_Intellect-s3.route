@@ -26,15 +26,13 @@ class BillingAccount(AbstractOrganization):
         verbose_name_plural = _("billing accounts")
 
     def charge(self, amount=0):
-        updated = (
-            self.objects.filter(pk=self.pk, credit_pool__gte=amount)
-            .update(
-                credit_pool=F("credit_pool") - amount,
-                trial_credit_pool=Greatest(F("trial_credit_pool") - amount, Value(0)),
-            )
-            .count()
+        updated = BillingAccount.objects.filter(
+            pk=self.pk, credit_pool__gte=amount
+        ).update(
+            credit_pool=F("credit_pool") - amount,
+            trial_credit_pool=Greatest(F("trial_credit_pool") - amount, Value(0)),
         )
-        return amount if updated == 1 else 0
+        return bool(updated)
 
     def refund(self, amount=0):
         self.credit_pool = F("credit_pool") + amount
@@ -97,15 +95,13 @@ class BillingAccountMember(AbstractOrganizationUser):
         return self.seat_trial_credits
 
     def charge(self, amount=0):
-        updated = (
-            self.objects.filter(pk=self.pk, seat_credits__gte=amount)
-            .update(
-                seat_credits=F("seat_credits") - amount,
-                seat_trial_credits=Greatest(F("seat_trial_credits") - amount, Value(0)),
-            )
-            .count()
+        updated = BillingAccountMember.objects.filter(
+            pk=self.pk, seat_credits__gte=amount
+        ).update(
+            seat_credits=F("seat_credits") - amount,
+            seat_trial_credits=Greatest(F("seat_trial_credits") - amount, Value(0)),
         )
-        return amount if updated == 1 else 0
+        return bool(updated)
 
     def refund(self, amount=0):
         self.seat_credits = F("seat_credits") + amount

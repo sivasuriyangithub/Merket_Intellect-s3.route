@@ -9,7 +9,6 @@ router.register(r"exports", views.SearchExportViewSet)
 
 app_name = "search"
 urlpatterns = [
-    path("exports/", view=views.create, name="create_export"),
     path(
         "exports/<uuid:uuid>/download/results.csv",
         view=views.download,

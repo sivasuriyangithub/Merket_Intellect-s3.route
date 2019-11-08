@@ -14,11 +14,11 @@ router.registry.extend(user_router.registry)
 urlpatterns = [
     # Django Admin, use {% url 'admin:index' %}
     path(settings.ADMIN_URL, admin.site.urls),
-    path("accounts/", include("allauth.urls")),
+    # path("accounts/", include("allauth.urls")),
     path("api/", include(router.urls)),
-    # Your stuff: custom urls includes go here
+    # Your stuff: custom urls includes go here.
     path("search/", include("whoweb.search.urls", namespace="search")),
-    path("reply/", include("whoweb.coldemail.urls", namespace="coldemail")),
+    # path("reply/", include("whoweb.coldemail.urls", namespace="coldemail")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:

@@ -161,7 +161,7 @@ class SearchExport(TimeStampedModel):
                     raise SubscriptionError(
                         "Not enough credits to complete this export"
                     )
-                export.charged = charged
+                export.charged = export.target
             export._set_columns()
             export.save()
         return export

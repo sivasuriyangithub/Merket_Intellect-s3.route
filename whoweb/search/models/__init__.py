@@ -2,6 +2,7 @@ from .embedded import (
     FilteredSearchQuery,
     FilteredSearchFilterElement,
     FilteredSearchFilters,
+    ExportOptions,
 )
 from .scroll import ScrollSearch
 from .export import SearchExport
@@ -14,4 +15,5 @@ __all__ = [
     "ScrollSearch",
     "SearchExport",
     "ResultProfile",
+    "ExportOptions",
 ]

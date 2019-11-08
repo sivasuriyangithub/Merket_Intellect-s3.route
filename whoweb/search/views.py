@@ -1,13 +1,12 @@
 import csv
-import json
 
-from django.http import StreamingHttpResponse, Http404, JsonResponse
-from django.views.decorators.http import require_GET, require_POST
-from rest_framework import viewsets
-from slugify import slugify
+from django.http import StreamingHttpResponse, Http404
+from django.views.decorators.http import require_GET
+from rest_framework import mixins
+from rest_framework.permissions import IsAdminUser
+from rest_framework.viewsets import GenericViewSet
 
-from whoweb.payments.models import BillingAccount
-from whoweb.users.models import UserProfile  # for type
+from whoweb.contrib.rest_framework.permissions import IsSuperUser
 from .events import DOWNLOAD_VALIDATION, DOWNLOAD
 from .models import SearchExport
 from .serializers import SearchExportSerializer
@@ -21,35 +20,6 @@ class Echo:
     def write(self, value):
         """Write the value by returning it, instead of storing in a buffer."""
         return value
-
-
-@require_POST
-def create(request):
-    from whoweb.users.models import Group
-
-    data = json.loads(request.body)
-    xperweb_id = data["xperweb_id"]
-    email = data["email"]
-    group_name = data["group_name"]
-    group_id = data.get("group_id", group_name)
-    creds = data["credits"]
-    query = data["query"]
-    uploadable = data["for_campaign"]
-    billing_account_name = f"{group_name} Primary Billing Account"
-
-    profile, _ = UserProfile.get_or_create(username=xperweb_id, email=email)
-    group, _ = Group.objects.get_or_create(name=group_name, slug=slugify(group_id))
-    seat, _ = group.get_or_add_user(user=profile.user)
-    billing_account = BillingAccount.objects.get_or_create(
-        name=billing_account_name, slug=slugify(billing_account_name), group=group
-    )
-    billing_member, _ = billing_account.get_or_add_user(
-        user=profile.user, seat=seat, seat_credits=creds
-    )
-    export = SearchExport.create_from_query(
-        seat=seat, query=query, uploadable=uploadable
-    )
-    return JsonResponse(SearchExportSerializer(export).data)
 
 
 @require_GET
@@ -99,6 +69,17 @@ def validate(request, uuid):
     return response
 
 
-class SearchExportViewSet(viewsets.ReadOnlyModelViewSet):
+class SearchExportViewSet(
+    mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.ListModelMixin,
+    GenericViewSet,
+):
     queryset = SearchExport.objects.all().order_by("-created")
     serializer_class = SearchExportSerializer
+
+    def get_permissions(self):
+        if self.action == "create":
+            return [IsSuperUser()]
+        else:
+            return [IsAdminUser()]

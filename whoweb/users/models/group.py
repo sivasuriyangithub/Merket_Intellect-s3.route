@@ -11,19 +11,6 @@ class Group(AbstractOrganization):
         verbose_name_plural = _("groups")
 
 
-class GroupOwner(AbstractOrganizationOwner):
-    class Meta:
-        verbose_name = _("network admin")
-        verbose_name_plural = _("network admins")
-
-    def save(self, *args, **kwargs):
-        if self.seat and not self.user:
-            self.user = self.seat.user
-        elif not self.seat and self.user and self.organization:
-            self.seat, created = self.organization.get_or_add_user(self.user)
-        super().save(*args, **kwargs)
-
-
 class Seat(AbstractOrganizationUser):
     display_name = models.CharField(
         _("Name"),
@@ -45,3 +32,9 @@ class Seat(AbstractOrganizationUser):
     @property
     def email(self):
         return EmailAddress.objects.get_primary(user=self.user)
+
+
+class GroupOwner(AbstractOrganizationOwner):
+    class Meta:
+        verbose_name = _("network admin")
+        verbose_name_plural = _("network admins")

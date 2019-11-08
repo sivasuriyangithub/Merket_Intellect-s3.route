@@ -38,15 +38,15 @@ class FilteredSearchFilters(AbstractEmbeddedModel):
         ),
         default=list,
     )
-    profiles = ArrayField(models.CharField(max_length=300), default=list)
+    profiles = ArrayField(models.CharField(max_length=300), default=list, blank=True)
 
 
 class ExportOptions(AbstractEmbeddedModel):
     class Meta:
         managed = False
 
-    webhooks = ArrayField(models.URLField(), default=list)
-    format = models.CharField(default="nested", max_length=255)
+    webhooks = ArrayField(models.URLField(), default=list, blank=True)
+    format = models.CharField(default="nested", max_length=255, blank=True)
 
     def is_flat(self):
         return self.format == "flat"
@@ -66,7 +66,7 @@ class FilteredSearchQuery(AbstractEmbeddedModel):
     PHONE = "phone"
     PROFILE = "profile"
 
-    user_id = models.CharField(max_length=36, null=True)
+    user_id = models.CharField(max_length=36, null=True, blank=True)
     filters = EmbeddedModelField(FilteredSearchFilters, default=FilteredSearchFilters)
     defer = ArrayField(
         base_field=models.CharField(
@@ -78,6 +78,7 @@ class FilteredSearchQuery(AbstractEmbeddedModel):
             ),
         ),
         default=list,
+        blank=True,
     )
     with_invites = models.BooleanField(default=False)
     contact_filters = ArrayField(
@@ -92,5 +93,6 @@ class FilteredSearchQuery(AbstractEmbeddedModel):
             ),
         ),
         default=list,
+        blank=True,
     )
     export = EmbeddedModelField(ExportOptions, default=ExportOptions)

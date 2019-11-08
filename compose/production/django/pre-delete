@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -o errexit
+set -o pipefail
+set -o nounset
+
+
+curl -u "${RMQ_SU_USER}:${RMQ_SU_PASSWORD}" -X DELETE "${RMQ_URL}/api/vhosts/${ENVIRONMENT_NAME}"

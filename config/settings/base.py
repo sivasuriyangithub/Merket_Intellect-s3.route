@@ -36,6 +36,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#locale-paths
 LOCALE_PATHS = [ROOT_DIR.path("locale")]
 
+ENVIRONMENT_NAME = env("ENVIRONMENT_NAME", default="")
+
 # DATABASES
 # ------------------------------------------------------------------------------
 pg_pass = env("postgresql-password", default="")  # allows preview env secret injection
@@ -266,6 +268,10 @@ if USE_TZ:
     CELERY_TIMEZONE = TIME_ZONE
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_url
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="")
+CELERY_BROKER_VHOST = env("CELERY_BROKER_VHOST", default="")
+
+CELERY_BROKER_URL = f"{CELERY_BROKER_URL}/{CELERY_BROKER_VHOST}"
+
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_backend
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-accept_content

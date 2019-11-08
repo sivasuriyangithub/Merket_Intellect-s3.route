@@ -23,7 +23,26 @@ deployment:
   envConfigMapRef: "whoweb-config"
   envSecretRef: "whoweb-secrets"
   settingsModule: "config.settings.production"
-
+celery:
+  cpuRequest: "500m"
+  memoryRequest: "1Gi"
+  cpuLimit: "4"
+  memoryLimit: "8Gi"
+  hpa:
+    minReplicas: 1
+    maxReplicas: 10
+    cpu: 90
+    memory: 80
+beat:
+  cpuRequest: "100m"
+  memoryRequest: "64Mi"
+flower:
+  cpuRequest: "200m"
+  memoryRequest: "128Mi"
+  ports:
+    http:
+      port: 5555
+      targetPort: 5555
 hpa:
   minReplicas: 1
   maxReplicas: 5

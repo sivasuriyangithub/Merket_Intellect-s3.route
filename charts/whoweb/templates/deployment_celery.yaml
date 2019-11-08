@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "jx.fullname" . }}-celery
+  labels:
+    app: {{ template "jx.name" . }}-celery
+    chart: {{ template "jx.chart" . }}
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+  annotations:
+    configmap.reloader.stakater.com/reload: "{{.Values.deployment.envConfigMapRef}}"
+    secret.reloader.stakater.com/reload: "{{.Values.deployment.envSecretRef}}"
+    {{- if .Values.deployment.postgresqlInNamespace }}
+    secret.reloader.stakater.com/reload: "{{ .Release.Name }}-postgresql"
+    {{- end }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      release: "{{ .Release.Name }}"
+      app: {{ template "jx.name" . }}-celery
+  template:
+    metadata:
+      labels:
+        release: "{{ .Release.Name }}"
+        chart: {{ template "jx.chart" . }}
+        app: {{ template "jx.name" . }}-celery
+    spec:
+      terminationGracePeriodSeconds: {{ default 30 .Values.celery.gracePeriod }}
+      {{- if .Values.preemptible }}
+      tolerations:
+        - key: "key"
+          operator: "Exists"
+          effect: "NoSchedule"
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          args:
+            - "/start-celeryworker"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+          - name: IMAGE
+            value: {{ .Values.image.repository }}
+          - name: REVISION
+            value: {{ .Values.image.tag }}
+          - name: ENVIRONMENT_NAME
+            value: {{ .Release.Namespace }}
+          - name: PUBLIC_ORIGIN
+            value: https://{{- template "ingress.url" . }}
+          - name: DJANGO_ALLOWED_HOSTS
+            value: "{{- template "ingress.url" . -}},{{ .Values.service.name }}"
+          - name: DJANGO_SETTINGS_MODULE
+            value: {{ .Values.deployment.settingsModule }}
+          envFrom:
+          - configMapRef:
+              name: {{ .Values.deployment.envConfigMapRef }}
+          - secretRef:
+              name: {{ .Values.deployment.envSecretRef }}
+          {{- if .Values.deployment.postgresqlInNamespace }}
+          - secretRef:
+              name: {{ .Release.Name }}-postgresql
+          {{- end }}
+          resources:
+            requests:
+              cpu: {{ .Values.celery.cpuRequest }}
+              memory: {{ .Values.celery.memoryRequest }}
+            limits:
+              cpu: {{ .Values.celery.cpuLimit }}
+              memory: {{ .Values.celery.memoryLimit }}

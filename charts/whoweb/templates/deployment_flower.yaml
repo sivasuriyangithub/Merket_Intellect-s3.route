@@ -39,7 +39,7 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           args:
-            - "/start-flower"
+            - "/app/start-flower"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             {{- range $portName, $portConfig := .Values.flower.ports }}

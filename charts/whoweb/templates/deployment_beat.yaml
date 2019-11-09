@@ -39,7 +39,7 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           args:
-            - "/start-celerybeat"
+            - "/app/start-celerybeat"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
           - name: IMAGE

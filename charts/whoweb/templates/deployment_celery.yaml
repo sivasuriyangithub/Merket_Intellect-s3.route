@@ -39,7 +39,7 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           args:
-            - "/start-celeryworker"
+            - "/app/start-celeryworker"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
           - name: IMAGE

@@ -39,6 +39,8 @@ beat:
 flower:
   cpuRequest: "200m"
   memoryRequest: "128Mi"
+  cpuLimit: "1"
+  memoryLimit: "512Mi"
   ports:
     http:
       port: 5555

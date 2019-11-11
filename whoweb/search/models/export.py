@@ -164,6 +164,8 @@ class SearchExport(TimeStampedModel):
                 export.charged = export.target
             export._set_columns()
             export.save()
+        tasks = export.processing_signatures()
+        tasks.apply_async()
         return export
 
     def locked(self, **kwargs):

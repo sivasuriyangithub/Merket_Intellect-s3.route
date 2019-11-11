@@ -118,6 +118,7 @@ class SearchExportSerializer(serializers.ModelSerializer):
         export = SearchExport.create_from_query(
             seat=seat,
             query=validated_data["query"],
+            notify=True,
             uploadable=validated_data["uploadable"],
         )
         return export

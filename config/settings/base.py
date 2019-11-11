@@ -77,6 +77,7 @@ THIRD_PARTY_APPS = [
     "allauth.socialaccount",
     "rest_framework",
     "django_celery_beat",
+    "django_celery_results",
     "django_filters",
     "guardian",
     "organizations",
@@ -269,10 +270,12 @@ if USE_TZ:
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_url
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="")
 CELERY_BROKER_VHOST = env("CELERY_BROKER_VHOST", default="")
-
-CELERY_BROKER_URL = f"{CELERY_BROKER_URL}/{CELERY_BROKER_VHOST}"
+if CELERY_BROKER_VHOST:
+    CELERY_BROKER_URL = f"{CELERY_BROKER_URL}/{CELERY_BROKER_VHOST}"
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_backend
-CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+CELERY_RESULT_BACKEND = "django-db"
+# https://docs.celeryproject.org/en/latest/django/first-steps-with-django.html
+CELERY_CACHE_BACKEND = "django-cache"
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-accept_content
 CELERY_ACCEPT_CONTENT = ["json"]
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_serializer

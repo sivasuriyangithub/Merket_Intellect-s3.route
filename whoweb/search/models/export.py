@@ -40,6 +40,7 @@ from whoweb.search.events import (
     POPULATE_DATA,
     DERIVATION_SPAWN,
     FINALIZE_PAGE,
+    ENQUEUED_FROM_QUERY,
 )
 from whoweb.users.models import Seat
 from .profile import ResultProfile, WORK, PERSONAL, SOCIAL, PROFILE
@@ -165,7 +166,8 @@ class SearchExport(TimeStampedModel):
             export._set_columns()
             export.save()
         tasks = export.processing_signatures()
-        tasks.apply_async()
+        res = tasks.apply_async()
+        export.log_event(evt=ENQUEUED_FROM_QUERY, signatures=tasks, async_result=res)
         return export
 
     def locked(self, **kwargs):

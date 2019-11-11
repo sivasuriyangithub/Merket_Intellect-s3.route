@@ -68,6 +68,7 @@ DJANGO_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.postgres",
     # "django.contrib.humanize", # Handy template tags
+    "admin_actions",
     "django.contrib.admin",
 ]
 THIRD_PARTY_APPS = [

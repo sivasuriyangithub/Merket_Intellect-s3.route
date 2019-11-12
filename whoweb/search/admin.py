@@ -4,6 +4,7 @@ from django.shortcuts import redirect
 from django.urls import reverse
 
 from whoweb.core.admin import EventTabularInline
+from whoweb.search.events import ENQUEUED_FROM_ADMIN
 from whoweb.search.models import SearchExport
 
 
@@ -34,13 +35,17 @@ class ExportAdmin(ActionsModelAdmin):
 
     def run_publication_tasks(self, request, pk):
         export = SearchExport.objects.get(pk=pk)
-        res = export.processing_signatures().apply_async()
+        sigs = export.processing_signatures()
+        res = sigs.apply_async()
         self.message_user(
             request,
             f"{export} successfully published. (Did not reset credits, flags, status, or counters first).",
             level=messages.SUCCESS,
         )
-        self.message_user(request, f"Tasks run: {res}", level=messages.INFO)
+        self.message_user(request, f"Tasks run: {sigs}", level=messages.INFO)
+        self.message_user(request, f"Result ID: {res}", level=messages.INFO)
+
+        export.log_event(evt=ENQUEUED_FROM_ADMIN, signatures=sigs, async_result=res)
         return redirect(reverse("admin:search_searchexport_change", args=[pk]))
 
     run_publication_tasks.short_description = "Rerun"

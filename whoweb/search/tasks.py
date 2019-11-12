@@ -19,7 +19,7 @@ NETWORK_ERRORS = [HTTPError, Timeout, ConnectionError]
 def process_export(self, export_id):
     logger.info("Processing <SearchExport %s>", export_id)
     try:
-        export = SearchExport.objects.get(export_id)
+        export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
         return
 
@@ -51,7 +51,7 @@ def check_export_has_data(self, export_id):
     Useful in a chain to trigger another task after the export is finished.
     """
     try:
-        export = SearchExport.objects.get(export_id)
+        export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
         return
 
@@ -64,7 +64,7 @@ def check_export_has_data(self, export_id):
 @celery_app.task(bind=True, autoretry_for=NETWORK_ERRORS)
 def validate_rows(self, export_id):
     try:
-        export = SearchExport.objects.get(export_id)
+        export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
         return
     return export.upload_validation(task_context=self.request)
@@ -73,7 +73,7 @@ def validate_rows(self, export_id):
 @celery_app.task(autoretry_for=NETWORK_ERRORS, bind=True)
 def fetch_validation_results(self, export_id):
     try:
-        export = SearchExport.objects.get(export_id)
+        export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
         return
 
@@ -85,7 +85,7 @@ def fetch_validation_results(self, export_id):
 @celery_app.task(autoretry_for=NETWORK_ERRORS)
 def send_notification(export_id):
     try:
-        export = SearchExport.objects.get(export_id)
+        export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
         return
     return export.send_link()
@@ -94,7 +94,7 @@ def send_notification(export_id):
 @celery_app.task(autoretry_for=NETWORK_ERRORS)
 def do_post_validation_completion(export_id):
     try:
-        export = SearchExport.objects.get(export_id)
+        export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
         return
     return export.do_post_validation_completion()
@@ -112,7 +112,7 @@ def fetch_mx_domain(domain):
 @celery_app.task(autoretry_for=NETWORK_ERRORS)
 def spawn_mx_group(export_id):
     try:
-        export = SearchExport.objects.get(export_id)
+        export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
         return
     group_result = export.get_mx_task_group()

@@ -70,6 +70,53 @@ def test_generate_export_public(private_mock, query_contact_invites):
     assert export.status == "2"
 
 
+@patch("whoweb.search.models.ScrollSearch.get_page")
+def test_page_process_no_derive(get_page_mock, query_no_contact):
+    get_page_mock.return_value = [
+        {"profile": "wp:1"},
+        {"profile": "wp:2"},
+        {"profile": "wp:3"},
+    ]
+    export: SearchExport = SearchExportFactory(query=query_no_contact)
+    export._set_target()
+    export.ensure_search_interface()
+    pages: [SearchExportPage] = SearchExportPageFactory.create_batch(
+        3, export=export, data=None
+    )
+    assert pages[0].do_page_process() is True
+    export.refresh_from_db(fields=("progress_counter",))
+    assert export.progress_counter == 3
+
+
+def test_page_process_existing_data(query_no_contact, raw_derived):
+    export: SearchExport = SearchExportFactory()
+    pages: [SearchExportPage] = SearchExportPageFactory.create_batch(
+        3, export=export, data=raw_derived
+    )
+    assert pages[0].do_page_process() is True
+    export.refresh_from_db(fields=("progress_counter",))
+    assert export.progress_counter == 0
+
+
+@patch("whoweb.search.models.ScrollSearch.get_page")
+@patch("whoweb.search.tasks.finalize_page.delay")
+@patch("celery.group.apply_async")
+def test_page_process_applies_group_derivations(
+    group_mock, finalize_mock, get_page_mock, search_results, query_contact_invites
+):
+    get_page_mock.return_value = search_results
+    export: SearchExport = SearchExportFactory(query=query_contact_invites)
+    export._set_target()
+    export.ensure_search_interface()
+    pages: [SearchExportPage] = SearchExportPageFactory.create_batch(
+        3, export=export, data=None
+    )
+    pages[0].do_page_process()
+    assert group_mock.call_count == 1
+    assert finalize_mock.call_count == 1
+    assert pages[0].pk in finalize_mock.call_args[0]
+
+
 def test_get_next_empty_page():
     export: SearchExport = SearchExportFactory()
     pages: [SearchExportPage] = SearchExportPageFactory.create_batch(

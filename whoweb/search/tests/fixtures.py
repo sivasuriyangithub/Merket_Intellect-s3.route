@@ -50517,6 +50517,11 @@ def raw_derived():
 
 
 @pytest.fixture
+def search_results():
+    return pending
+
+
+@pytest.fixture
 def query_no_contact():
     return {
         "defer": ["degree_levels", "company_counts", "contact"],

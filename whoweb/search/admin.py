@@ -45,7 +45,9 @@ class ExportAdmin(ActionsModelAdmin):
         self.message_user(request, f"Tasks run: {sigs}", level=messages.INFO)
         self.message_user(request, f"Result ID: {res}", level=messages.INFO)
 
-        export.log_event(evt=ENQUEUED_FROM_ADMIN, signatures=sigs, async_result=res)
+        export.log_event(
+            evt=ENQUEUED_FROM_ADMIN, signatures=str(sigs), async_result=str(res)
+        )
         return redirect(reverse("admin:search_searchexport_change", args=[pk]))
 
     run_publication_tasks.short_description = "Rerun"

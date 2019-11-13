@@ -774,7 +774,7 @@ class SearchExportPage(TimeStampedModel):
     def _populate_data_directly(self):
         if self.data:
             return
-        scroll = self.export.scroll.fetch()
+        scroll = self.export.scroll
         ids = scroll.get_page(self.page_num, ids_only=True)
         profiles = scroll.get_page(self.page_num, ids_only=False)
         if self.limit:
@@ -836,11 +836,11 @@ class SearchExportPage(TimeStampedModel):
         poll_task = finalize_page.delay(self.pk, group_result.id)
         self.export.log_event(
             evt=DERIVATION_SPAWN,
-            task=poll_task,
+            task=str(poll_task),
             data={
                 "page": self.page_num,
-                "root_task": task_context.id,
-                "group_task": group_result.id,
+                "root_task": task_context.id if task_context else None,
+                "group_task": str(group_result.id),
             },
         )
 

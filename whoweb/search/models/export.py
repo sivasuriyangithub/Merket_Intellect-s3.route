@@ -493,7 +493,7 @@ class SearchExport(TimeStampedModel):
             export = self.locked(status__lt=SearchExport.STATUS.validated)
             if not export:
                 return
-            if export.charge:
+            if export.charge and export.defer_validation:
                 valid = sum(1 for _ in export.get_validation_results())
                 refund = export.charged - valid
                 if refund > 0:
@@ -504,6 +504,7 @@ class SearchExport(TimeStampedModel):
             export.status = SearchExport.STATUS.validated
             export.save()
         export.return_validation_results_to_cache()
+        return True
 
     def upload_validation(self, task_context=None):
         self.log_event(POST_VALIDATION, task=task_context)

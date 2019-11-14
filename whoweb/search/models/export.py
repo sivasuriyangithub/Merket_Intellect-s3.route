@@ -116,7 +116,7 @@ class SearchExport(TimeStampedModel):
 
     seat = models.ForeignKey(Seat, on_delete=models.CASCADE)
     scroll = models.ForeignKey(ScrollSearch, on_delete=models.SET_NULL, null=True)
-    uuid = models.UUIDField(default=uuid.uuid4, db_index=True)
+    uuid = models.UUIDField(default=uuid.uuid4, db_index=True, blank=True)
     query = EmbeddedModelField(
         FilteredSearchQuery, blank=False, default=FilteredSearchQuery
     )
@@ -129,7 +129,12 @@ class SearchExport(TimeStampedModel):
         editable=False,
     )
     status = models.IntegerField(
-        _("status"), db_index=True, choices=STATUS, max_length=100
+        _("status"),
+        db_index=True,
+        choices=STATUS,
+        max_length=100,
+        blank=True,
+        default=STATUS.created,
     )
     status_changed = MonitorField(_("status changed"), monitor="status")
     sent = models.CharField(max_length=255, editable=False)

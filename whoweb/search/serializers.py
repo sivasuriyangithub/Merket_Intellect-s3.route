@@ -13,9 +13,15 @@ from whoweb.users.models import UserProfile
 
 
 class ExportOptionsSerializer(serializers.ModelSerializer):
+    format = serializers.ChoiceField(
+        choices=ExportOptions.FORMAT_CHOICES,
+        required=False,
+        default=ExportOptions.FORMAT_CHOICES.NESTED,
+    )
+
     class Meta:
         model = ExportOptions
-        fields = "__all__"
+        fields = ("webhooks", "format")
 
     def to_representation(self, instance):
         return instance.serialize()
@@ -24,15 +30,15 @@ class ExportOptionsSerializer(serializers.ModelSerializer):
 class FilteredSearchFilterElementSerializer(serializers.ModelSerializer):
     class Meta:
         model = FilteredSearchFilterElement
-        fields = "__all__"
+        fields = ("field", "value", "truth")
 
     def to_representation(self, instance):
         return instance.serialize()
 
 
 class FilteredSearchFiltersSerializer(serializers.ModelSerializer):
-    required = serializers.ListField(FilteredSearchFilterElementSerializer)
-    desired = serializers.ListField(FilteredSearchFilterElementSerializer)
+    required = FilteredSearchFilterElementSerializer(many=True, default=list)
+    desired = FilteredSearchFilterElementSerializer(many=True, default=list)
 
     class Meta:
         model = FilteredSearchFilters
@@ -45,6 +51,12 @@ class FilteredSearchFiltersSerializer(serializers.ModelSerializer):
 class FilteredSearchQuerySerializer(serializers.ModelSerializer):
     filters = FilteredSearchFiltersSerializer()
     export = ExportOptionsSerializer(required=False)
+    defer = serializers.MultipleChoiceField(
+        choices=FilteredSearchQuery.DEFER_CHOICES, required=False, default=list
+    )
+    contact_filters = serializers.MultipleChoiceField(
+        choices=FilteredSearchQuery.CONTACT_FILTER_CHOICES, required=False, default=list
+    )
 
     class Meta:
         model = FilteredSearchQuery
@@ -67,13 +79,25 @@ class SearchExportSerializer(serializers.ModelSerializer):
     class Meta:
         model = SearchExport
         depth = 1
+        read_only_fields = [
+            "status",
+            "id",
+            "status_name",
+            "status_changed",
+            "progress_counter",
+            "valid_count",
+            "charge",
+            "charged",
+            "refunded",
+            "target",
+            "with_invites",
+        ]
         fields = [
             "id",
             "uuid",
             "seat",
             "query",
             "status_name",
-            "status",
             "status_changed",
             "sent",
             "sent_at",

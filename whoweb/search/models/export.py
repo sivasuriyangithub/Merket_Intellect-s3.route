@@ -15,16 +15,15 @@ from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.postgres.fields import JSONField, ArrayField
 from django.core.mail import send_mail
 from django.db import models, transaction
-from django.db.models import F, IntegerField
-from django.db.models.functions import Cast
+from django.db.models import F
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.six import string_types, StringIO
 from django.utils.translation import ugettext_lazy as _
 from dns import resolver
 from model_utils import Choices
-from model_utils.fields import MonitorField, StatusField
-from model_utils.managers import QueryManager, QueryManagerMixin
+from model_utils.fields import MonitorField
+from model_utils.managers import QueryManagerMixin
 from model_utils.models import TimeStampedModel
 from requests_cache import CachedSession
 
@@ -58,10 +57,7 @@ class SubscriptionError(Exception):
 
 
 class SearchExportManager(QueryManagerMixin, models.Manager):
-    def get_queryset(self):
-        return (
-            super().get_queryset().annotate(status_val=Cast("status", IntegerField()))
-        )
+    pass
 
 
 class SearchExport(TimeStampedModel):
@@ -132,7 +128,9 @@ class SearchExport(TimeStampedModel):
         default=partial(list, BASE_COLS),
         editable=False,
     )
-    status = StatusField(_("status"), db_index=True)
+    status = models.IntegerField(
+        _("status"), db_index=True, choices=STATUS, max_length=100
+    )
     status_changed = MonitorField(_("status changed"), monitor="status")
     sent = models.CharField(max_length=255, editable=False)
     sent_at = MonitorField(
@@ -142,7 +140,7 @@ class SearchExport(TimeStampedModel):
     target = models.IntegerField(default=0)
     charged = models.IntegerField(default=0)
     refunded = models.IntegerField(default=0)
-    valid_count = models.IntegerField(null=True)
+    valid_count = models.IntegerField(null=True, blank=True)
 
     notify = models.BooleanField(default=False)
     charge = models.BooleanField(default=False)
@@ -485,7 +483,7 @@ class SearchExport(TimeStampedModel):
 
     def do_post_pages_completion(self, task_context=None):
         with transaction.atomic():
-            export = self.locked(status_val__lt=SearchExport.STATUS.pages_complete)
+            export = self.locked(status__lt=SearchExport.STATUS.pages_complete)
             if export:
                 export.log_event(FINALIZING, task=task_context)
                 if export.charge:
@@ -498,7 +496,7 @@ class SearchExport(TimeStampedModel):
 
     def do_post_validation_completion(self):
         with transaction.atomic():
-            export = self.locked(status_val__lt=SearchExport.STATUS.validated)
+            export = self.locked(status__lt=SearchExport.STATUS.validated)
             if not export:
                 return
             if export.charge and export.defer_validation:

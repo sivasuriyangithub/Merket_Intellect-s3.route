@@ -50782,9 +50782,9 @@ def query_contact_no_invites():
 
 
 @pytest.fixture
-def query_contact_invites():
+def query_contact_invites_defer_validation():
     return {
-        "defer": ["degree_levels", "company_counts"],
+        "defer": ["degree_levels", "company_counts", "validation"],
         "user_id": "512cce8c7cc2133a2be3543d",
         "with_invites": True,
         "filters": {

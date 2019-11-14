@@ -176,10 +176,19 @@ def test_do_post_pages_completion(target, charged, progress, refund):
 @patch("whoweb.search.models.SearchExport.return_validation_results_to_cache")
 @patch("whoweb.search.models.SearchExport.get_validation_results")
 def test_do_post_validation_completion(
-    get_validation_results, cache_mock, charged, valid, starting_refund, this_refund
+    get_validation_results,
+    cache_mock,
+    charged,
+    valid,
+    starting_refund,
+    this_refund,
+    query_contact_invites_defer_validation,
 ):
     export: SearchExport = SearchExportFactory(
-        charged=charged, refunded=starting_refund, charge=True
+        query=query_contact_invites_defer_validation,
+        charged=charged,
+        refunded=starting_refund,
+        charge=True,
     )
     get_validation_results.return_value = [True] * valid
     export.do_post_validation_completion()

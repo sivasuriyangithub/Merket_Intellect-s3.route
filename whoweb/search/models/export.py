@@ -511,7 +511,8 @@ class SearchExport(TimeStampedModel):
                 export.valid_count = valid
             export.status = SearchExport.STATUS.validated
             export.save()
-        export.return_validation_results_to_cache()
+        if export.defer_validation:
+            export.return_validation_results_to_cache()
         return True
 
     def upload_validation(self, task_context=None):
@@ -716,8 +717,11 @@ class SearchExport(TimeStampedModel):
         if on_complete:
             sigs |= on_complete
         if self.defer_validation:
-            sigs |= validate_rows.si(self.pk) | fetch_validation_results.si(self.pk)
-        sigs |= do_post_validation_completion.si(self.pk)
+            sigs |= (
+                validate_rows.si(self.pk)
+                | fetch_validation_results.si(self.pk)
+                | do_post_validation_completion.si(self.pk)
+            )
         if self.notify:
             sigs |= send_notification.si(self.pk)
         if self.uploadable:

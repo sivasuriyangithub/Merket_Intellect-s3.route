@@ -166,7 +166,7 @@ def test_do_post_pages_completion(target, charged, progress, refund):
     assert export.refunded == refund
     assert export.charged == charged - refund
     assert export.seat.billing.seat_credits == refund
-    assert export.status == "4"
+    assert export.status == 4
 
 
 @pytest.mark.parametrize(
@@ -198,7 +198,7 @@ def test_do_post_validation_completion(
     assert export.charged == charged - this_refund
     assert export.valid_count == charged - this_refund
     assert export.seat.billing.seat_credits == this_refund  # factory default creds == 0
-    assert export.status == "16"
+    assert export.status == 16
 
 
 def test_upload_validation():

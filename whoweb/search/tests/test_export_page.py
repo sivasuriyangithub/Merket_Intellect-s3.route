@@ -67,7 +67,7 @@ def test_generate_export_public(private_mock, query_contact_invites):
     assert export.generate_pages() == private_mock.return_value
     assert private_mock.call_count == 1
     export.refresh_from_db(fields=("status",))
-    assert export.status == "2"
+    assert export.status == 2
 
 
 @patch("whoweb.search.models.ScrollSearch.get_page")

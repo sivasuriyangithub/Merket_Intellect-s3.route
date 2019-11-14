@@ -211,7 +211,7 @@ class SearchExport(TimeStampedModel):
     should_remove_derivation_failures = property(should_remove_derivation_failures)
 
     def defer_validation(self):
-        return FilteredSearchQuery.DEFER_VALIDATION in self.query.defer
+        return FilteredSearchQuery.DEFER_CHOICES.VALIDATION in self.query.defer
 
     defer_validation.boolean = True
     defer_validation = property(defer_validation)

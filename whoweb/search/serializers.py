@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from slugify import slugify
 
+from whoweb.contrib.rest_framework.fields import MultipleChoiceListField
 from whoweb.payments.models import BillingAccount
 from whoweb.search.models import (
     SearchExport,
@@ -51,10 +52,10 @@ class FilteredSearchFiltersSerializer(serializers.ModelSerializer):
 class FilteredSearchQuerySerializer(serializers.ModelSerializer):
     filters = FilteredSearchFiltersSerializer()
     export = ExportOptionsSerializer(required=False)
-    defer = serializers.MultipleChoiceField(
+    defer = MultipleChoiceListField(
         choices=FilteredSearchQuery.DEFER_CHOICES, required=False, default=list
     )
-    contact_filters = serializers.MultipleChoiceField(
+    contact_filters = MultipleChoiceListField(
         choices=FilteredSearchQuery.CONTACT_FILTER_CHOICES, required=False, default=list
     )
 

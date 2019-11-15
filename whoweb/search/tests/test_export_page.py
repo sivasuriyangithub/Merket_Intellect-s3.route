@@ -71,21 +71,19 @@ def test_generate_export_public(private_mock, query_contact_invites):
 
 
 @patch("whoweb.search.models.ScrollSearch.get_page")
-def test_page_process_no_derive(get_page_mock, query_no_contact):
-    get_page_mock.return_value = [
-        {"profile": "wp:1"},
-        {"profile": "wp:2"},
-        {"profile": "wp:3"},
-    ]
+def test_page_process_no_derive(get_page_mock, query_no_contact, search_results):
+    get_page_mock.return_value = search_results
     export: SearchExport = SearchExportFactory(query=query_no_contact)
     export._set_target()
     export.ensure_search_interface()
-    pages: [SearchExportPage] = SearchExportPageFactory.create_batch(
-        3, export=export, data=None
-    )
-    assert pages[0].do_page_process() is True
+    page: SearchExportPage = SearchExportPageFactory(export=export, data=None)
+
+    assert page.data is None
+    assert page.do_page_process() is True
+    page.refresh_from_db()
+    assert page.data is not None
     export.refresh_from_db(fields=("progress_counter",))
-    assert export.progress_counter == 3
+    assert export.progress_counter == len(search_results)
 
 
 def test_page_process_existing_data(query_no_contact, raw_derived):

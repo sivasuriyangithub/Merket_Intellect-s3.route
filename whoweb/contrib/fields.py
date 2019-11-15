@@ -1,6 +1,7 @@
 import json
 import zlib
 
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 
@@ -16,7 +17,7 @@ class CompressedBinaryJSONField(models.BinaryField):
 
     def get_db_prep_value(self, value, connection, prepared=False):
         if value is not None:
-            string = json.dumps(value)
+            string = json.dumps(value, cls=DjangoJSONEncoder)
             value = zlib.compress(string.encode())
         return super().get_db_prep_value(value, connection, prepared)
 

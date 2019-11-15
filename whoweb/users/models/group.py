@@ -59,7 +59,7 @@ class Seat(AbstractOrganizationUser):
 
     @property
     def email(self):
-        return EmailAddress.objects.get_primary(user=self.user)
+        return EmailAddress.objects.get_primary(user=self.user).email
 
 
 class GroupOwner(AbstractOrganizationOwner):

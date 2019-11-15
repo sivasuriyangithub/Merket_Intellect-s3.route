@@ -129,12 +129,7 @@ class SearchExport(TimeStampedModel):
         editable=False,
     )
     status = models.IntegerField(
-        _("status"),
-        db_index=True,
-        choices=STATUS,
-        max_length=100,
-        blank=True,
-        default=STATUS.created,
+        _("status"), db_index=True, choices=STATUS, blank=True, default=STATUS.created
     )
     status_changed = MonitorField(_("status changed"), monitor="status")
     sent = models.CharField(max_length=255, editable=False)

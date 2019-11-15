@@ -8,6 +8,7 @@ from whoweb.search.urls import router as search_router
 from whoweb.users.urls import router as user_router
 
 router = routers.DefaultRouter()
+router.root_view_name = "home"
 router.registry.extend(search_router.registry)
 router.registry.extend(user_router.registry)
 

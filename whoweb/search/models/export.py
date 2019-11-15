@@ -173,7 +173,9 @@ class SearchExport(TimeStampedModel):
             export.save()
         tasks = export.processing_signatures()
         res = tasks.apply_async()
-        export.log_event(evt=ENQUEUED_FROM_QUERY, signatures=tasks, async_result=res)
+        export.log_event(
+            evt=ENQUEUED_FROM_QUERY, signatures=str(tasks), async_result=str(res)
+        )
         return export
 
     def locked(self, **kwargs):
@@ -750,9 +752,19 @@ class SearchExport(TimeStampedModel):
         else:
             code = evt[0]
             message = evt[1]
-        ModelEvent.objects.create(
-            ref=self, code=code, message=message, start=start, end=end, data=data
-        )
+        try:
+            ModelEvent.objects.create(
+                ref=self, code=code, message=message, start=start, end=end, data=data
+            )
+        except TypeError:
+            ModelEvent.objects.create(
+                ref=self,
+                code=code,
+                message=message,
+                start=start,
+                end=end,
+                data=str(data),
+            )
 
 
 class SearchExportPage(TimeStampedModel):

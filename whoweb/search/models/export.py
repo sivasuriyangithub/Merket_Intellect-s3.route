@@ -711,6 +711,7 @@ class SearchExport(TimeStampedModel):
             do_post_validation_completion,
             spawn_mx_group,
             header_check,
+            alert_xperweb,
         )
 
         sigs = process_export.si(self.pk) | check_export_has_data.si(export_id=self.pk)
@@ -729,6 +730,7 @@ class SearchExport(TimeStampedModel):
                 spawn_mx_group.si(self.pk)
                 | header_check.s()  # mutable signature to accept group_id
             )
+        sigs |= alert_xperweb.si(self.pk)
         return sigs
 
     def get_validation_url(self):

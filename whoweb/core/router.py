@@ -68,10 +68,16 @@ class Router(object):
 
     def make_exportable_invite_key(self, **kwargs):
         return Requestor.with_cache(
-            self.xperweb("api/v1/invite/keys"),
+            self.xperweb("internal/invite/keys"),
             method="POST",
             cache_expires=timedelta(days=1),
             json=kwargs,
+        )
+
+    def alert_xperweb_export_completion(self, idempotency_key, amount):
+        return Requestor.post(
+            self.xperweb("internal/export/settleup"),
+            json=dict(idempotency_key=idempotency_key, amount=amount),
         )
 
 

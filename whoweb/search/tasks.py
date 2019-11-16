@@ -4,6 +4,7 @@ from celery.result import GroupResult
 from requests import HTTPError, Timeout, ConnectionError
 
 from config import celery_app
+from whoweb.core.router import router
 from whoweb.search.models import SearchExport, ResultProfile
 from whoweb.search.models.export import MXDomain, SearchExportPage
 from whoweb.search.models.profile import VALIDATED, COMPLETE, FAILED, RETRY
@@ -11,6 +12,25 @@ from whoweb.search.models.profile import VALIDATED, COMPLETE, FAILED, RETRY
 logger = logging.getLogger(__name__)
 
 NETWORK_ERRORS = [HTTPError, Timeout, ConnectionError]
+
+
+@celery_app.task(
+    bind=True, max_retries=3000, track_started=True, autoretry_for=NETWORK_ERRORS
+)
+def alert_xperweb(self, export_id):
+    logger.info("Letting Xperweb know to charge user for <SearchExport %s>", export_id)
+    try:
+        export = SearchExport.objects.get(pk=export_id)
+    except SearchExport.DoesNotExist:
+        return
+    if export.charge:
+        res = router.alert_xperweb_export_completion(
+            idempotency_key=export.uuid, amount=export.charged
+        )
+        if not res.ok:
+            self.retry(max_retries=50)
+        return res.content
+    return True
 
 
 @celery_app.task(

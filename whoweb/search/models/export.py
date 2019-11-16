@@ -575,7 +575,7 @@ class SearchExport(TimeStampedModel):
         return r.ok
 
     def get_validation_results(self, only_valid=True):
-        if self.validation_list_id == self.SKIP_CODE:
+        if not self.defer_validation or self.validation_list_id == self.SKIP_CODE:
             return []
 
         s = CachedSession(expire_after=timedelta(days=30).total_seconds())

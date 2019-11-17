@@ -33,16 +33,12 @@ def download(request, uuid):
     pseudo_buffer = Echo()
     writer = csv.writer(pseudo_buffer)
     response = StreamingHttpResponse(
-        (
-            writer.writerow([(x.encode("utf-8") if x else "") for x in row])
-            for row in export.generate_csv_rows()
-        ),
+        (writer.writerow(row) for row in export.generate_csv_rows()),
         content_type="text/csv",
     )
-    response["Content-Disposition"] = (
-        f"attachment; "
-        f"filename='whoknows_search_results_{export.created.date()}__fetch.csv'"
-    )
+    response[
+        "Content-Disposition"
+    ] = f"attachment; filename=whoknows_search_results_{export.created.date()}.csv"
     return response
 
 
@@ -57,15 +53,12 @@ def validate(request, uuid):
     pseudo_buffer = Echo()
     writer = csv.writer(pseudo_buffer)
     response = StreamingHttpResponse(
-        (
-            writer.writerow([(x.encode("utf-8") if x else "") for x in row])
-            for row in export.get_ungraded_email_rows()
-        ),
+        (writer.writerow(row) for row in export.get_ungraded_email_rows()),
         content_type="text/csv",
     )
-    response["Content-Disposition"] = (
-        f"attachment; " f"filename='wk_validation_{export.created.date()}.csv'"
-    )
+    response[
+        "Content-Disposition"
+    ] = f"attachment; filename=wk_validation_{export.created.date()}.csv"
     return response
 
 

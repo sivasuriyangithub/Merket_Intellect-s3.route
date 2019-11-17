@@ -30,8 +30,14 @@ class ExportAdmin(ActionsModelAdmin):
     )
     inlines = [EventTabularInline]
     # fields = ("validation_list_id", "sent", "sent_at", "with_invites")
+    actions_row = ("download",)
+    actions_detail = ("run_publication_tasks", "download")
 
-    actions_detail = ("run_publication_tasks",)
+    def download(self, request, pk):
+        export = SearchExport.objects.get(pk=pk)
+        return redirect(export.get_absolute_url())
+
+    download.short_description = "💾️"
 
     def run_publication_tasks(self, request, pk):
         export = SearchExport.objects.get(pk=pk)

@@ -34,22 +34,23 @@ def test_generate_pages_specified(query_specified_profiles_in_filters):
 
 
 @pytest.mark.parametrize("population,pages", [(100, 1), (500, 2), (601, 3)])
-@patch("whoweb.search.models.ScrollSearch.get_page")
+@patch("whoweb.search.models.ScrollSearch.get_ids_for_page")
 @patch("whoweb.search.models.ScrollSearch.population")
-def test_generate_pages(pop_mock, get_page, query_contact_invites, population, pages):
+def test_generate_pages(pop_mock, get_ids, query_contact_invites, population, pages):
     pop_mock.return_value = population
     export: SearchExport = SearchExportFactory(query=query_contact_invites)
     export._set_target()
     export._generate_pages()
-    assert get_page.call_count == pages
+    assert get_ids.call_count == pages
     assert export.pages.count() == pages
 
 
 @pytest.mark.parametrize("population,pages", [(100, 1), (500, 2), (601, 3)])
-@patch("whoweb.search.models.ScrollSearch.get_page")
+@patch("whoweb.search.models.ScrollSearch.get_profiles_for_page")
+@patch("whoweb.search.models.ScrollSearch.get_ids_for_page")
 @patch("whoweb.search.models.ScrollSearch.population")
 def test_generate_pages_continuation(
-    pop_mock, get_page, query_contact_invites, population, pages
+    pop_mock, get_ids, get_page, query_contact_invites, population, pages
 ):
     pop_mock.return_value = population
     export: SearchExport = SearchExportFactory(query=query_contact_invites)
@@ -70,8 +71,12 @@ def test_generate_export_public(private_mock, query_contact_invites):
     assert export.status == 2
 
 
-@patch("whoweb.search.models.ScrollSearch.get_page")
-def test_page_process_no_derive(get_page_mock, query_no_contact, search_results):
+@patch("whoweb.search.models.ScrollSearch.get_profiles_for_page")
+@patch("whoweb.search.models.ScrollSearch.get_ids_for_page")
+def test_page_process_no_derive(
+    get_ids_mock, get_page_mock, query_no_contact, search_results
+):
+    get_ids_mock.return_value = search_results
     get_page_mock.return_value = search_results
     export: SearchExport = SearchExportFactory(query=query_no_contact)
     export._set_target()
@@ -96,13 +101,13 @@ def test_page_process_existing_data(query_no_contact, raw_derived):
     assert export.progress_counter == 0
 
 
-@patch("whoweb.search.models.ScrollSearch.get_page")
+@patch("whoweb.search.models.ScrollSearch.get_profiles_for_page")
 @patch("whoweb.search.tasks.finalize_page.delay")
 @patch("celery.group.apply_async")
 def test_page_process_applies_group_derivations(
-    group_mock, finalize_mock, get_page_mock, search_results, query_contact_invites
+    group_mock, finalize_mock, get_profiles_mock, search_results, query_contact_invites
 ):
-    get_page_mock.return_value = search_results
+    get_profiles_mock.return_value = search_results
     export: SearchExport = SearchExportFactory(query=query_contact_invites)
     export._set_target()
     export.ensure_search_interface()
@@ -201,14 +206,14 @@ def test_get_csv_row(key_mock):
     export: SearchExport = SearchExportFactory()
     profile: ResultProfile = ResultProfileFactory()
     key_mock.return_value = {"key": "invitation"}
-    assert len(export.get_csv_row(profile)) == 12
-    assert len(export.get_csv_row(profile, with_invite=True)) == 13
+    assert len(export.get_csv_row(profile)) == 10
+    assert len(export.get_csv_row(profile, with_invite=True)) == 11
     assert export.get_csv_row(profile, with_invite=True)[0] == "invitation"
-    assert (
-        export.get_csv_row(profile, enforce_valid_email=True)[12] == "passing@email.com"
-    )
+    row = export.get_csv_row(profile, enforce_valid_contact=True)
+    assert row[9] == "passing@email.com"
     export.uploadable = True
-    assert len(export.get_csv_row(profile)) == 14
+    assert len(export.get_csv_row(profile)) == 12
+    assert len(export.get_csv_row(profile, enforce_valid_contact=True)) == 33
 
 
 @patch("whoweb.core.router.Router.make_exportable_invite_key")
@@ -222,3 +227,34 @@ def test_generate_csv_rows(get_profiles_mock, key_mock, query_contact_invites):
     csv = list(csv)
     assert len(csv) == 11
     assert csv[0] == export.get_column_names()
+
+
+def test_save_profile(result_profile_derived):
+    page: SearchExportPage = SearchExportPageFactory()
+    SearchExportPage.save_profile(page.pk, result_profile_derived)
+    page.refresh_from_db()
+    assert page.working_data == {
+        result_profile_derived.id: result_profile_derived.to_json()
+    }
+
+
+def test_save_profile_idempotent(result_profile_derived):
+    page: SearchExportPage = SearchExportPageFactory()
+    SearchExportPage.save_profile(page.pk, result_profile_derived)
+    SearchExportPage.save_profile(page.pk, result_profile_derived)
+    SearchExportPage.save_profile(page.pk, result_profile_derived)
+    page.refresh_from_db()
+    assert page.working_data == {
+        result_profile_derived.id: result_profile_derived.to_json()
+    }
+
+
+def test_save_profiles(result_profile_derived, result_profile_derived_another):
+    page: SearchExportPage = SearchExportPageFactory()
+    SearchExportPage.save_profile(page.pk, result_profile_derived)
+    SearchExportPage.save_profile(page.pk, result_profile_derived_another)
+    page.refresh_from_db()
+    assert page.working_data == {
+        result_profile_derived.id: result_profile_derived.to_json(),
+        result_profile_derived_another.id: result_profile_derived_another.to_json(),
+    }

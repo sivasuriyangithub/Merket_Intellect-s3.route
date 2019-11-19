@@ -67,42 +67,41 @@ class SearchExport(TimeStampedModel):
 
     ALL_COLUMNS = {
         0: "invitekey",
-        1: "First Name",
-        2: "Last Name",
-        3: "Title",
-        4: "Company",
-        5: "Industry",
-        6: "City",
-        7: "State",
-        8: "Country",
-        9: "Profile URL",
-        10: "Experience",
-        11: "Education",
-        12: "Skills",
-        13: "Email",
-        14: "Email Grade",
-        15: "LinkedIn URL",
-        16: "Phone Number",
-        17: "Additional Emails",
-        18: "Facebook",
-        19: "Twitter",
-        20: "AngelList",
-        21: "Google Plus",
-        22: "Google Profile",
-        23: "Quora",
-        24: "GitHub",
-        25: "BitBucket",
-        26: "StackExchange",
-        27: "Flickr",
-        28: "YouTube",
+        1: "Profile ID",
+        2: "First Name",
+        3: "Last Name",
+        4: "Title",
+        5: "Company",
+        6: "Industry",
+        7: "City",
+        8: "State",
+        9: "Country",
+        10: "Email",
+        11: "Email Type",
+        12: "Email Grade",
+        13: "Email 2",
+        14: "Email 2 Type",
+        15: "Email 2 Grade",
+        16: "Email 3",
+        17: "Email 3 Type",
+        18: "Email 3 Grade",
+        19: "Phone Number",
+        20: "Phone Number Type",
+        21: "Phone Number 2",
+        22: "Phone Number 2 Type",
+        23: "Phone Number 3",
+        24: "Phone Number 3 Type",
+        25: "WhoKnows URL",
+        26: "LinkedIn URL",
+        27: "Facebook",
+        28: "Twitter",
         29: "domain",
         30: "mxdomain",
     }
     INTRO_COLS = [0]
-    BASE_COLS = list(range(1, 18))
-    DERIVATION_COLS = list(range(18, 29))
+    BASE_COLS = list(range(1, 10)) + [25]
+    DERIVATION_COLS = list(range(10, 25)) + [26, 27, 28]
     UPLOADABLE_COLS = [29, 30]
-    EXPANDABLE_COLS = [10, 11, 12, 16, 17]
 
     STATUS = Choices(
         (0, "created", "Created"),
@@ -269,6 +268,7 @@ class SearchExport(TimeStampedModel):
             self.columns = self.BASE_COLS
         if self.uploadable and not indexes:
             self.columns = self.columns + self.UPLOADABLE_COLS
+        self.columns = sorted(self.columns)
         if save:
             self.save()
         return self
@@ -336,11 +336,14 @@ class SearchExport(TimeStampedModel):
             if profile.email and profile.id:
                 yield (profile.email, profile.id)
 
-    def get_csv_row(self, profile, enforce_valid_email=False, with_invite=False):
-        if enforce_valid_email:
+    def get_csv_row(
+        self, profile: ResultProfile, enforce_valid_contact=False, with_invite=False
+    ):
+        if enforce_valid_contact:
             if not profile.email or not profile.passing_grade:
                 return
         row = [
+            profile.id,
             profile.first_name,
             profile.last_name,
             profile.title,
@@ -349,20 +352,23 @@ class SearchExport(TimeStampedModel):
             profile.city,
             profile.state,
             profile.country,
-            profile.absolute_profile_url,
-            profile.experience_as_strings(),
-            profile.education_history_as_strings(),
-            profile.skill_tags,
         ]
-        if enforce_valid_email:
-            row += [
-                profile.email,
-                profile.grade,
-                profile.li_url,
-                profile.phone,
-                profile.graded_addresses(),
-            ]
-            row.extend(profile.social_links)
+        if enforce_valid_contact:
+            for i in range(3):
+                try:
+                    entry = profile.sorted_graded_emails[i]
+                    row.extend([entry.email, "", entry.grade])  # profile.email_type
+                except IndexError:
+                    row.extend(["", "", ""])
+            for i in range(3):
+                try:
+                    entry = profile.phone[i]
+                    row.extend([entry.phone, entry.phone_type, entry.status])
+                except IndexError:
+                    row.extend(["", "", ""])
+        row.append(profile.absolute_profile_url)
+        if enforce_valid_contact:
+            row.extend([profile.li_url, profile.facebook, profile.twitter])
         if with_invite:
             key = profile.get_invite_key(profile.email)
             if not key:
@@ -370,9 +376,7 @@ class SearchExport(TimeStampedModel):
             row = [key] + row
         if self.uploadable:
             row += [profile.domain or "", profile.mx_domain or ""]
-        return [
-            ("; ".join(col) if isinstance(col, (list, tuple)) else col) for col in row
-        ]
+        return row
 
     def generate_csv_rows(self, rows=None, validation_registry=None):
         if validation_registry is None:
@@ -396,7 +400,7 @@ class SearchExport(TimeStampedModel):
                 return
             yield self.get_csv_row(
                 profile,
-                enforce_valid_email=self.should_derive_email,
+                enforce_valid_contact=self.should_derive_email,
                 with_invite=self.with_invites,
             )
 
@@ -457,7 +461,7 @@ class SearchExport(TimeStampedModel):
             # Actual Scrolling
             for page in range(start_page, num_pages + start_page):
                 logger.debug("Eagerly fetching page %d of scroll", page)
-                profile_ids = search.get_page(page=page, ids_only=True)
+                profile_ids = search.get_ids_for_page(page=page)
                 if profile_ids:
                     pages.append(SearchExportPage(page_num=page, export=self))
                 else:
@@ -775,7 +779,7 @@ class SearchExportPage(TimeStampedModel):
     )
     data = CompressedBinaryJSONField(null=True, editable=False)
     page_num = models.PositiveIntegerField()
-    working_data: Optional[dict] = JSONField(editable=False, null=True)
+    working_data = JSONField(editable=False, null=True, default={})
     count = models.IntegerField(default=0)
     limit = models.IntegerField(null=True)
 
@@ -785,9 +789,11 @@ class SearchExportPage(TimeStampedModel):
 
     @classmethod
     def save_profile(cls, page_pk: int, profile: "ResultProfile") -> "SearchExportPage":
-        return cls.objects.filter(pk=page_pk).update(
-            working_data__={profile.id: profile.to_json()}
-        )
+        page = cls.objects.get(pk=page_pk)
+        if page:
+            page.working_data[profile.id] = profile.to_json()
+            page.save()
+        return page
 
     def locked(self):
         return (
@@ -800,8 +806,8 @@ class SearchExportPage(TimeStampedModel):
         if self.data:
             return
         scroll = self.export.scroll
-        ids = scroll.get_page(self.page_num, ids_only=True)
-        profiles = scroll.get_page(self.page_num, ids_only=False)
+        ids = scroll.get_ids_for_page(self.page_num)
+        profiles = scroll.get_profiles_for_page(self.page_num)
         if self.limit:
             self.count = min(self.limit, len(profiles))
             self.data = profiles[: self.limit]
@@ -839,7 +845,7 @@ class SearchExportPage(TimeStampedModel):
             self.populate_data_directly()
             return True
 
-        profiles = self.export.scroll.get_page(self.page_num, ids_only=False)
+        profiles = self.export.scroll.get_profiles_for_page(self.page_num)
 
         if self.export.defer_validation:
             process_derivation = process_derivation_fast

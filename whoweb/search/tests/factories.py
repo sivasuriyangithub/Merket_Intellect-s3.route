@@ -14,6 +14,7 @@ from faker import Faker as NonFactoryFaker
 from whoweb.payments.tests.factories import BillingAccountMemberFactory
 from whoweb.search.models import SearchExport, ResultProfile
 from whoweb.search.models.export import SearchExportPage
+from whoweb.search.models.profile import GradedEmail
 from whoweb.search.tests.fixtures import done
 from faker.providers import internet
 
@@ -37,22 +38,27 @@ class SearchExportPageFactory(DjangoModelFactory):
         model = SearchExportPage
 
 
+class GradedEmailFactory(Factory):
+    email = fake.email()
+    grade = "F"
+
+    class Meta:
+        model = GradedEmail
+
+
 class ResultProfileFactory(Factory):
 
     _id = Sequence(str)
     first_name = Faker("first_name")
     last_name = Faker("last_name")
-    derived_contact = Dict(
-        dict(
-            email="passing@email.com",
-            emails=List(["passing@email.com", fake.email(), fake.email()]),
-            _graded_emails=List(
-                [
-                    Dict({"email": "passing@email.com", "grade": "A+"}),
-                    Dict({"email": fake.email(), "grade": "F"}),
-                ]
-            ),
-        )
+    email = "passing@email.com"
+    grade = "A+"
+    emails = List(["passing@email.com", fake.email(), fake.email()])
+    graded_emails = List(
+        [
+            SubFactory(GradedEmailFactory, email="passing@email.com", grade="A+"),
+            SubFactory(GradedEmailFactory),
+        ]
     )
 
     class Meta:

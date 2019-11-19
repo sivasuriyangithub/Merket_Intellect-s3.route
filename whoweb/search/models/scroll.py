@@ -5,7 +5,7 @@ import time
 import uuid
 
 import requests
-from bson import json_util
+import typing
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
@@ -15,6 +15,7 @@ from model_utils.models import TimeStampedModel
 
 from whoweb.contrib.postgres.fields import EmbeddedModelField
 from whoweb.core.router import router
+from .profile import ResultProfile
 from .embedded import FilteredSearchQuery
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,7 @@ class ScrollSearch(TimeStampedModel):
         return str(self.scroll_key.hex)
 
     @staticmethod
-    def get_query_hash(user_id, query):
+    def get_query_hash(user_id, query) -> str:
         unique_query = f"{query.pk}_{user_id}"
         hash_id = hashlib.sha224(unique_query.encode("utf-8")).hexdigest()
         logger.debug("Hash for query: %s, %s", hash_id, unique_query)
@@ -67,13 +68,13 @@ class ScrollSearch(TimeStampedModel):
             self.save()
         return self
 
-    def page_from_cache(self, page):
+    def page_from_cache(self, page: int) -> typing.Optional[typing.List[str]]:
         try:
             return self.pages.get(page_number=page).results
         except ScrollSearchPage.DoesNotExist:
             return None
 
-    def population(self):
+    def population(self) -> typing.Optional[int]:
         if self.total is None:
             query = self.query.serialize()
             query["ids_only"] = True
@@ -84,22 +85,22 @@ class ScrollSearch(TimeStampedModel):
             self.save()
         return self.total
 
-    def send_simple_search(self, limit=None, skip=None, ids_only=True):
+    def send_simple_search(
+        self, limit=None, skip=None, ids_only=True
+    ) -> typing.Union[typing.List[str], typing.List[ResultProfile]]:
         query = self.query.serialize()
-        query["ids_only"] = True
+        query["ids_only"] = ids_only
         if limit:
             query["filters"]["limit"] = limit
         if skip:
             query["filters"]["skip"] = skip
         results = router.unified_search(json=query, timeout=120).get("results", [])
-        ids = [result["profile_id"] for result in results]
         if ids_only:
-            return ids
+            return [result["profile_id"] for result in results]
         else:
-            full_profiles = self.convert_to_profiles(ids)
-            return full_profiles
+            return [ResultProfile.from_json(profile) for profile in results]
 
-    def send_scroll_search(self):
+    def send_scroll_search(self) -> typing.List[str]:
         filters = self.query.serialize()["filters"]
         filters.pop("skip", None)
         filters["scroll"] = self.scroll_id()
@@ -143,7 +144,7 @@ class ScrollSearch(TimeStampedModel):
             defaults={"results": ids, "key_used": self.scroll_id()},
         )
 
-    def scroll_and_set_cache(self, page):
+    def scroll_and_set_cache(self, page) -> typing.List[str]:
         ids = self.send_scroll_search()
         self.set_web_ids(ids=ids, page=page)
         return ids
@@ -151,7 +152,7 @@ class ScrollSearch(TimeStampedModel):
     def page_active(self, page):
         return self.pages.filter(page_number=page, key_used=self.scroll_id()).exists()
 
-    def get_ids_for_page(self, page=0):
+    def get_ids_for_page(self, page=0) -> typing.List[str]:
         if self.page_from_cache(page) is not None:
             return self.page_from_cache(page)
 
@@ -172,15 +173,11 @@ class ScrollSearch(TimeStampedModel):
 
         return self.page_from_cache(page) or []
 
-    def get_page(self, page=0, ids_only=True):
+    def get_profiles_for_page(self, page=0) -> typing.List[ResultProfile]:
         ids = self.get_ids_for_page(page=page)
-        if ids_only:
-            return ids
-        else:
-            full_profiles = self.convert_to_profiles(ids)
-            return full_profiles
+        return self.convert_to_profiles(ids)
 
-    def convert_to_profiles(self, ids):
+    def convert_to_profiles(self, ids: typing.List[str]) -> typing.List[ResultProfile]:
         results = []
         for block in [ids[x : x + 100] for x in range(0, len(ids), 100)]:
             id_query = {
@@ -192,7 +189,11 @@ class ScrollSearch(TimeStampedModel):
                 "defer": ["degree_levels", "company_counts"],
             }
             result = router.unified_search(json=id_query, timeout=90)
-            results.extend(result.get("results", []))
+            result = [
+                ResultProfile.from_json(profile)
+                for profile in result.get("results", [])
+            ]
+            results.extend(result)
         return results
 
 

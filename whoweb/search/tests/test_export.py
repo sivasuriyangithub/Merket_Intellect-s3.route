@@ -41,13 +41,15 @@ def test_return_validation_results_to_cache(result_mock, cache_mock):
         (fixture_ref("query_no_contact"), SearchExport.BASE_COLS),
         (
             fixture_ref("query_contact_no_invites"),
-            SearchExport.BASE_COLS + SearchExport.DERIVATION_COLS,
+            sorted(SearchExport.BASE_COLS + SearchExport.DERIVATION_COLS),
         ),
         (
             fixture_ref("query_contact_invites"),
-            SearchExport.INTRO_COLS
-            + SearchExport.BASE_COLS
-            + SearchExport.DERIVATION_COLS,
+            sorted(
+                SearchExport.INTRO_COLS
+                + SearchExport.BASE_COLS
+                + SearchExport.DERIVATION_COLS
+            ),
         ),
     ],
 )
@@ -62,9 +64,8 @@ def test_export_set_columns_for_upload(query_contact_invites):
         query=query_contact_invites, uploadable=True
     )
     export._set_columns()
-    assert (
-        export.columns
-        == SearchExport.INTRO_COLS
+    assert export.columns == sorted(
+        SearchExport.INTRO_COLS
         + SearchExport.BASE_COLS
         + SearchExport.DERIVATION_COLS
         + SearchExport.UPLOADABLE_COLS
@@ -125,7 +126,7 @@ def test_start_from_count(q, progress, skip, start_at):
 
 def test_get_column_names(user_facing_column_headers):
     export: SearchExport = SearchExportFactory(
-        columns=SearchExport.BASE_COLS + SearchExport.DERIVATION_COLS
+        columns=sorted(SearchExport.BASE_COLS + SearchExport.DERIVATION_COLS)
     )
     assert export.get_column_names() == user_facing_column_headers
 
@@ -133,10 +134,12 @@ def test_get_column_names(user_facing_column_headers):
 def test_get_column_names_for_uploadable(all_uploadable_column_headers):
     export: SearchExport = SearchExportFactory(
         uploadable=True,
-        columns=SearchExport.INTRO_COLS
-        + SearchExport.BASE_COLS
-        + SearchExport.DERIVATION_COLS
-        + SearchExport.UPLOADABLE_COLS,
+        columns=sorted(
+            SearchExport.INTRO_COLS
+            + SearchExport.BASE_COLS
+            + SearchExport.DERIVATION_COLS
+            + SearchExport.UPLOADABLE_COLS
+        ),
     )
     assert export.get_column_names() == all_uploadable_column_headers
 

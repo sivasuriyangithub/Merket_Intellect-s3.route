@@ -5,6 +5,8 @@ import json
 import pytest
 from bson.json_util import object_hook
 
+from whoweb.search.models import ResultProfile
+
 PENDING = r"""
     [
     {
@@ -43599,7 +43601,6 @@ DONE = r"""
     "city" : "Denver",
     "first_name" : "Patrick",
     "title" : "Head of Ringtail Software Development",
-    "derived_contact" : {
         "status" : "complete",
         "rr" : null,
         "extra" : {
@@ -44018,8 +44019,7 @@ DONE = r"""
                 },
                 "title" : null
             }
-        ]
-    },
+        ],
     "picture_url" : "https://static.licdn.com/scds/common/u/images/themes/katy/ghosts/person/ghost_person_200x200_v1.png",
     "connection_degree" : null,
     "state" : "Colorado",
@@ -45663,7 +45663,6 @@ DONE = r"""
     "city" : "Pittsburgh",
     "first_name" : "David",
     "title" : "Director of Technology Services",
-    "derived_contact" : {
         "status" : "complete",
         "rr" : null,
         "extra" : {
@@ -46083,8 +46082,7 @@ DONE = r"""
                 },
                 "title" : null
             }
-        ]
-    },
+        ],
     "picture_url" : null,
     "connection_degree" : null,
     "state" : "Pennsylvania",
@@ -47660,7 +47658,6 @@ DONE = r"""
     "city" : "Saint Paul",
     "first_name" : "David",
     "title" : "Principal",
-    "derived_contact" : {
         "status" : "complete",
         "rr" : null,
         "extra" : {
@@ -48080,8 +48077,7 @@ DONE = r"""
                 },
                 "title" : null
             }
-        ]
-    },
+        ],
     "picture_url" : "https://media.licdn.com/dms/image/C4E03AQHwy62vQT0CkQ/profile-displayphoto-shrink_200_200/0?e=1534982400&v=beta&t=kF0vlsrviASDCwGsMamibigr5D4WA2lxGNbUnDXhfe4",
     "connection_degree" : null,
     "state" : "Minnesota",
@@ -49095,7 +49091,6 @@ DONE = r"""
     "city" : "Columbus",
     "first_name" : "Julie",
     "title" : "E-Discovery Project Manager\\Litigation Technology Anaylst",
-    "derived_contact" : {
         "status" : "complete",
         "rr" : null,
         "extra" : {
@@ -49515,8 +49510,7 @@ DONE = r"""
                 },
                 "title" : null
             }
-        ]
-    },
+        ],
     "picture_url" : null,
     "connection_degree" : null,
     "state" : "Ohio",
@@ -50522,6 +50516,16 @@ def search_results():
 
 
 @pytest.fixture
+def result_profile_derived():
+    return ResultProfile.from_json(done[0])
+
+
+@pytest.fixture
+def result_profile_derived_another():
+    return ResultProfile.from_json(done[1])
+
+
+@pytest.fixture
 def query_no_contact():
     return {
         "defer": ["degree_levels", "company_counts", "contact"],
@@ -50860,6 +50864,7 @@ def query_contact_invites_defer_validation():
 @pytest.fixture
 def user_facing_column_headers():
     return [
+        "Profile ID",
         "First Name",
         "Last Name",
         "Title",
@@ -50868,26 +50873,25 @@ def user_facing_column_headers():
         "City",
         "State",
         "Country",
-        "Profile URL",
-        "Experience",
-        "Education",
-        "Skills",
         "Email",
+        "Email Type",
         "Email Grade",
-        "LinkedIn URL",
+        "Email 2",
+        "Email 2 Type",
+        "Email 2 Grade",
+        "Email 3",
+        "Email 3 Type",
+        "Email 3 Grade",
         "Phone Number",
-        "Additional Emails",
+        "Phone Number Type",
+        "Phone Number 2",
+        "Phone Number 2 Type",
+        "Phone Number 3",
+        "Phone Number 3 Type",
+        "WhoKnows URL",
+        "LinkedIn URL",
         "Facebook",
         "Twitter",
-        "AngelList",
-        "Google Plus",
-        "Google Profile",
-        "Quora",
-        "GitHub",
-        "BitBucket",
-        "StackExchange",
-        "Flickr",
-        "YouTube",
     ]
 
 
@@ -50895,6 +50899,7 @@ def user_facing_column_headers():
 def all_uploadable_column_headers():
     return [
         "invitekey",
+        "profile_id",
         "first_name",
         "last_name",
         "title",
@@ -50903,26 +50908,25 @@ def all_uploadable_column_headers():
         "city",
         "state",
         "country",
-        "profile_url",
-        "experience",
-        "education",
-        "skills",
         "email",
+        "email_type",
         "email_grade",
-        "linkedin_url",
+        "email_2",
+        "email_2_type",
+        "email_2_grade",
+        "email_3",
+        "email_3_type",
+        "email_3_grade",
         "phone_number",
-        "additional_emails",
+        "phone_number_type",
+        "phone_number_2",
+        "phone_number_2_type",
+        "phone_number_3",
+        "phone_number_3_type",
+        "whoknows_url",
+        "linkedin_url",
         "facebook",
         "twitter",
-        "angellist",
-        "google_plus",
-        "google_profile",
-        "quora",
-        "github",
-        "bitbucket",
-        "stackexchange",
-        "flickr",
-        "youtube",
         "domain",
         "mxdomain",
     ]

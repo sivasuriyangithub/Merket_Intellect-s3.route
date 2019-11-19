@@ -1,8 +1,9 @@
 import re
-from copy import deepcopy
+from dataclasses import dataclass, asdict, InitVar, field
+from typing import Optional, List, Dict
 
+import dacite
 import requests
-import typing
 from django.conf import settings
 from django.contrib.auth import get_user_model
 
@@ -22,219 +23,153 @@ PROFILE = "profile"
 User = get_user_model()
 
 
-class ResultExperience(dict):
-    def __init__(self, **kwargs):
-        super(ResultExperience, self).__init__(
-            company_name=kwargs.get("company_name", ""), title=kwargs.get("title", "")
-        )
-
-    def __setattr__(self, key, value):
-        self[key] = value
-
-    def __getattr__(self, item):
-        return self[item]
+@dataclass
+class ResultExperience:
+    company_name: str = ""
+    title: str = ""
 
 
-class ResultEducation(dict):
-    def __init__(self, **kwargs):
-        super(ResultEducation, self).__init__(
-            school=kwargs.get("school", ""), degree=kwargs.get("degree", "")
-        )
-
-    def __setattr__(self, key, value):
-        self[key] = value
-
-    def __getattr__(self, item):
-        return self[item]
+@dataclass
+class ResultEducation:
+    school: str = ""
+    degree: str = ""
 
 
-class Skill(dict):
-    def __init__(self, **kwargs):
-        super(Skill, self).__init__(tag=kwargs.get("tag"))
-
-    def __setattr__(self, key, value):
-        self[key] = value
-
-    def __getattr__(self, item):
-        return self[item]
+@dataclass
+class Skill:
+    tag: str = ""
 
 
-class ResultProfile(object):
-    id: str
-    web_id: typing.Optional[str]
-    first_name: str
-    last_name: str
-    title: str
-    country: str
-    relevance_score: str
-    email: typing.Optional[str]
-    grade: typing.Optional[str]
-    passing_grade: typing.Union[str, bool]
-    emails: typing.List[str]
-    graded_emails: typing.List[typing.Dict[str, str]]
-    social_profiles: typing.List[typing.Dict[str, str]]
-    social_profiles_by_type: typing.Dict[str, str]
-    li_url: typing.Optional[str]
-    phone: typing.List[str]
-    company: str
-    industry: str
-    city: str
-    state: str
-    mx_domain: typing.Optional[str]
-    derivation_status: typing.Optional[str]
-    _invite_key: typing.Optional[str]
+@dataclass
+class GradedEmail:
+    email: str = ""
+    grade: str = ""
+    email_type: str = ""
 
-    grade_values = {"A+": 100, "A": 90, "B+": 75, "B": 60}
 
-    social_link_type_names = [
-        "facebook",
-        "twitter",
-        "angellist",
-        "google",
-        "googleprofile",
-        "quora",
-        "github",
-        "bitbucket",
-        "stackexchange",
-        "flickr",
-        "youtube",
-    ]
+@dataclass
+class Phone:
+    phone: str = ""
+    phone_type: str = ""
+    status: str = ""
 
-    __slots__ = [
-        "id",
-        "web_id",
-        "first_name",
-        "last_name",
-        "title",
-        "country",
-        "relevance_score",
-        "experience",
-        "education_history",
-        "skills",
-        "email",
-        "grade",
-        "emails",
-        "graded_emails",
-        "social_profiles",
-        "social_profiles_by_type",
-        "li_url",
-        "phone",
-        "company",
-        "industry",
-        "city",
-        "state",
-        "passing_grade",
-        "mx_domain",
-        "derivation_status",
-        "_invite_key",
-    ]
 
-    def __init__(self, _id=None, validation_registry=None, **kwargs):
-        self.mx_domain = None
-        self.email = None
-        self.grade = None
-        self.passing_grade = False
-        self.li_url = None
-        self.phone = []
-        self.emails = []
-        self.graded_emails = []
-        self.social_profiles = []
+@dataclass
+class GoogleCSEExtra:
+    company: str = ""
+    title: str = ""
 
-        self.id = _id or kwargs.get("user_id", kwargs["profile_id"])
-        primary_alias = kwargs.get("primary_alias", self.id)
-        self.web_id = (
-            primary_alias
-            if primary_alias.startswith("wp:")
-            else kwargs.get("web_profile_id")
-        )
-        self.first_name = kwargs.get("first_name", "")
-        self.last_name = kwargs.get("last_name", "")
-        self.title = kwargs.get("title", "")
-        self.company = kwargs.get("company", "")
-        self.industry = kwargs.get("industry", "")
-        self.city = kwargs.get("city", "")
-        self.state = kwargs.get("state", "")
-        self.country = kwargs.get("country", "")
-        self.relevance_score = str(kwargs.get("relevance_score", ""))
-        self.experience = [
-            ResultExperience(**exp) for exp in kwargs.get("experience", [])
-        ]
-        self.education_history = [
-            ResultEducation(**edu) for edu in kwargs.get("education_history", [])
-        ]
-        self.skills = [Skill(**skill) for skill in kwargs.get("skills", [])]
-        derivation = kwargs.get("derived_contact")
-        if derivation:
+
+@dataclass
+class SocialProfile:
+    url: Optional[str] = None
+    typeId: Optional[str] = None
+
+
+@dataclass
+class DerivedContact:
+    status: str
+    email: Optional[str] = None
+    emails: List[str] = field(default_factory=list)
+    grade: Optional[str] = None
+    graded_emails: List[GradedEmail] = field(default_factory=list)
+    extra: GoogleCSEExtra = None
+    l: Dict = field(default_factory=dict)
+    rr: Dict = field(default_factory=dict)
+    nym: Dict = field(default_factory=dict)
+    tfr: Dict = field(default_factory=dict)
+    tiq: Dict = field(default_factory=dict)
+    fc: Dict = field(default_factory=dict)
+    p: Dict = field(default_factory=dict)
+    vn: Dict = field(default_factory=dict)
+    am: Dict = field(default_factory=dict)
+    linkedin_url: Optional[str] = None
+    facebook: Optional[str] = None
+    twitter: Optional[str] = None
+    phone: List[str] = field(default_factory=list)
+    graded_phones: Dict = field(default_factory=dict)
+    phone_details: List[Phone] = field(default_factory=list)
+
+    def __post_init__(self):
+        social_profiles = self.fc.get("socialProfiles", [])
+        social_profiles_by_type = {
+            social.typeId: social.url
+            for social in social_profiles
+            if social and social.typeId and social.url
+        }
+        if not self.linkedin_url:
+            self.linkedin_url = social_profiles_by_type.get("linkedin")
+        if not self.facebook:
+            self.facebook = social_profiles_by_type.get("facebook")
+        if not self.twitter:
+            self.twitter = social_profiles_by_type.get("twitter")
+
+
+@dataclass
+class ResultProfile:
+    _id: Optional[str] = field(default=None)
+    user_id: Optional[str] = field(default=None, repr=False)
+    profile_id: Optional[str] = field(default=None, repr=False)
+    primary_alias: Optional[str] = field(default=None, repr=False)
+    web_profile_id: Optional[str] = field(default=None, repr=False)
+    validation_registry: Optional[Dict] = field(default=None, init=False)
+    derived_contact: Optional[DerivedContact] = field(default=None, init=False)
+    derivation_status: Optional[str] = None
+
+    first_name: str = ""
+    last_name: str = ""
+    title: str = ""
+    company: str = ""
+    industry: str = ""
+    city: str = ""
+    state: str = ""
+    country: str = ""
+    relevance_score: str = ""
+    experience: List[ResultExperience] = field(default_factory=list)
+    education_history: List[ResultEducation] = field(default_factory=list)
+    skills: List[Skill] = field(default_factory=list)
+
+    email: Optional[str] = None
+    emails: List[str] = field(default_factory=list)
+    grade: Optional[str] = None
+    graded_emails: List[GradedEmail] = field(default_factory=list)
+    phone: List[Phone] = field(default_factory=list)
+    li_url: str = ""
+    facebook: str = ""
+    twitter: str = ""
+    invite_key: Optional[str] = None
+    mx_domain: Optional[str] = field(default=None, init=False)
+
+    GRADE_VALUES = {"A+": 100, "A": 90, "B+": 75, "B": 60}
+
+    def __post_init__(self):
+        #  dacite fails to create instances with InitVar types, for now,
+        #  so attrs will be on self
+        self._id = self._id or self.user_id or self.profile_id
+        primary = self.primary_alias or self._id
+        self.web_id = primary if primary.startswith("wp:") else self.web_profile_id
+        if self.derived_contact:
             self.set_derived_contact(
-                derivation=derivation, validation_registry=validation_registry
+                derivation=self.derived_contact,
+                validation_registry=self.validation_registry,
             )
-        else:
-            self.derivation_status = None
 
-        self._invite_key = kwargs.get("invite_key")
-
-    def __repr__(self):
+    def __str__(self):
         return f"<ResultProfile {self.id} email: {self.email}>"
+
+    @property
+    def id(self):
+        return self._id
 
     @property
     def absolute_profile_url(self):
         return f"{settings.PUBLIC_ORIGIN}/users/{self.id}"
 
-    @property
-    def facebook(self):
-        return self.social_profiles_by_type.get("facebook")
-
-    @property
-    def twitter(self):
-        return self.social_profiles_by_type.get("twitter")
-
-    @property
-    def angellist(self):
-        return self.social_profiles_by_type.get("angellist")
-
-    @property
-    def google(self):
-        return self.social_profiles_by_type.get(
-            "google"
-        ) or self.social_profiles_by_type.get("googleplus")
-
-    @property
-    def googleprofile(self):
-        return self.social_profiles_by_type.get("googleprofile")
-
-    @property
-    def quora(self):
-        return self.social_profiles_by_type.get("quora")
-
-    @property
-    def github(self):
-        return self.social_profiles_by_type.get("github")
-
-    @property
-    def bitbucket(self):
-        return self.social_profiles_by_type.get("bitbucket")
-
-    @property
-    def stackexchange(self):
-        return self.social_profiles_by_type.get("stackexchange")
-
-    @property
-    def flickr(self):
-        return self.social_profiles_by_type.get("flickr")
-
-    @property
-    def youtube(self):
-        return self.social_profiles_by_type.get("youtube")
-
-    @property
-    def social_links(self):
-        return [getattr(self, name, "") for name in self.social_link_type_names]
-
     def get_invite_key(self, email=None, refresh=False):
         if not (email or self.email):
             return
-        if refresh or self._invite_key is None:
-            self._invite_key = router.make_exportable_invite_key(
+        if refresh or self.invite_key is None:
+            self.invite_key = router.make_exportable_invite_key(
                 json=dict(
                     email=email or self.email,
                     webprofile_id=self.id,
@@ -242,7 +177,7 @@ class ResultProfile(object):
                     last_name=self.last_name,
                 )
             )["key"]
-        return self._invite_key
+        return self.invite_key
 
     @property
     def domain(self):
@@ -254,70 +189,33 @@ class ResultProfile(object):
             self.mx_domain = mx_registry.get(self.domain, None)
         return self
 
-    def experience_as_strings(self):
-        return ["{}, {}".format(exp.company_name, exp.title) for exp in self.experience]
-
-    def education_history_as_strings(self):
-        return [
-            "{}, {}".format(edu.school, edu.degree) for edu in self.education_history
-        ]
-
-    @property
-    def skill_tags(self):
-        return [skill.tag for skill in self.skills]
-
     def graded_addresses(self):
-        return [email["email"] for email in self.graded_emails]
+        return [graded.email for graded in self.sorted_graded_emails]
 
-    def set_derived_contact(self, derivation, validation_registry=None):
-        self.email = derivation.get("email")
-        self.emails = derivation.get("emails", [])
-        _graded_emails = derivation.get("_graded_emails")  # db_field: _graded_emails
-        if _graded_emails:
-            self.graded_emails = _graded_emails
-            grades = {graded["email"]: graded["grade"] for graded in self.graded_emails}
-        else:
-            grades = derivation.get("graded_emails", {})
-            try:
-                self.graded_emails = [
-                    {"email": k, "grade": v} for k, v in grades.items()
-                ]
-            except AttributeError:
-                # backwards compat, where graded_emails in stored data already is formatted as list of dicts.
-                self.graded_emails = deepcopy(grades)
-                grades = {
-                    graded["email"]: graded["grade"] for graded in self.graded_emails
-                }
+    def set_derived_contact(
+        self, derivation: DerivedContact, validation_registry: Dict = None
+    ):
+        self.email = derivation.email
+        self.emails = derivation.emails
         if self.email:
+            grades = {graded.email: graded.grade for graded in self.graded_emails}
             self.grade = grades.get(self.email, "")
         elif validation_registry:
             self.update_validation(validation_registry)
 
-        self.passing_grade = self.grade[0] in ["A", "B"] if self.grade else False
-        self.social_profiles = (
-            derivation.get(
-                "_social_profiles", (derivation.get("fc") or {}).get("socialProfiles")
-            )
-            or []
-        )
-        self.social_profiles_by_type = {
-            social.get("typeId"): social.get("url")
-            for social in self.social_profiles
-            if social and (social.get("url") and social.get("typeId"))
-        }
+        self.li_url = derivation.linkedin_url
+        self.facebook = derivation.facebook
+        self.twitter = derivation.twitter
+        self.phone = derivation.phone_details
 
-        self.li_url = derivation.get(
-            "linkedin_url", self.social_profiles_by_type.get("linkedin", "")
-        )
-        self.phone = derivation.get("phone", [])
-        extra = derivation.get("extra")
-        if extra:
-            self.company = extra.get("company")
-            self.title = extra.get("title")
+        if not self.company:
+            self.company = derivation.extra.company
+        if not self.title:
+            self.title = derivation.extra.title
 
         if self.passing_grade:
             self.derivation_status = VALIDATED
-        elif derivation.get("status") == RETRY:
+        elif derivation.status == RETRY:
             self.derivation_status = RETRY
         elif self.email or self.emails:
             self.derivation_status = COMPLETE
@@ -330,7 +228,7 @@ class ResultProfile(object):
             self.email = max(
                 valid_emails,
                 key=lambda g: (
-                    ResultProfile.grade_values.get(validation_registry.get(g), 0)
+                    ResultProfile.GRADE_VALUES.get(validation_registry.get(g), 0)
                 ),
             )
         if self.email and not self.grade:
@@ -374,13 +272,15 @@ class ResultProfile(object):
                 email = None
 
         if email:
-            mock_derivation = {
-                "email": email,
-                "grade": "A",
-                "emails": [email],
-                "graded_emails": {email: "A"},
-            }
-            self.set_derived_contact(mock_derivation)
+            self.set_derived_contact(
+                DerivedContact(
+                    email=email,
+                    grade="A",
+                    emails=[email],
+                    graded_emails=[GradedEmail(email=email, grade="A")],
+                    status=COMPLETE,
+                )
+            )
         return self.derivation_status
 
     @staticmethod
@@ -405,6 +305,18 @@ class ResultProfile(object):
                 clean_name = clean_name[: (0 - len(stop_word))]
         return clean_name.strip().encode("utf-8")
 
+    @property
+    def sorted_graded_emails(self):
+        return sorted(
+            self.graded_emails,
+            key=lambda g: ResultProfile.GRADE_VALUES.get(g.grade, 0),
+            reverse=True,
+        )
+
+    @property
+    def passing_grade(self):
+        return self.grade[0] in ["A", "B"] if self.grade else False
+
     def to_json(self):
         data = {
             "_id": self.id,
@@ -417,22 +329,40 @@ class ResultProfile(object):
             "state": self.state,
             "country": self.country,
             "relevance_score": self.relevance_score,
-            "experience": [dict(exp) for exp in self.experience],
-            "education_history": [dict(edu) for edu in self.education_history],
-            "skills": [dict(skill) for skill in self.skills],
-            "derived_contact": {
-                "email": self.email,
-                "emails": self.emails,
-                "grade": self.grade,
-                "phone": self.phone,
-                "linkedin_url": self.li_url,
-                "_graded_emails": self.graded_emails,
-                "_social_profiles": self.social_profiles,
-            },
-            "invite_key": self._invite_key,
+            "experience": [asdict(exp) for exp in self.experience],
+            "education_history": [asdict(edu) for edu in self.education_history],
+            "skills": [asdict(skill) for skill in self.skills],
+            "email": self.email,
+            "emails": self.emails,
+            "grade": self.grade,
+            "graded_emails": self.graded_emails,
+            "phone": self.phone,
+            "li_url": self.li_url,
+            "invite_key": self.invite_key,
         }
-        return data
+        return asdict(self)
 
     @classmethod
-    def from_json(cls, val, validation_registry=None):
-        return cls(validation_registry=validation_registry, **val)
+    def from_json(cls, data, validation_registry=None):
+        if validation_registry:
+            data["validation_registry"] = validation_registry
+        print(data)
+        return dacite.from_dict(
+            data_class=cls,
+            data=data,
+            config=dacite.Config(
+                type_hooks={
+                    str: lambda s: str(s) if s else "",
+                    List[GradedEmail]: cls.parse_graded_emails,
+                }
+            ),
+        )
+
+    @staticmethod
+    def parse_graded_emails(potentially_unparsed_graded_emails):
+        if isinstance(potentially_unparsed_graded_emails, dict):
+            return [
+                {"email": key, "grade": value}
+                for key, value in potentially_unparsed_graded_emails.items()
+            ]
+        return potentially_unparsed_graded_emails

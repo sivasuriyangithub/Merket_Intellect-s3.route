@@ -120,13 +120,6 @@ class SearchExport(TimeStampedModel):
         FilteredSearchQuery, blank=False, default=FilteredSearchQuery
     )
     validation_list_id = models.CharField(max_length=50, null=True, editable=False)
-    columns = ChoiceArrayField(
-        base_field=models.IntegerField(
-            choices=[(k, v) for k, v in ALL_COLUMNS.items()]
-        ),
-        default=partial(list, BASE_COLS),
-        editable=False,
-    )
     status = models.IntegerField(
         _("status"), db_index=True, choices=STATUS, blank=True, default=STATUS.created
     )
@@ -168,7 +161,6 @@ class SearchExport(TimeStampedModel):
                         "Not enough credits to complete this export"
                     )
                 export.charged = export.target
-            export._set_columns()
             export.save()
         tasks = export.processing_signatures()
         res = tasks.apply_async()
@@ -257,21 +249,17 @@ class SearchExport(TimeStampedModel):
         else:
             return progress_plus_skip
 
-    def _set_columns(self, indexes=(), save=False):
-        if indexes:
-            self.columns = indexes
-        elif self.with_invites:
-            self.columns = self.INTRO_COLS + self.BASE_COLS + self.DERIVATION_COLS
+    @property
+    def columns(self):
+        if self.with_invites:
+            columns = self.INTRO_COLS + self.BASE_COLS + self.DERIVATION_COLS
         elif self.should_derive_email:
-            self.columns = self.BASE_COLS + self.DERIVATION_COLS
+            columns = self.BASE_COLS + self.DERIVATION_COLS
         else:
-            self.columns = self.BASE_COLS
-        if self.uploadable and not indexes:
-            self.columns = self.columns + self.UPLOADABLE_COLS
-        self.columns = sorted(self.columns)
-        if save:
-            self.save()
-        return self
+            columns = self.BASE_COLS
+        if self.uploadable:
+            columns = columns + self.UPLOADABLE_COLS
+        return sorted(columns)
 
     def _set_target(self, save=False):
         limit = self.query.filters.limit or 0

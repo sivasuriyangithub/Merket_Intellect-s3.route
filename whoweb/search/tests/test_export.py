@@ -1,5 +1,5 @@
 import re
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, PropertyMock
 
 import pytest
 from pytest_cases import fixture_ref, pytest_parametrize_plus
@@ -55,7 +55,6 @@ def test_return_validation_results_to_cache(result_mock, cache_mock):
 )
 def test_export_set_columns(query, cols):
     export: SearchExport = SearchExportFactory(query=query)
-    export._set_columns()
     assert export.columns == cols
 
 
@@ -63,7 +62,6 @@ def test_export_set_columns_for_upload(query_contact_invites):
     export: SearchExport = SearchExportFactory(
         query=query_contact_invites, uploadable=True
     )
-    export._set_columns()
     assert export.columns == sorted(
         SearchExport.INTRO_COLS
         + SearchExport.BASE_COLS
@@ -124,22 +122,21 @@ def test_start_from_count(q, progress, skip, start_at):
     assert export.start_from_count == start_at
 
 
-def test_get_column_names(user_facing_column_headers):
-    export: SearchExport = SearchExportFactory(
-        columns=sorted(SearchExport.BASE_COLS + SearchExport.DERIVATION_COLS)
-    )
+@patch("whoweb.search.models.SearchExport.columns", new_callable=PropertyMock)
+def test_get_column_names(cols, user_facing_column_headers):
+    export: SearchExport = SearchExportFactory()
+    cols.return_value = sorted(SearchExport.BASE_COLS + SearchExport.DERIVATION_COLS)
     assert export.get_column_names() == user_facing_column_headers
 
 
-def test_get_column_names_for_uploadable(all_uploadable_column_headers):
-    export: SearchExport = SearchExportFactory(
-        uploadable=True,
-        columns=sorted(
-            SearchExport.INTRO_COLS
-            + SearchExport.BASE_COLS
-            + SearchExport.DERIVATION_COLS
-            + SearchExport.UPLOADABLE_COLS
-        ),
+@patch("whoweb.search.models.SearchExport.columns", new_callable=PropertyMock)
+def test_get_column_names_for_uploadable(cols, all_uploadable_column_headers):
+    export: SearchExport = SearchExportFactory(uploadable=True)
+    cols.return_value = sorted(
+        SearchExport.INTRO_COLS
+        + SearchExport.BASE_COLS
+        + SearchExport.DERIVATION_COLS
+        + SearchExport.UPLOADABLE_COLS
     )
     assert export.get_column_names() == all_uploadable_column_headers
 

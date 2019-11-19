@@ -27,11 +27,16 @@ class ExportAdmin(ActionsModelAdmin):
         "sent_at",
         "status_changed",
         "scroll",
+        "column_names",
     )
     inlines = [EventTabularInline]
-    # fields = ("validation_list_id", "sent", "sent_at", "with_invites")
     actions_row = ("download",)
     actions_detail = ("run_publication_tasks", "download")
+
+    def column_names(self, obj):
+        return ", ".join(obj.get_column_names())
+
+    column_names.short_description = "columns"
 
     def download(self, request, pk):
         export = SearchExport.objects.get(pk=pk)

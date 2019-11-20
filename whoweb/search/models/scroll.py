@@ -30,6 +30,9 @@ class ScrollSearchManager(models.Manager):
 class ScrollSearch(TimeStampedModel):
     MAX_PAGE_SIZE = 300
 
+    class Meta:
+        verbose_name_plural = "Scrolling searches"
+
     scroll_key = models.UUIDField(default=uuid.uuid4)
     scroll_key_modified = MonitorField(monitor="scroll_key")
     page_size = models.IntegerField(default=MAX_PAGE_SIZE)

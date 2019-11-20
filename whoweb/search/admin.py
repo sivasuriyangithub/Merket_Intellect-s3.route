@@ -6,7 +6,7 @@ from django.urls import reverse
 
 from whoweb.core.admin import EventTabularInline
 from whoweb.search.events import ENQUEUED_FROM_ADMIN
-from whoweb.search.models import SearchExport
+from whoweb.search.models import SearchExport, ScrollSearch
 from whoweb.search.models.export import SearchExportPage
 
 
@@ -33,12 +33,31 @@ class ExportAdmin(ActionsModelAdmin):
     list_display_links = ("pk", "uuid")
     list_filter = ("status",)
     search_fields = ("seat__user__email", "seat__user__username")
+    fields = (
+        "seat",
+        "uuid",
+        "query",
+        "status",
+        "status_changed",
+        "scroller",
+        "charge",
+        "notify",
+        "on_trial",
+        "progress_counter",
+        "target",
+        "sent",
+        "sent_at",
+        "charged",
+        "refunded",
+        "validation_list_id",
+        "column_names",
+    )
     readonly_fields = (
         "validation_list_id",
         "sent",
         "sent_at",
         "status_changed",
-        "scroll",
+        "scroller",
         "column_names",
     )
     inlines = [EventTabularInline, SearchExportPageInline]
@@ -49,6 +68,16 @@ class ExportAdmin(ActionsModelAdmin):
         return ", ".join(obj.get_column_names())
 
     column_names.short_description = "columns"
+
+    def scroller(self, obj):
+        if obj.scroll:
+            link = reverse(
+                "admin:search_scrollsearch_change", args=[obj.scroll.pk]
+            )  # model name has to be lowercase
+            return '<a href="%s">%s</a>' % (link, obj.scroll.scroll_key)
+        return "None"
+
+    scroller.allow_tags = True
 
     def download(self, request, pk):
         export = SearchExport.objects.get(pk=pk)
@@ -74,3 +103,8 @@ class ExportAdmin(ActionsModelAdmin):
         return redirect(reverse("admin:search_searchexport_change", args=[pk]))
 
     run_publication_tasks.short_description = "Rerun"
+
+
+@admin.register(ScrollSearch)
+class ScrollSearchAdmin(ActionsModelAdmin):
+    pass

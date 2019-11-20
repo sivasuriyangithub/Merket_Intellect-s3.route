@@ -3,6 +3,7 @@ from django.contrib import admin, messages
 from django.contrib.admin import TabularInline
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils.safestring import mark_safe
 
 from whoweb.core.admin import EventTabularInline
 from whoweb.search.events import ENQUEUED_FROM_ADMIN
@@ -12,12 +13,54 @@ from whoweb.search.models.export import SearchExportPage
 
 class SearchExportPageInline(TabularInline):
     model = SearchExportPage
-    fields = ("page_num", "count", "created", "modified")
+    fields = ("page_num", "count", "created", "modified", "done")
     readonly_fields = fields
     extra = 0
 
     def has_add_permission(self, request, obj=None):
         return False
+
+    def done(self, obj):
+        return bool(obj.data)
+
+
+@admin.register(SearchExportPage)
+class SearchExportPageAdmin(ActionsModelAdmin):
+    fields = (
+        "export_link",
+        "page_num",
+        "created",
+        "modified",
+        "count",
+        "limit",
+        "working_count",
+        "derivation_group_link",
+    )
+    readonly_fields = fields
+
+    def working_count(self, obj):
+        return len(obj.working_data) if obj.working_data else None
+
+    @mark_safe
+    def export_link(self, obj: SearchExportPage):
+        link = reverse(
+            "admin:search_searchexport_change", args=[obj.export_id]
+        )  # model name has to be lowercase
+        return '<a href="%s">%s</a>' % (link, obj.export)
+
+    export_link.short_description = "Export"
+
+    @mark_safe
+    def derivation_group_link(self, obj: SearchExportPage):
+        if obj.derivation_group:
+            link = reverse(
+                "admin:django_celery_results_taskresult_change",
+                args=[obj.derivation_group.id],
+            )  # model name has to be lowercase
+            return '<a href="%s">%s</a>' % (link, obj.derivation_group.task_name)
+        return "None"
+
+    derivation_group_link.short_description = "Derivation Task Group"
 
 
 @admin.register(SearchExport)
@@ -69,6 +112,7 @@ class ExportAdmin(ActionsModelAdmin):
 
     column_names.short_description = "columns"
 
+    @mark_safe
     def scroller(self, obj):
         if obj.scroll:
             link = reverse(
@@ -76,8 +120,6 @@ class ExportAdmin(ActionsModelAdmin):
             )  # model name has to be lowercase
             return '<a href="%s">%s</a>' % (link, obj.scroll.scroll_key)
         return "None"
-
-    scroller.allow_tags = True
 
     def download(self, request, pk):
         export = SearchExport.objects.get(pk=pk)

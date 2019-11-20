@@ -20,6 +20,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.six import string_types, StringIO
 from django.utils.translation import ugettext_lazy as _
+from django_celery_results.models import TaskResult
 from dns import resolver
 from model_utils import Choices
 from model_utils.fields import MonitorField
@@ -770,6 +771,9 @@ class SearchExportPage(TimeStampedModel):
     working_data = JSONField(editable=False, null=True, default=dict)
     count = models.IntegerField(default=0)
     limit = models.IntegerField(null=True)
+    derivation_group: TaskResult = models.ForeignKey(
+        TaskResult, on_delete=models.SET_NULL, null=True, blank=True
+    )
 
     class Meta:
         unique_together = ["export", "page_num"]
@@ -862,6 +866,8 @@ class SearchExportPage(TimeStampedModel):
                 "group_task": str(group_result.id),
             },
         )
+        self.derivation_group = group_result.id
+        self.save()
 
     def _do_post_page_process(self, task_context=None) -> [dict]:
         self.export.log_event(

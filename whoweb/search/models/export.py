@@ -767,7 +767,7 @@ class SearchExportPage(TimeStampedModel):
     )
     data = CompressedBinaryJSONField(null=True, editable=False)
     page_num = models.PositiveIntegerField()
-    working_data = JSONField(editable=False, null=True, default={})
+    working_data = JSONField(editable=False, null=True, default=dict)
     count = models.IntegerField(default=0)
     limit = models.IntegerField(null=True)
 

@@ -1,11 +1,23 @@
 from admin_actions.admin import ActionsModelAdmin
 from django.contrib import admin, messages
+from django.contrib.admin import TabularInline
 from django.shortcuts import redirect
 from django.urls import reverse
 
 from whoweb.core.admin import EventTabularInline
 from whoweb.search.events import ENQUEUED_FROM_ADMIN
 from whoweb.search.models import SearchExport
+from whoweb.search.models.export import SearchExportPage
+
+
+class SearchExportPageInline(TabularInline):
+    model = SearchExportPage
+    fields = ("page_num", "count", "created", "modified")
+    readonly_fields = fields
+    extra = 0
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(SearchExport)
@@ -29,7 +41,7 @@ class ExportAdmin(ActionsModelAdmin):
         "scroll",
         "column_names",
     )
-    inlines = [EventTabularInline]
+    inlines = [EventTabularInline, SearchExportPageInline]
     actions_row = ("download",)
     actions_detail = ("run_publication_tasks", "download")
 

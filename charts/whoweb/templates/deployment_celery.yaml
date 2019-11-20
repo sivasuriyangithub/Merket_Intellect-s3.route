@@ -54,15 +54,18 @@ spec:
             value: "{{- template "ingress.url" . -}},{{ .Values.service.name }}"
           - name: DJANGO_SETTINGS_MODULE
             value: {{ .Values.deployment.settingsModule }}
+          {{- if .Values.deployment.postgresqlInNamespace }}
+          - name: POSTGRESQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: postgresql-password
+                name: {{ .Release.Name }}-postgresql
+          {{- end }}
           envFrom:
           - configMapRef:
               name: {{ .Values.deployment.envConfigMapRef }}
           - secretRef:
               name: {{ .Values.deployment.envSecretRef }}
-          {{- if .Values.deployment.postgresqlInNamespace }}
-          - secretRef:
-              name: {{ .Release.Name }}-postgresql
-          {{- end }}
           resources:
             requests:
               cpu: {{ .Values.celery.cpuRequest }}

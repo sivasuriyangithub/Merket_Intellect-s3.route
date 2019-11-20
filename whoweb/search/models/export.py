@@ -847,7 +847,7 @@ class SearchExportPage(TimeStampedModel):
             self.export.query.contact_filters or [WORK, PERSONAL, SOCIAL, PROFILE],
         )
         run_page = group(
-            process_derivation.si(self.pk, ResultProfile(**profile).to_json(), *args)
+            process_derivation.si(self.pk, profile.to_json(), *args)
             for profile in profiles
         )
         group_task = run_page.apply_async()

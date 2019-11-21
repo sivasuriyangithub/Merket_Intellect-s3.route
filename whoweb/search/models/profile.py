@@ -104,6 +104,19 @@ class DerivedContact:
         if not self.twitter:
             self.twitter = social_profiles_by_type.get("twitter")
 
+    @staticmethod
+    def parse_graded_emails(potentially_unparsed_graded_emails):
+        if isinstance(potentially_unparsed_graded_emails, dict):
+            return [
+                {"email": key, "grade": value}
+                for key, value in potentially_unparsed_graded_emails.items()
+            ]
+        return potentially_unparsed_graded_emails
+
+    @classmethod
+    def from_dict(self, data):
+        return dacite.from_dict(DerivedContact, data=data, config=profile_load_config)
+
 
 @dataclass
 class ResultProfile:
@@ -263,7 +276,8 @@ class ResultProfile:
             except requests.Timeout:
                 return RETRY
             else:
-                self.set_derived_contact(derivation)
+                derived = DerivedContact.from_dict(data=derivation)
+                self.set_derived_contact(derived)
                 return self.derivation_status
         else:
             try:
@@ -347,22 +361,12 @@ class ResultProfile:
         if validation_registry:
             data["validation_registry"] = validation_registry
         print(data)
-        return dacite.from_dict(
-            data_class=cls,
-            data=data,
-            config=dacite.Config(
-                type_hooks={
-                    str: lambda s: str(s) if s else "",
-                    List[GradedEmail]: cls.parse_graded_emails,
-                }
-            ),
-        )
+        return dacite.from_dict(data_class=cls, data=data, config=profile_load_config)
 
-    @staticmethod
-    def parse_graded_emails(potentially_unparsed_graded_emails):
-        if isinstance(potentially_unparsed_graded_emails, dict):
-            return [
-                {"email": key, "grade": value}
-                for key, value in potentially_unparsed_graded_emails.items()
-            ]
-        return potentially_unparsed_graded_emails
+
+profile_load_config = dacite.Config(
+    type_hooks={
+        str: lambda s: str(s) if s else "",
+        List[GradedEmail]: DerivedContact.parse_graded_emails,
+    }
+)

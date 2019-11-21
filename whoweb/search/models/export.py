@@ -854,20 +854,16 @@ class SearchExportPage(TimeStampedModel):
             process_derivation.si(self.pk, profile.to_json(), *args)
             for profile in profiles
         )
-        group_task = run_page.apply_async()
-        group_result = group_task.save()
-        poll_task = finalize_page.delay(self.pk, group_result.id)
+        sigs = run_page | finalize_page.si(self.pk)
+        res = sigs.apply_async()
         self.export.log_event(
             evt=DERIVATION_SPAWN,
-            task=str(poll_task),
             data={
                 "page": self.page_num,
                 "root_task": task_context.id if task_context else None,
-                "group_task": str(group_result.id),
+                "chain": str(res.id),
             },
         )
-        self.derivation_group = group_result.id
-        self.save()
 
     def _do_post_page_process(self, task_context=None) -> [dict]:
         self.export.log_event(

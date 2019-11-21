@@ -40,14 +40,8 @@ ENVIRONMENT_NAME = env("ENVIRONMENT_NAME", default="")
 
 # DATABASES
 # ------------------------------------------------------------------------------
-pg_pass = env("POSTGRESQL_PASSWORD", default="")  # allows preview env secret injection
-if pg_pass:
-    pg_url = f"postgresql://postgres:{pg_pass}@preview-postgresql/whodb"
-else:
-    pg_url = env.NOTSET  # should cause DATABASE_URL to be required
-
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
-DATABASES = {"default": env.db("DATABASE_URL", default=pg_url)}
+DATABASES = {"default": env.db("DATABASE_URL")}
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
 
 # URLS

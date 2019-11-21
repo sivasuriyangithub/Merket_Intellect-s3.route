@@ -42,7 +42,7 @@ ENVIRONMENT_NAME = env("ENVIRONMENT_NAME", default="")
 # ------------------------------------------------------------------------------
 pg_pass = env("POSTGRESQL_PASSWORD", default="")  # allows preview env secret injection
 if pg_pass:
-    pg_url = f"postgresql://postgres:{pg_pass}@postgresql/whodb"
+    pg_url = f"postgresql://postgres:{pg_pass}@preview-postgresql/whodb"
 else:
     pg_url = env.NOTSET  # should cause DATABASE_URL to be required
 

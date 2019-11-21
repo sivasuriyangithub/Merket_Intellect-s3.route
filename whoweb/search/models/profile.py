@@ -73,7 +73,7 @@ class DerivedContact:
     emails: List[str] = field(default_factory=list)
     grade: Optional[str] = None
     graded_emails: List[GradedEmail] = field(default_factory=list)
-    extra: GoogleCSEExtra = None
+    extra: Optional[GoogleCSEExtra] = None
     l: Optional[Dict] = field(default_factory=dict)
     rr: Optional[Dict] = field(default_factory=dict)
     nym: Optional[Dict] = field(default_factory=dict)

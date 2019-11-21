@@ -1,5 +1,5 @@
 import re
-from dataclasses import dataclass, asdict, InitVar, field
+from dataclasses import dataclass, asdict, field
 from typing import Optional, List, Dict
 
 import dacite
@@ -74,15 +74,7 @@ class DerivedContact:
     grade: Optional[str] = None
     graded_emails: List[GradedEmail] = field(default_factory=list)
     extra: Optional[GoogleCSEExtra] = None
-    l: Optional[Dict] = field(default_factory=dict)
-    rr: Optional[Dict] = field(default_factory=dict)
-    nym: Optional[Dict] = field(default_factory=dict)
-    tfr: Optional[List] = field(default_factory=list)
-    tiq: Optional[Dict] = field(default_factory=dict)
     fc: Optional[Dict] = field(default_factory=dict)
-    p: Optional[Dict] = field(default_factory=dict)
-    vn: Optional[Dict] = field(default_factory=dict)
-    am: Optional[Dict] = field(default_factory=dict)
     linkedin_url: Optional[str] = None
     facebook: Optional[str] = None
     twitter: Optional[str] = None
@@ -334,28 +326,6 @@ class ResultProfile:
         return self.grade[0] in ["A", "B"] if self.grade else False
 
     def to_json(self):
-        data = {
-            "_id": self.id,
-            "first_name": self.first_name,
-            "last_name": self.last_name,
-            "title": self.title,
-            "company": self.company,
-            "industry": self.industry,
-            "city": self.city,
-            "state": self.state,
-            "country": self.country,
-            "relevance_score": self.relevance_score,
-            "experience": [asdict(exp) for exp in self.experience],
-            "education_history": [asdict(edu) for edu in self.education_history],
-            "skills": [asdict(skill) for skill in self.skills],
-            "email": self.email,
-            "emails": self.emails,
-            "grade": self.grade,
-            "graded_emails": self.graded_emails,
-            "phone": self.phone,
-            "li_url": self.li_url,
-            "invite_key": self.invite_key,
-        }
         return asdict(self)
 
     @classmethod

@@ -50516,6 +50516,11 @@ def search_results():
 
 
 @pytest.fixture
+def search_result_profiles(search_results):
+    return [ResultProfile.from_json(prof) for prof in search_results]
+
+
+@pytest.fixture
 def result_profile_derived():
     return ResultProfile.from_json(done[0])
 

@@ -233,12 +233,7 @@ def process_derivation_fast(
 @celery_app.task(
     bind=True, max_retries=250, ignore_result=False, autoretry_for=NETWORK_ERRORS
 )
-def finalize_page(self, pk, group_result_id):
-    # Chords are buggy; this is the chord header check:
-    results = GroupResult.restore(group_result_id)
-    if any(not result.ready() for result in results) and self.request.retries < 240:
-        raise self.retry(countdown=30)
-
+def finalize_page(self, pk):
     export_page = SearchExportPage.objects.get(pk)  # allow DoesNotExist exception
     export_page.do_post_page_process(task_context=self.request)
     process_export.delay(export_page.export.pk)

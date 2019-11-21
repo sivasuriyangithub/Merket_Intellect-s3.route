@@ -102,12 +102,11 @@ def test_page_process_existing_data(query_no_contact, raw_derived):
 
 
 @patch("whoweb.search.models.ScrollSearch.get_profiles_for_page")
-@patch("whoweb.search.tasks.finalize_page.delay")
-@patch("celery.group.apply_async")
+@patch("celery.chord.apply_async")
 def test_page_process_applies_group_derivations(
-    group_mock, finalize_mock, get_profiles_mock, search_results, query_contact_invites
+    group_mock, get_profiles_mock, search_result_profiles, query_contact_invites
 ):
-    get_profiles_mock.return_value = search_results
+    get_profiles_mock.return_value = search_result_profiles
     export: SearchExport = SearchExportFactory(query=query_contact_invites)
     export._set_target()
     export.ensure_search_interface()
@@ -116,8 +115,6 @@ def test_page_process_applies_group_derivations(
     )
     pages[0].do_page_process()
     assert group_mock.call_count == 1
-    assert finalize_mock.call_count == 1
-    assert pages[0].pk in finalize_mock.call_args[0]
 
 
 def test_get_next_empty_page():

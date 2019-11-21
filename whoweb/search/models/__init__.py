@@ -6,7 +6,7 @@ from .embedded import (
 )
 from .scroll import ScrollSearch
 from .export import SearchExport
-from .profile import ResultProfile
+from .profile import ResultProfile, DerivedContact
 
 __all__ = [
     "FilteredSearchQuery",
@@ -15,5 +15,6 @@ __all__ = [
     "ScrollSearch",
     "SearchExport",
     "ResultProfile",
+    "DerivedContact",
     "ExportOptions",
 ]

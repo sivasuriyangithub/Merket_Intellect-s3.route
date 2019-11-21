@@ -74,15 +74,15 @@ class DerivedContact:
     grade: Optional[str] = None
     graded_emails: List[GradedEmail] = field(default_factory=list)
     extra: GoogleCSEExtra = None
-    l: Dict = field(default_factory=dict)
-    rr: Dict = field(default_factory=dict)
-    nym: Dict = field(default_factory=dict)
-    tfr: Dict = field(default_factory=dict)
-    tiq: Dict = field(default_factory=dict)
-    fc: Dict = field(default_factory=dict)
-    p: Dict = field(default_factory=dict)
-    vn: Dict = field(default_factory=dict)
-    am: Dict = field(default_factory=dict)
+    l: Optional[Dict] = field(default_factory=dict)
+    rr: Optional[Dict] = field(default_factory=dict)
+    nym: Optional[Dict] = field(default_factory=dict)
+    tfr: Optional[List] = field(default_factory=list)
+    tiq: Optional[Dict] = field(default_factory=dict)
+    fc: Optional[Dict] = field(default_factory=dict)
+    p: Optional[Dict] = field(default_factory=dict)
+    vn: Optional[Dict] = field(default_factory=dict)
+    am: Optional[Dict] = field(default_factory=dict)
     linkedin_url: Optional[str] = None
     facebook: Optional[str] = None
     twitter: Optional[str] = None
@@ -91,6 +91,8 @@ class DerivedContact:
     phone_details: List[Phone] = field(default_factory=list)
 
     def __post_init__(self):
+        if not self.fc:
+            return
         social_profiles = self.fc.get("socialProfiles", [])
         social_profiles_by_type = {
             social.typeId: social.url

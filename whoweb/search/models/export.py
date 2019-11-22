@@ -150,6 +150,9 @@ class SearchExport(TimeStampedModel):
     class Meta:
         verbose_name = "export"
 
+    def __str__(self):
+        return "%s (%s) %s" % (self.__class__.__name__, self.pk, self.uuid.hex)
+
     @classmethod
     def create_from_query(cls, seat: Seat, query: dict, **kwargs):
         with transaction.atomic():

@@ -189,7 +189,8 @@ def process_derivation(
     else:
         if add_invite_key:
             profile.get_invite_key()
-        return SearchExportPage.save_profile(page_pk, profile)
+        page = SearchExportPage.save_profile(page_pk, profile)
+        return getattr(page, "pk", 404)
 
 
 @celery_app.task(
@@ -244,4 +245,5 @@ def process_derivation_fast(
 def finalize_page(self, pk):
     export_page = SearchExportPage.objects.get(pk)  # allow DoesNotExist exception
     export_page.do_post_page_process(task_context=self.request)
-    process_export.delay(export_page.export.pk)
+    res = process_export.delay(export_page.export.pk)
+    return res.id

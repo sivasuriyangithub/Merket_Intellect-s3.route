@@ -1,6 +1,7 @@
 from admin_actions.admin import ActionsModelAdmin
 from django.contrib import admin, messages
 from django.contrib.admin import TabularInline
+from django.db.models import Case, When, BooleanField
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.safestring import mark_safe
@@ -13,24 +14,51 @@ from whoweb.search.models.export import SearchExportPage
 
 class SearchExportPageInline(TabularInline):
     model = SearchExportPage
-    fields = ("page_num", "count", "created", "modified", "done")
+    fields = ("export_link", "count", "created", "modified", "done")
     readonly_fields = fields
     extra = 0
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(
+                has_data=Case(
+                    When(data__isnull=True, then=False),
+                    default=True,
+                    output_field=BooleanField(),
+                )
+            )
+            .defer("data", "working_data")
+        )
 
     def has_add_permission(self, request, obj=None):
         return False
 
     def done(self, obj):
-        return bool(obj.data)
+        return obj.has_data
+
+    @mark_safe
+    def export_link(self, obj: SearchExportPage):
+        link = reverse(
+            "admin:search_searchexportpage_change", args=[obj.pk]
+        )  # model name has to be lowercase
+        return '<a href="%s">Page %s</a>' % (link, obj.page_num)
+
+    export_link.short_description = "Page num"
 
 
 @admin.register(SearchExportPage)
 class SearchExportPageAdmin(ActionsModelAdmin):
+    list_display = ("pk", "export", "page_num", "created", "modified", "done", "count")
+    list_display_links = ("export",)
+    search_fields = ("export__uuid", "export__pk")
     fields = (
         "export_link",
         "page_num",
         "created",
         "modified",
+        "done",
         "count",
         "limit",
         "working_count",
@@ -40,6 +68,25 @@ class SearchExportPageAdmin(ActionsModelAdmin):
 
     def working_count(self, obj):
         return len(obj.working_data) if obj.working_data else None
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(
+                has_data=Case(
+                    When(data__isnull=True, then=False),
+                    default=True,
+                    output_field=BooleanField(),
+                )
+            )
+            .defer("data")
+        )
+
+    def done(self, obj):
+        return obj.has_data
+
+    done.boolean = True
 
     @mark_safe
     def export_link(self, obj: SearchExportPage):
@@ -74,8 +121,8 @@ class ExportAdmin(ActionsModelAdmin):
         "should_derive_email",
     )
     list_display_links = ("pk", "uuid")
-    list_filter = ("status",)
-    search_fields = ("seat__user__email", "seat__user__username")
+    list_filter = ("status", "charge")
+    search_fields = ("seat__user__email", "seat__user__username", "pk", "uuid")
     fields = (
         "seat",
         "uuid",

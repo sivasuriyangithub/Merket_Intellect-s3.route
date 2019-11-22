@@ -7,11 +7,12 @@ from config import celery_app
 from whoweb.core.router import router
 from whoweb.search.models import SearchExport, ResultProfile
 from whoweb.search.models.export import MXDomain, SearchExportPage
-from whoweb.search.models.profile import VALIDATED, COMPLETE, FAILED, RETRY
+from whoweb.search.models.profile import VALIDATED, COMPLETE, FAILED, RETRY, WORK
 
 logger = logging.getLogger(__name__)
 
 NETWORK_ERRORS = [HTTPError, Timeout, ConnectionError]
+MAX_DERIVE_RETRY = 3
 
 
 @celery_app.task(
@@ -172,6 +173,13 @@ def process_derivation(
     profile = ResultProfile.from_json(profile_data)
     status = profile.derivation_status
     if not status in [VALIDATED, COMPLETE]:
+        if task.request.retries < MAX_DERIVE_RETRY:
+            # don't call toofr unless absolutely necessary, like on final attempt
+            defer.append("toofr")
+        elif WORK in filters and "toofr" not in defer:
+            # if we want work emails and aren't explicitly preventing toofr data,
+            # call validation in real time
+            defer = [d for d in defer if d != "validation"]
         status = profile.derive_contact(defer, filters)
 
     if status == RETRY:
@@ -186,9 +194,9 @@ def process_derivation(
 
 @celery_app.task(
     bind=True,
-    max_retries=5,
+    max_retries=MAX_DERIVE_RETRY,
     default_retry_delay=90,
-    retry_backoff=60,
+    retry_backoff=90,
     ignore_result=False,
     rate_limit="10/m",
     autoretry_for=NETWORK_ERRORS,
@@ -209,9 +217,9 @@ def process_derivation_slow(
 
 @celery_app.task(
     bind=True,
-    max_retries=5,
-    default_retry_delay=60,
-    retry_backoff=60,
+    max_retries=MAX_DERIVE_RETRY,
+    default_retry_delay=90,
+    retry_backoff=90,
     ignore_result=False,
     rate_limit="40/m",
     autoretry_for=NETWORK_ERRORS,

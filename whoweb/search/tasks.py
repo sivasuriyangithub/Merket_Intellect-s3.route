@@ -1,5 +1,6 @@
 import logging
 
+from celery import group
 from celery.result import GroupResult
 from requests import HTTPError, Timeout, ConnectionError
 
@@ -48,11 +49,16 @@ def process_export(self, export_id):
         export.do_post_pages_completion(task_context=self.request)
         return True
 
-    next_page = export.get_next_empty_page()
-    if next_page:
-        done = next_page.do_page_process(task_context=self.request)
-        if done:
-            raise self.retry(max_retries=2000, countdown=3)
+    page_tasks = []
+    empty_pages = export.get_next_empty_page(10)
+    for page in empty_pages:
+        page_sigs = page.do_page_process(task_context=self.request)
+        if page_sigs:
+            page_tasks.append(page_sigs)
+    if page_tasks:
+        group(page_tasks) | process_export.si(export.pk).on_error(
+            process_export.si(export.pk)
+        ).delay()
     else:
         try:
             pages = export.generate_pages(task_context=self.request)
@@ -65,7 +71,7 @@ def process_export(self, export_id):
 
 
 @celery_app.task(
-    bind=True, max_retries=3000, ignore_result=False, autoretry_for=NETWORK_ERRORS
+    bind=True, max_retries=5000, ignore_result=False, autoretry_for=NETWORK_ERRORS
 )
 def check_export_has_data(self, export_id):
     """
@@ -246,5 +252,3 @@ def process_derivation_fast(
 def finalize_page(self, pk):
     export_page = SearchExportPage.objects.get(pk)  # allow DoesNotExist exception
     export_page.do_post_page_process(task_context=self.request)
-    res = process_export.delay(export_page.export.pk)
-    return res.id

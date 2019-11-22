@@ -476,8 +476,8 @@ class SearchExport(TimeStampedModel):
                 export.save()
                 return export._generate_pages()
 
-    def get_next_empty_page(self) -> Optional["SearchExportPage"]:
-        return self.pages.filter(data__isnull=True).first()
+    def get_next_empty_page(self, batch=1) -> Optional["SearchExportPage"]:
+        return self.pages.filter(data__isnull=True)[:batch]
 
     def do_post_pages_completion(self, task_context=None):
         with transaction.atomic():
@@ -834,14 +834,14 @@ class SearchExportPage(TimeStampedModel):
         )
 
         if self.data:
-            return True
+            return None
 
         if not self.export.should_derive_email:
             self.export.log_event(
                 evt=POPULATE_DATA, task=task_context, data={"page": self.page_num}
             )
             self.populate_data_directly()
-            return True
+            return None
 
         profiles = self.export.scroll.get_profiles_for_page(self.page_num)
 
@@ -856,21 +856,11 @@ class SearchExportPage(TimeStampedModel):
             self.export.with_invites,
             self.export.query.contact_filters or [WORK, PERSONAL, SOCIAL, PROFILE],
         )
-        res = (
-            group(
-                process_derivation.si(self.pk, profile.to_json(), *args)
-                for profile in profiles
-            )
-            | finalize_page.si(self.pk).on_error(finalize_page.si(self.pk))
-        ).delay()
-        self.export.log_event(
-            evt=DERIVATION_SPAWN,
-            data={
-                "page": self.page_num,
-                "root_task": task_context.id if task_context else None,
-                "chain": str(res.id),
-            },
-        )
+        page_sigs = group(
+            process_derivation.si(self.pk, profile.to_json(), *args)
+            for profile in profiles
+        ) | finalize_page.si(self.pk).on_error(finalize_page.si(self.pk))
+        return page_sigs
 
     def _do_post_page_process(self, task_context=None) -> [dict]:
         self.export.log_event(

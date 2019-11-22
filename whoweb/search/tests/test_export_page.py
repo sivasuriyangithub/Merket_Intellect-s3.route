@@ -2,6 +2,7 @@ import types
 from unittest.mock import patch
 
 import pytest
+from celery import chord
 
 from whoweb.search.models import SearchExport, ResultProfile
 from whoweb.search.models.export import SearchExportPage
@@ -84,7 +85,7 @@ def test_page_process_no_derive(
     page: SearchExportPage = SearchExportPageFactory(export=export, data=None)
 
     assert page.data is None
-    assert page.do_page_process() is True
+    assert page.do_page_process() is None  # data direct
     page.refresh_from_db()
     assert page.data is not None
     export.refresh_from_db(fields=("progress_counter",))
@@ -96,15 +97,14 @@ def test_page_process_existing_data(query_no_contact, raw_derived):
     pages: [SearchExportPage] = SearchExportPageFactory.create_batch(
         3, export=export, data=raw_derived
     )
-    assert pages[0].do_page_process() is True
+    assert pages[0].do_page_process() is None
     export.refresh_from_db(fields=("progress_counter",))
     assert export.progress_counter == 0
 
 
 @patch("whoweb.search.models.ScrollSearch.get_profiles_for_page")
-@patch("celery.chord.apply_async")
 def test_page_process_applies_group_derivations(
-    group_mock, get_profiles_mock, search_result_profiles, query_contact_invites
+    get_profiles_mock, search_result_profiles, query_contact_invites
 ):
     get_profiles_mock.return_value = search_result_profiles
     export: SearchExport = SearchExportFactory(query=query_contact_invites)
@@ -113,8 +113,7 @@ def test_page_process_applies_group_derivations(
     pages: [SearchExportPage] = SearchExportPageFactory.create_batch(
         3, export=export, data=None
     )
-    pages[0].do_page_process()
-    assert group_mock.call_count == 1
+    assert isinstance(pages[0].do_page_process(), chord)
 
 
 def test_get_next_empty_page():
@@ -122,9 +121,24 @@ def test_get_next_empty_page():
     pages: [SearchExportPage] = SearchExportPageFactory.create_batch(
         3, export=export, data=None
     )
-    assert export.get_next_empty_page() == pages[0]
+    assert list(export.get_next_empty_page()) == [pages[0]]
     SearchExportPage.objects.filter(pk=pages[0].pk).update(data={"done": True})
-    assert export.get_next_empty_page() == pages[1]
+    assert list(export.get_next_empty_page()) == [pages[1]]
+
+
+def test_get_next_empty_page_batch():
+    export: SearchExport = SearchExportFactory()
+    pages: [SearchExportPage] = SearchExportPageFactory.create_batch(
+        20, export=export, data=None
+    )
+    first_set = export.get_next_empty_page(5)
+    assert first_set.count() == 5
+    second_obj_in_first_set = first_set[1]
+    SearchExportPage.objects.filter(pk=pages[0].pk).update(data={"done": True})
+    next_overlapping_set = export.get_next_empty_page(5)
+    assert next_overlapping_set.count() == 5
+    first_obj_in_second_set = next_overlapping_set[0]
+    assert second_obj_in_first_set == first_obj_in_second_set
 
 
 def test_get_raw_one_page(raw_derived):

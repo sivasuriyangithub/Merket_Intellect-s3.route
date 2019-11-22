@@ -173,14 +173,15 @@ def process_derivation(
     profile = ResultProfile.from_json(profile_data)
     status = profile.derivation_status
     if not status in [VALIDATED, COMPLETE]:
+        deferred = list(set(defer))  # copy, unique
         if task.request.retries < MAX_DERIVE_RETRY:
             # don't call toofr unless absolutely necessary, like on final attempt
-            defer.append("toofr")
+            deferred.append("toofr")
         elif WORK in filters and "toofr" not in defer:
             # if we want work emails and aren't explicitly preventing toofr data,
             # call validation in real time
-            defer = [d for d in defer if d != "validation"]
-        status = profile.derive_contact(defer, filters)
+            deferred = [d for d in defer if d != "validation"]
+        status = profile.derive_contact(deferred, filters)
 
     if status == RETRY:
         raise task.retry()

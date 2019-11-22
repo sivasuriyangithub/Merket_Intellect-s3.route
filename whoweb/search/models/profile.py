@@ -75,9 +75,9 @@ class DerivedContact:
     graded_emails: List[GradedEmail] = field(default_factory=list)
     extra: Optional[GoogleCSEExtra] = None
     fc: Optional[Dict] = field(default_factory=dict)
-    linkedin_url: Optional[str] = None
-    facebook: Optional[str] = None
-    twitter: Optional[str] = None
+    linkedin_url: Optional[str] = ""
+    facebook: Optional[str] = ""
+    twitter: Optional[str] = ""
     phone: List[str] = field(default_factory=list)
     graded_phones: Dict = field(default_factory=dict)
     phone_details: List[Phone] = field(default_factory=list)
@@ -87,9 +87,9 @@ class DerivedContact:
             return
         social_profiles = self.fc.get("socialProfiles", [])
         social_profiles_by_type = {
-            social.typeId: social.url
+            social["typeId"]: social["url"]
             for social in social_profiles
-            if social and social.typeId and social.url
+            if social and social.get("typeId") and social.get("url")
         }
         if not self.linkedin_url:
             self.linkedin_url = social_profiles_by_type.get("linkedin")

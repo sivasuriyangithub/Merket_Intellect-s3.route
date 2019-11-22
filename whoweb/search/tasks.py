@@ -56,8 +56,9 @@ def process_export(self, export_id):
         if page_sigs:
             page_tasks.append(page_sigs)
     if page_tasks:
-        group(page_tasks) | process_export.si(export.pk).on_error(
-            process_export.si(export.pk)
+        (
+            group(*page_tasks)
+            | process_export.si(export.pk).on_error(process_export.si(export.pk))
         ).delay()
     else:
         try:

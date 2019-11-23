@@ -54,12 +54,17 @@ def process_export(self, export_id):
     for page in empty_pages:
         page_sigs = page.do_page_process(task_context=self.request)
         if page_sigs:
-            page_tasks.append(page_sigs)
+            page_tasks.append((page_sigs, page))
     if page_tasks:
+        tasks = [pt[0] for pt in page_tasks]
+        pages = [pt[1] for pt in page_tasks]
         (
-            group(*page_tasks)
+            group(*tasks)
             | process_export.si(export.pk).on_error(process_export.si(export.pk))
         ).delay()
+        for page in pages:
+            page.status = SearchExportPage.STATUS.working
+            page.save()
     else:
         try:
             pages = export.generate_pages(task_context=self.request)

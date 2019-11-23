@@ -14,29 +14,28 @@ from whoweb.search.models.export import SearchExportPage
 
 class SearchExportPageInline(TabularInline):
     model = SearchExportPage
-    fields = ("export_link", "count", "created", "modified", "done")
+    fields = (
+        "export_link",
+        "status",
+        "working_count",
+        "final_count",
+        "created",
+        "modified",
+    )
     readonly_fields = fields
     extra = 0
 
     def get_queryset(self, request):
-        return (
-            super()
-            .get_queryset(request)
-            .annotate(
-                has_data=Case(
-                    When(data__isnull=True, then=False),
-                    default=True,
-                    output_field=BooleanField(),
-                )
-            )
-            .defer("data", "working_data")
-        )
+        return super().get_queryset(request).defer("data", "working_data")
 
     def has_add_permission(self, request, obj=None):
         return False
 
-    def done(self, obj):
-        return obj.has_data
+    def final_count(self, obj):
+        return obj.count
+
+    def working_count(self, obj):
+        return len(obj.working_data) if obj.working_data else None
 
     @mark_safe
     def export_link(self, obj: SearchExportPage):
@@ -50,15 +49,24 @@ class SearchExportPageInline(TabularInline):
 
 @admin.register(SearchExportPage)
 class SearchExportPageAdmin(ActionsModelAdmin):
-    list_display = ("pk", "export", "page_num", "created", "modified", "done", "count")
+    list_display = (
+        "pk",
+        "export",
+        "page_num",
+        "created",
+        "modified",
+        "status",
+        "count",
+    )
     list_display_links = ("export",)
+    list_filter = ("status", "created")
     search_fields = ("export__uuid", "export__pk")
     fields = (
         "export_link",
         "page_num",
         "created",
         "modified",
-        "done",
+        "status",
         "count",
         "limit",
         "working_count",
@@ -70,23 +78,7 @@ class SearchExportPageAdmin(ActionsModelAdmin):
         return len(obj.working_data) if obj.working_data else None
 
     def get_queryset(self, request):
-        return (
-            super()
-            .get_queryset(request)
-            .annotate(
-                has_data=Case(
-                    When(data__isnull=True, then=False),
-                    default=True,
-                    output_field=BooleanField(),
-                )
-            )
-            .defer("data")
-        )
-
-    def done(self, obj):
-        return obj.has_data
-
-    done.boolean = True
+        return super().get_queryset(request).defer("data")
 
     @mark_safe
     def export_link(self, obj: SearchExportPage):

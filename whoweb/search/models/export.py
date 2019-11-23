@@ -772,6 +772,11 @@ class SearchExportPage(TimeStampedModel):
     export = models.ForeignKey(
         SearchExport, on_delete=models.CASCADE, related_name="pages"
     )
+    STATUS = Choices(
+        (0, "created", "Created"),
+        (2, "working", "Running"),
+        (4, "complete", "Complete"),
+    )
     data = CompressedBinaryJSONField(null=True, editable=False)
     page_num = models.PositiveIntegerField()
     working_data = JSONField(editable=False, null=True, default=dict)
@@ -780,6 +785,10 @@ class SearchExportPage(TimeStampedModel):
     derivation_group: TaskResult = models.ForeignKey(
         TaskResult, on_delete=models.SET_NULL, null=True, blank=True
     )
+    status = models.IntegerField(
+        _("status"), choices=STATUS, blank=True, default=STATUS.created
+    )
+    status_changed = MonitorField(_("status changed"), monitor="status")
 
     class Meta:
         unique_together = ["export", "page_num"]
@@ -874,6 +883,7 @@ class SearchExportPage(TimeStampedModel):
         self.count = len(profiles)
         self.data = profiles
         self.working_data = None
+        self.status = self.STATUS.complete
         self.save()
         self.export.progress_counter = F("progress_counter") + self.count
         self.export.save()

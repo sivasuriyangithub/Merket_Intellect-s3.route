@@ -251,5 +251,5 @@ def process_derivation_fast(
     bind=True, max_retries=250, ignore_result=False, autoretry_for=NETWORK_ERRORS
 )
 def finalize_page(self, pk):
-    export_page = SearchExportPage.objects.get(pk)  # allow DoesNotExist exception
+    export_page = SearchExportPage.objects.get(pk=pk)  # allow DoesNotExist exception
     export_page.do_post_page_process(task_context=self.request)

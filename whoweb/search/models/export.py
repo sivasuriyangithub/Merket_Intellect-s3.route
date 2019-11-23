@@ -62,7 +62,7 @@ class SearchExportManager(QueryManagerMixin, models.Manager):
 
 
 class SearchExport(TimeStampedModel):
-    DERIVATION_RATIO = 5.2
+    DERIVATION_RATIO = 3.5
     SIMPLE_CAP = 1000
     SKIP_CODE = "MAGIC_SKIP_CODE_NO_VALIDATION_NEEDED"
 

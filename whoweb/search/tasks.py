@@ -50,7 +50,7 @@ def process_export(self, export_id):
         return True
 
     page_tasks = []
-    empty_pages = export.get_next_empty_page(10)
+    empty_pages = export.get_next_empty_page(3)
     for page in empty_pages:
         page_sigs = page.do_page_process(task_context=self.request)
         if page_sigs:

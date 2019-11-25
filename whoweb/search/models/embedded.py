@@ -68,6 +68,7 @@ class FilteredSearchQuery(AbstractEmbeddedModel):
         ("company_counts", "COMPANY_COUNTS", "Company Counts"),
         ("degree_levels", "DEGREE_LEVELS", "Degree Levels"),
         ("validation", "VALIDATION", "Validation"),
+        ("phone_validation", "PHONE_VALIDATION", "Phone Validation"),
     )
     CONTACT_FILTER_CHOICES = Choices(
         ("work", "WORK", "Work"),

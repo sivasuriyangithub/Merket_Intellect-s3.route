@@ -188,4 +188,12 @@ class ExportAdmin(ActionsModelAdmin):
 
 @admin.register(ScrollSearch)
 class ScrollSearchAdmin(ActionsModelAdmin):
-    pass
+    fields = (
+        "scroll_key",
+        "scroll_key_modified",
+        "page_size",
+        "query_hash",
+        "total",
+        "query",
+    )
+    readonly_fields = fields

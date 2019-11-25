@@ -48,10 +48,12 @@ class GradedEmail:
 
 
 @dataclass
-class Phone:
+class GradedPhone:
     phone: str = ""
     phone_type: str = ""
     status: str = ""
+
+    PASSING_STATUSES = ["connected", "connected-75"]
 
 
 @dataclass
@@ -80,7 +82,8 @@ class DerivedContact:
     twitter: Optional[str] = ""
     phone: List[str] = field(default_factory=list)
     graded_phones: Dict = field(default_factory=dict)
-    phone_details: List[Phone] = field(default_factory=list)
+    phone_details: List[GradedPhone] = field(default_factory=list)
+    filters: List[str] = field(default_factory=list)
 
     def __post_init__(self):
         if not self.fc:
@@ -106,6 +109,12 @@ class DerivedContact:
                 for key, value in potentially_unparsed_graded_emails.items()
             ]
         return potentially_unparsed_graded_emails
+
+    def requested_email(self):
+        return set(self.filters).intersection([WORK, PERSONAL])
+
+    def requested_phone(self):
+        return set(self.filters).intersection([PHONE])
 
     @classmethod
     def from_dict(self, data):
@@ -140,7 +149,7 @@ class ResultProfile:
     emails: List[str] = field(default_factory=list)
     grade: Optional[str] = None
     graded_emails: List[GradedEmail] = field(default_factory=list)
-    phone: List[Phone] = field(default_factory=list)
+    graded_phones: List[GradedPhone] = field(default_factory=list)
     li_url: str = ""
     facebook: str = ""
     twitter: str = ""
@@ -213,18 +222,20 @@ class ResultProfile:
         self.li_url = derivation.linkedin_url
         self.facebook = derivation.facebook
         self.twitter = derivation.twitter
-        self.phone = derivation.phone_details
+        self.graded_phones = derivation.phone_details
 
-        if not self.company:
+        if not self.company and derivation.extra:
             self.company = derivation.extra.company
-        if not self.title:
+        if not self.title and derivation.extra:
             self.title = derivation.extra.title
 
-        if self.passing_grade:
+        if (self.passing_grade and derivation.requested_email) or (
+            self.passing_phone and derivation.requested_phone
+        ):
             self.derivation_status = VALIDATED
         elif derivation.status == RETRY:
             self.derivation_status = RETRY
-        elif self.email or self.emails:
+        elif self.email or self.emails or self.graded_phones:
             self.derivation_status = COMPLETE
         else:
             self.derivation_status = FAILED
@@ -271,6 +282,8 @@ class ResultProfile:
                 return RETRY
             else:
                 derived = DerivedContact.from_dict(data=derivation)
+                if not hasattr(derivation, "filters"):
+                    derived.filters = filters
                 self.set_derived_contact(derived)
                 return self.derivation_status
         else:
@@ -324,6 +337,15 @@ class ResultProfile:
     @property
     def passing_grade(self):
         return self.grade[0] in ["A", "B"] if self.grade else False
+
+    @property
+    def passing_phone(self):
+        return bool(
+            [
+                phone.status in GradedPhone.PASSING_STATUSES
+                for phone in self.graded_phones
+            ]
+        )
 
     def to_json(self):
         return asdict(self)

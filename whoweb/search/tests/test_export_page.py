@@ -6,6 +6,7 @@ from celery import chord
 
 from whoweb.search.models import SearchExport, ResultProfile
 from whoweb.search.models.export import SearchExportPage
+from whoweb.search.models.profile import VALIDATED
 from whoweb.search.tests.factories import (
     SearchExportFactory,
     SearchExportPageFactory,
@@ -215,7 +216,7 @@ def test_generate_email_id_pairs(get_profile_mock, validation_mock, raw_derived)
 @patch("whoweb.core.router.Router.make_exportable_invite_key")
 def test_get_csv_row(key_mock):
     export: SearchExport = SearchExportFactory()
-    profile: ResultProfile = ResultProfileFactory()
+    profile: ResultProfile = ResultProfileFactory(derivation_status=VALIDATED)
     key_mock.return_value = {"key": "invitation"}
     assert len(export.get_csv_row(profile)) == 10
     assert len(export.get_csv_row(profile, with_invite=True)) == 11

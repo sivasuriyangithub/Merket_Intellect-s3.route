@@ -44,7 +44,7 @@ from whoweb.search.events import (
     ENQUEUED_FROM_QUERY,
 )
 from whoweb.users.models import Seat
-from .profile import ResultProfile, WORK, PERSONAL, SOCIAL, PROFILE
+from .profile import ResultProfile, WORK, PERSONAL, SOCIAL, PROFILE, PHONE, VALIDATED
 from .profile_spec import ensure_profile_matches_spec, ensure_contact_info_matches_spec
 from .scroll import FilteredSearchQuery, ScrollSearch
 
@@ -296,7 +296,7 @@ class SearchExport(TimeStampedModel):
         return self.scroll.ensure_live(force=force)
 
     def get_raw(self):
-        for page in self.pages.iterator(chunk_size=4):
+        for page in self.pages.filter(data__isnull=False).iterator(chunk_size=4):
             for row in page.data:
                 yield row
 
@@ -332,7 +332,7 @@ class SearchExport(TimeStampedModel):
         self, profile: ResultProfile, enforce_valid_contact=False, with_invite=False
     ):
         if enforce_valid_contact:
-            if not profile.email or not profile.passing_grade:
+            if not profile.derivation_status == VALIDATED:
                 return
         row = [
             profile.id,
@@ -354,7 +354,7 @@ class SearchExport(TimeStampedModel):
                     row.extend(["", "", ""])
             for i in range(3):
                 try:
-                    entry = profile.phone[i]
+                    entry = profile.graded_phones[i]
                     row.extend([entry.phone, entry.phone_type, entry.status])
                 except IndexError:
                     row.extend(["", "", ""])

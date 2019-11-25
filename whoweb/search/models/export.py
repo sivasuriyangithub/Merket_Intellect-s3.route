@@ -877,7 +877,7 @@ class SearchExportPage(TimeStampedModel):
         )
         if self.data:
             return []
-        profiles = self.working_data.values() if self.working_data else []
+        profiles = list(self.working_data.values()) if self.working_data else []
         quota = min((self.limit, len(profiles))) if self.limit else len(profiles)
         profiles = profiles[:quota]
         self.count = len(profiles)

@@ -18,7 +18,7 @@ from django.db import models, transaction
 from django.db.models import F
 from django.template.loader import render_to_string
 from django.urls import reverse
-from django.utils.six import string_types, StringIO
+from django.utils.six import string_types
 from django.utils.translation import ugettext_lazy as _
 from django_celery_results.models import TaskResult
 from dns import resolver
@@ -27,9 +27,10 @@ from model_utils.fields import MonitorField
 from model_utils.managers import QueryManagerMixin
 from model_utils.models import TimeStampedModel
 from requests_cache import CachedSession
+from six import BytesIO
 
 from whoweb.contrib.fields import CompressedBinaryJSONField
-from whoweb.contrib.postgres.fields import EmbeddedModelField, ChoiceArrayField
+from whoweb.contrib.postgres.fields import EmbeddedModelField
 from whoweb.core.models import ModelEvent
 from whoweb.core.router import router, external_link
 from whoweb.search.events import (
@@ -39,13 +40,11 @@ from whoweb.search.events import (
     FETCH_VALIDATION,
     SPAWN_MX,
     POPULATE_DATA,
-    DERIVATION_SPAWN,
     FINALIZE_PAGE,
     ENQUEUED_FROM_QUERY,
 )
 from whoweb.users.models import Seat
-from .profile import ResultProfile, WORK, PERSONAL, SOCIAL, PROFILE, PHONE, VALIDATED
-from .profile_spec import ensure_profile_matches_spec, ensure_contact_info_matches_spec
+from .profile import ResultProfile, WORK, PERSONAL, SOCIAL, PROFILE, VALIDATED
 from .scroll import FilteredSearchQuery, ScrollSearch
 
 logger = logging.getLogger(__name__)
@@ -579,10 +578,10 @@ class SearchExport(TimeStampedModel):
         )
         r.raise_for_status()
 
-        z = zipfile.ZipFile(StringIO(r.content))
+        z = zipfile.ZipFile(BytesIO(r.content))
 
         for name in z.namelist():
-            data = StringIO(z.read(name))
+            data = BytesIO(z.read(name))
             reader: Iterable[List[str]] = csv.reader(data)
             for row in reader:
                 logger.debug(row)

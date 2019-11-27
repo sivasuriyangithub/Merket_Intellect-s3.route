@@ -287,6 +287,12 @@ CELERY_TASK_SOFT_TIME_LIMIT = None
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 # https://docs.celeryproject.org/en/latest/userguide/routing.html#changing-the-name-of-the-default-queue
 CELERY_TASK_DEFAULT_QUEUE = "whoweb"
+# https://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_routes
+CELERY_ROUTES = {
+    "whoweb.search.tasks.fetch_mx_domain": {"queue": "whoweb_low"},
+    "whoweb.search.tasks.process_derivation_slow": {"queue": "whoweb_low"},
+    "whoweb.search.tasks.process_derivation_fast": {"queue": "whoweb_low"},
+}
 # django-allauth
 # ------------------------------------------------------------------------------
 ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", True)

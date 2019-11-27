@@ -193,7 +193,7 @@ def process_derivation(
             # if we want work emails and aren't explicitly preventing toofr data,
             # call validation in real time
             deferred = [d for d in defer if d != "validation"]
-        status = profile.derive_contact(deferred, filters)
+        status = profile.derive_contact(deferred, filters, producer=page_pk)
 
     if status == RETRY:
         raise task.retry()

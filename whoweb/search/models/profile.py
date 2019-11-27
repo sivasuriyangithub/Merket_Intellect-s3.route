@@ -252,7 +252,7 @@ class ResultProfile:
         if self.email and not self.grade:
             self.grade = validation_registry.get(self.email)
 
-    def derive_contact(self, defer=(), filters=None, timeout=120):
+    def derive_contact(self, defer=(), filters=None, timeout=120, producer=None):
         if self.derivation_status == VALIDATED:
             return self.derivation_status
 
@@ -277,7 +277,13 @@ class ResultProfile:
             for filt in filters:
                 url_args.append(("filter", filt))
             try:
-                derivation = router.derive_email(params=url_args, timeout=timeout)
+                derivation = router.derive_email(
+                    params=url_args,
+                    timeout=timeout,
+                    request_producer=f"whoweb.search.export/page/{producer}"
+                    if producer
+                    else None,
+                )
             except requests.Timeout:
                 return RETRY
             else:
@@ -354,7 +360,6 @@ class ResultProfile:
     def from_json(cls, data, validation_registry=None):
         if validation_registry:
             data["validation_registry"] = validation_registry
-        print(data)
         return dacite.from_dict(data_class=cls, data=data, config=profile_load_config)
 
 

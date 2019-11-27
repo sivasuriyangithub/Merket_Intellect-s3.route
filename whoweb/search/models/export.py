@@ -533,10 +533,7 @@ class SearchExport(TimeStampedModel):
                 start_validation=True,
             ),
         )
-        if not r.ok:
-            logger.error(
-                "Validation API Error: %s. Response: %s ", r.status_code, r.content
-            )
+        r.raise_for_status()
         self.validation_list_id = r.json()
         self.save()
 
@@ -615,7 +612,9 @@ class SearchExport(TimeStampedModel):
             if secondary_validations:
                 try:
                     router.update_validations(
-                        json={"bulk_validations": secondary_validations}, timeout=90
+                        json={"bulk_validations": secondary_validations},
+                        timeout=90,
+                        request_producer=f"whoweb.search.export/{self.pk}",
                     )
                 except Exception as e:
                     logger.exception("Error setting validation cache: %s " % e)

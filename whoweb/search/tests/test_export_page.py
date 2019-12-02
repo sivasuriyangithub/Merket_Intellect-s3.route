@@ -225,7 +225,7 @@ def test_get_csv_row(key_mock):
     assert row[9] == "passing@email.com"
     export.uploadable = True
     assert len(export.get_csv_row(profile)) == 12
-    assert len(export.get_csv_row(profile, enforce_valid_contact=True)) == 33
+    assert len(export.get_csv_row(profile, enforce_valid_contact=True)) == 30
 
 
 @patch("whoweb.core.router.Router.make_exportable_invite_key")

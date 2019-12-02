@@ -63,12 +63,31 @@ class FilteredSearchQuery(AbstractEmbeddedModel):
     class Meta:
         managed = False
 
+    PUBLIC_DEFER_CHOICES = Choices(
+        ("contact", "CONTACT", "Contact"),
+        ("company_counts", "COMPANY_COUNTS", "Company Counts"),
+        ("degree_levels", "DEGREE_LEVELS", "Degree Levels"),
+        ("validation", "VALIDATION", "Validation"),
+        ("phone_validation", "PHONE_VALIDATION", "Phone Validation"),
+    )  # for html serializer
     DEFER_CHOICES = Choices(
         ("contact", "CONTACT", "Contact"),
         ("company_counts", "COMPANY_COUNTS", "Company Counts"),
         ("degree_levels", "DEGREE_LEVELS", "Degree Levels"),
         ("validation", "VALIDATION", "Validation"),
         ("phone_validation", "PHONE_VALIDATION", "Phone Validation"),
+        ("nymeria", "NYMERIA", "Nymeria Service"),
+        ("rocketreach", "ROCKETREACH", "Rocketreach Service"),
+        ("toofr", "TOOFR", "Toofr (Find Emails) Service"),
+        ("anymail", "ANYMAIL", "Anymail Service"),
+        ("talentiq", "TALENTIQ", "TalentIQ Service"),
+        ("fullcontact", "FULLCONTACT", "Fullcontact Service"),
+        ("pipl", "PIPL", "Pipl Service"),
+        ("hunter", "HUNTER", "Hunter (pattern) Service"),
+        ("norbert", "NORBERT", "norbert Service"),
+        ("name2domain", "NAME2DOMAIN", "name2domain Service"),
+        ("clearbit", "CLEARBIT", "Clearbit Service"),
+        ("gcse", "GCSE", "Google Custom Search Service"),
     )
     CONTACT_FILTER_CHOICES = Choices(
         ("work", "WORK", "Work"),

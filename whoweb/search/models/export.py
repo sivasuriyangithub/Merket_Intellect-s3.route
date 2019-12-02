@@ -354,9 +354,9 @@ class SearchExport(TimeStampedModel):
             for i in range(3):
                 try:
                     entry = profile.graded_phones[i]
-                    row.extend([entry.phone, entry.phone_type, entry.status])
+                    row.extend([entry.number, entry.phone_type])
                 except IndexError:
-                    row.extend(["", "", ""])
+                    row.extend(["", ""])
         row.append(profile.absolute_profile_url)
         if enforce_valid_contact:
             row.extend([profile.li_url, profile.facebook, profile.twitter])

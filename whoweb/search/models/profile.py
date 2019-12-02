@@ -49,11 +49,22 @@ class GradedEmail:
 
 @dataclass
 class GradedPhone:
-    phone: str = ""
-    phone_type: str = ""
     status: str = ""
+    phone_type: str = ""
+    number: str = ""
 
     PASSING_STATUSES = ["connected", "connected-75"]
+    _status_order = {"connected": 100, "connected-75": 75}
+
+    @property
+    def status_value(self):
+        return self._status_order.get(self.status, 0)
+
+    def __lt__(self, other):
+        return self.status_value < other.status_value
+
+    def __gt__(self, other):
+        return self.status_value > other.status_value
 
 
 @dataclass
@@ -222,7 +233,7 @@ class ResultProfile:
         self.li_url = derivation.linkedin_url
         self.facebook = derivation.facebook
         self.twitter = derivation.twitter
-        self.graded_phones = derivation.phone_details
+        self.graded_phones = sorted(derivation.phone_details, reverse=True)
 
         if not self.company and derivation.extra:
             self.company = derivation.extra.company

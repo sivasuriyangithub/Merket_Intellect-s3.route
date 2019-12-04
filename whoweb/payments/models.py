@@ -1,6 +1,11 @@
+from typing import Optional
+from typing import TYPE_CHECKING
+
+
 from django.db import models
 from django.db.models import F, Value
 from django.db.models.functions import Greatest
+from django.db.transaction import atomic
 from django.utils.translation import ugettext_lazy as _
 from organizations.abstract import (
     AbstractOrganization,
@@ -9,7 +14,61 @@ from organizations.abstract import (
 )
 from organizations.signals import user_added
 
+from whoweb.accounting.actions import create_transaction, Debit, Credit
+from whoweb.accounting.models import (
+    Ledger,
+    LedgerEntry,
+    wkcredits_liability_ledger,
+    wkcredits_fulfilled_ledger,
+)
+from whoweb.core.utils import PERSONAL_DOMAINS
 from whoweb.users.models import Seat, Group
+
+if TYPE_CHECKING:
+    from whoweb.search.models import ResultProfile
+
+
+class WKPlan(models.Model):
+    credits_per_enrich = models.IntegerField(
+        default=5,
+        verbose_name="Credits per Enrich",
+        help_text="Number of credits charged for an enrich service call.",
+    )
+    credits_per_work_email = models.IntegerField(
+        default=100,
+        verbose_name="Credits per Work Derivation",
+        help_text="Number of credits charged for a service call returning any work emails.",
+    )
+    credits_per_personal_email = models.IntegerField(
+        default=300,
+        verbose_name="Credits per Personal Derivation",
+        help_text="Number of credits charged for a service call returning any personal emails.",
+    )
+    credits_per_phone = models.IntegerField(
+        default=400,
+        verbose_name="Credits per Phone Derivation",
+        help_text="Number of credits charged for a service call returning any phone numbers.",
+    )
+
+    def compute_contact_credit_use(self, profile: "ResultProfile"):
+        work = False
+        personal = False
+        phone = any(profile.graded_phones)
+        for graded_email in profile.sorted_graded_emails:
+            email = graded_email.email
+            if email and email.lower().split("@")[1] in PERSONAL_DOMAINS:
+                personal = True
+            if email and email.lower().split("@")[1] not in PERSONAL_DOMAINS:
+                work = True
+            if work and personal:
+                break
+        return sum(
+            [
+                work * self.credits_per_work_email,
+                personal * self.credits_per_personal_email,
+                phone * self.credits_per_phone,
+            ]
+        )
 
 
 class BillingAccount(AbstractOrganization):
@@ -18,6 +77,7 @@ class BillingAccount(AbstractOrganization):
         Seat, related_name="billing_account", through="BillingAccountMember"
     )
 
+    plan = models.ForeignKey(WKPlan, on_delete=models.SET_NULL, null=True)
     credit_pool = models.IntegerField(default=0, blank=True)
     trial_credit_pool = models.IntegerField(default=0, blank=True)
 
@@ -25,18 +85,64 @@ class BillingAccount(AbstractOrganization):
         verbose_name = _("billing account")
         verbose_name_plural = _("billing accounts")
 
-    def charge(self, amount=0):
+    @atomic
+    def consume_credits(
+        self,
+        amount,
+        initiated_by,
+        evidence=(),
+        notes="",
+        transaction_kind=None,
+        posted_at=None,
+    ):
         updated = BillingAccount.objects.filter(
             pk=self.pk, credit_pool__gte=amount
         ).update(
             credit_pool=F("credit_pool") - amount,
             trial_credit_pool=Greatest(F("trial_credit_pool") - amount, Value(0)),
         )
-        return bool(updated)
+        if updated:
+            create_transaction(
+                user=initiated_by,
+                ledger_entries=(
+                    LedgerEntry(
+                        ledger=wkcredits_liability_ledger(), amount=Debit(amount)
+                    ),
+                    LedgerEntry(
+                        ledger=wkcredits_fulfilled_ledger(), amount=Credit(amount)
+                    ),
+                ),
+                evidence=evidence + (self,),
+                notes=notes,
+                kind=transaction_kind,
+                posted_timestamp=posted_at,
+            )
+            return True
+        return False
 
-    def refund(self, amount=0):
+    @atomic
+    def refund_credits(
+        self,
+        amount,
+        initiated_by,
+        evidence=(),
+        notes="",
+        transaction_kind=None,
+        posted_at=None,
+    ):
         self.credit_pool = F("credit_pool") + amount
         self.save()
+        create_transaction(
+            user=initiated_by,
+            ledger_entries=(
+                LedgerEntry(ledger=wkcredits_liability_ledger(), amount=Credit(amount)),
+                LedgerEntry(ledger=wkcredits_fulfilled_ledger(), amount=Debit(amount)),
+            ),
+            evidence=evidence + (self,),
+            notes=notes,
+            kind=transaction_kind,
+            posted_timestamp=posted_at,
+        )
 
     def get_or_add_user(self, user, **kwargs):
         """
@@ -67,7 +173,6 @@ class BillingAccount(AbstractOrganization):
 
 
 class BillingAccountMember(AbstractOrganizationUser):
-
     seat = models.OneToOneField(
         Seat,
         verbose_name="group seat",
@@ -83,16 +188,20 @@ class BillingAccountMember(AbstractOrganizationUser):
         verbose_name_plural = _("billing account members")
 
     @property
-    def credits(self):
+    def credits(self) -> int:
         if self.pool_credits:
             return self.organization.credit_pool
         return self.seat_credits
 
     @property
-    def trial_credits(self):
+    def trial_credits(self) -> int:
         if self.pool_credits:
             return self.organization.trial_credit_pool
         return self.seat_trial_credits
+
+    @property
+    def plan(self) -> Optional[WKPlan]:
+        return self.organization.plan
 
     def charge(self, amount=0):
         updated = BillingAccountMember.objects.filter(

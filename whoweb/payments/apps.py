@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class AccountsConfig(AppConfig):
+class PaymentsConfig(AppConfig):
     name = "whoweb.payments"
     verbose_name = "Payments"

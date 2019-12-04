@@ -33,6 +33,7 @@ from whoweb.contrib.fields import CompressedBinaryJSONField
 from whoweb.contrib.postgres.fields import EmbeddedModelField
 from whoweb.core.models import ModelEvent
 from whoweb.core.router import router, external_link
+from whoweb.payments.models import WKPlan
 from whoweb.search.events import (
     GENERATING_PAGES,
     FINALIZING,
@@ -130,8 +131,7 @@ class SearchExport(TimeStampedModel):
     )
     progress_counter = models.IntegerField(default=0)
     target = models.IntegerField(default=0)
-    charged = models.IntegerField(default=0)
-    refunded = models.IntegerField(default=0)
+
     valid_count = models.IntegerField(null=True, blank=True)
 
     notify = models.BooleanField(default=False)
@@ -157,13 +157,26 @@ class SearchExport(TimeStampedModel):
         with transaction.atomic():
             export = cls(seat=seat, query=query, **kwargs)
             export._set_target()
-            if export.should_derive_email:
-                charged = seat.billing.charge(export.target)
+            if not export.should_derive_email:
+                export.charge = False
+            if export.charge:
+                plan: WKPlan = seat.billing.plan
+                if not plan:
+                    raise SubscriptionError("No plan or subscription found for user.")
+                credits_to_charge = export.target * sum(
+                    (
+                        plan.credits_per_work_email,
+                        plan.credits_per_phone,
+                        plan.credits_per_personal_email,
+                    )
+                )  # maximum possible -- credit hold
+                charged = seat.billing.consume_credits(
+                    amount=credits_to_charge, initiated_by=seat.user, evidence=(export,)
+                )
                 if not charged:
                     raise SubscriptionError(
-                        "Not enough credits to complete this export"
+                        "Not enough credits to complete this export."
                     )
-                export.charged = export.target
             export.save()
         tasks = export.processing_signatures()
         res = tasks.apply_async()
@@ -395,6 +408,21 @@ class SearchExport(TimeStampedModel):
                 with_invite=self.with_invites,
             )
 
+    def compute_charges(self, validation_registry=None):
+        charges = 0
+        if validation_registry is None:
+            validation_registry = self.get_validation_registry()
+
+        profiles = self.get_profiles(validation_registry=validation_registry)
+        plan: WKPlan = self.seat.billing.plan
+        if self.charge:
+            return sum(
+                plan.compute_contact_credit_use(profile=profile)
+                for profile in profiles
+                if profile.derivation_status == VALIDATED
+            )
+        return charges
+
     def _generate_pages(self) -> Optional[List["SearchExportPage"]]:
         """
 
@@ -483,11 +511,16 @@ class SearchExport(TimeStampedModel):
             export = self.locked(status__lt=SearchExport.STATUS.pages_complete)
             if export:
                 export.log_event(FINALIZING, task=task_context)
-                if export.charge:
-                    refund = export.target - min(export.progress_counter, export.target)
-                    export.seat.billing.refund(refund)
-                    export.charged = F("charged") - refund
-                    export.refunded = F("refunded") + refund
+                if export.charge and not export.defer_validation:
+                    charges = export.compute_charges()
+                    credits_to_refund = export.charged - charges
+                    export.seat.billing.refund_credits(
+                        amount=credits_to_refund,
+                        initiated_by=export.seat.user,
+                        evidence=(export,),
+                        notes="Computed for inline-validated export at post page completion stage.",
+                    )
+                    export.charged = F("charged") - credits_to_refund
                 export.status = SearchExport.STATUS.pages_complete
                 export.save()
 
@@ -497,13 +530,15 @@ class SearchExport(TimeStampedModel):
             if not export:
                 return
             if export.charge and export.defer_validation:
-                valid = sum(1 for _ in export.get_validation_results())
-                refund = export.charged - valid
-                if refund > 0:
-                    export.seat.billing.refund(refund)
-                    export.charged = F("charged") - refund  # == valid, one would hope.
-                    export.refunded = F("refunded") + refund
-                export.valid_count = valid
+                charges = export.compute_charges()
+                credits_to_refund = export.charged - charges
+                export.seat.billing.refund_credits(
+                    amount=credits_to_refund,
+                    initiated_by=export.seat.user,
+                    evidence=(export,),
+                    notes="Computed for deferred-validation export at post validation stage.",
+                )
+                export.charged = F("charged") - credits_to_refund
             export.status = SearchExport.STATUS.validated
             export.save()
         if export.defer_validation:
@@ -793,7 +828,7 @@ class SearchExportPage(TimeStampedModel):
         ordering = ["export", "page_num"]
 
     @classmethod
-    def save_profile(cls, page_pk: int, profile: "ResultProfile") -> "SearchExportPage":
+    def save_profile(cls, page_pk: int, profile: ResultProfile) -> "SearchExportPage":
         page = cls.objects.get(pk=page_pk)
         if page:
             page.working_data[profile.id] = profile.to_json()

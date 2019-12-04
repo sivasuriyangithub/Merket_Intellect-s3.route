@@ -5,7 +5,7 @@ from whoweb.contrib.rest_framework.fields import (
     MultipleChoiceListField,
     PublicPrivateMultipleChoiceListField,
 )
-from whoweb.payments.models import BillingAccount
+from whoweb.payments.models import BillingAccount, WKPlan
 from whoweb.search.models import (
     SearchExport,
     FilteredSearchQuery,
@@ -82,6 +82,12 @@ class SearchExportSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(write_only=True)
     seat_credits = serializers.IntegerField(write_only=True)
     for_campaign = serializers.BooleanField(source="uploadable", required=False)
+    credits_per_enrich = serializers.IntegerField(write_only=True, required=False)
+    credits_per_work_email = serializers.IntegerField(write_only=True, required=False)
+    credits_per_personal_email = serializers.IntegerField(
+        write_only=True, required=False
+    )
+    credits_per_phone = serializers.IntegerField(write_only=True, required=False)
 
     class Meta:
         model = SearchExport
@@ -122,6 +128,10 @@ class SearchExportSerializer(serializers.ModelSerializer):
             "group_id",
             "email",
             "seat_credits",
+            "credits_per_enrich",
+            "credits_per_work_email",
+            "credits_per_personal_email",
+            "credits_per_phone",
         ]
 
     def get_status_name(self, obj):
@@ -140,8 +150,17 @@ class SearchExportSerializer(serializers.ModelSerializer):
         seat, _ = group.get_or_add_user(
             user=profile.user, display_name=profile.user.get_full_name()
         )
-        billing_account, _ = BillingAccount.objects.get_or_create(
-            name=billing_account_name, slug=slugify(billing_account_name), group=group
+        plan, _ = WKPlan.objects.get_or_create(
+            credits_per_enrich=validated_data["credits_per_enrich"],
+            credits_per_work_email=validated_data["credits_per_work_email"],
+            credits_per_personal_email=validated_data["credits_per_personal_email"],
+            credits_per_phone=validated_data["credits_per_phone"],
+        )
+        billing_account, _ = BillingAccount.objects.update_or_create(
+            name=billing_account_name,
+            slug=slugify(billing_account_name),
+            group=group,
+            defaults=dict(plan=plan),
         )
         billing_member, _ = billing_account.get_or_add_user(
             user=profile.user, seat=seat, seat_credits=validated_data["seat_credits"]

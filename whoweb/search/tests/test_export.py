@@ -1,4 +1,4 @@
-import re
+import os
 from unittest.mock import patch, Mock, PropertyMock
 
 import pytest
@@ -274,6 +274,31 @@ def test_get_validation_status_file_error(get_mock, requests_mock):
     )
     get_mock.return_value = Mock(ok="mystatus")
     assert export.get_validation_status() is "mystatus"
+
+
+@patch("requests_cache.CachedSession.get")
+def test_get_validation_results(
+    get_mock, requests_mock, query_contact_invites_defer_validation
+):
+    LIST_ID = "1"
+    export: SearchExport = SearchExportFactory(
+        query=query_contact_invites_defer_validation, validation_list_id=LIST_ID
+    )
+    requests_mock.register_uri(
+        "GET",
+        f"https://dv3.datavalidation.com/api/v2/user/me/list/{LIST_ID}/download_result/",
+    )
+    with open(
+        os.path.join(os.path.dirname(__file__), "valid.zip"), "rb"
+    ) as validation_file:
+        get_mock.return_value = Mock(content=validation_file.read())
+    results = list(export.get_validation_results())
+    assert len(results) == 32
+    assert results[0] == {
+        "email": "stacey@yakimaschools.org",
+        "profile_id": "wp:5ofrkzThKRTSNTfDprgxCULEGitbZMFoE4tEtAuJ6GV",
+        "grade": "B",
+    }
 
 
 def test_get_named_fetch_url():

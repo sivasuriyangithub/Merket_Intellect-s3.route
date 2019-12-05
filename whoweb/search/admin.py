@@ -130,7 +130,6 @@ class ExportAdmin(ActionsModelAdmin):
         "sent",
         "sent_at",
         "charged",
-        "refunded",
         "validation_list_id",
         "column_names",
     )
@@ -143,8 +142,8 @@ class ExportAdmin(ActionsModelAdmin):
         "column_names",
     )
     inlines = [EventTabularInline, SearchExportPageInline]
-    actions_row = ("download",)
-    actions_detail = ("run_publication_tasks", "download")
+    actions_row = ("download", "download_json")
+    actions_detail = ("run_publication_tasks", "download", "download_json")
 
     def column_names(self, obj):
         return ", ".join(obj.get_column_names())
@@ -164,7 +163,13 @@ class ExportAdmin(ActionsModelAdmin):
         export = SearchExport.objects.get(pk=pk)
         return redirect(export.get_absolute_url())
 
-    download.short_description = "💾️"
+    download.short_description = "💾.csv"
+
+    def download_json(self, request, pk):
+        export = SearchExport.objects.get(pk=pk)
+        return redirect(export.get_absolute_url("json"))
+
+    download_json.short_description = "💾.json"
 
     def run_publication_tasks(self, request, pk):
         export = SearchExport.objects.get(pk=pk)

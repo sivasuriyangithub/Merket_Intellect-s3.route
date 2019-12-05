@@ -410,6 +410,16 @@ class SearchExport(TimeStampedModel):
                 with_invite=self.with_invites,
             )
 
+    def generate_json_rows(self, rows=None, validation_registry=None):
+        if validation_registry is None:
+            validation_registry = self.get_validation_registry()
+        return (
+            profile.to_version()
+            for profile in self.get_profiles(
+                validation_registry=validation_registry, raw=rows
+            )
+        )
+
     def compute_charges(self, validation_registry=None):
         charges = 0
         if validation_registry is None:
@@ -779,11 +789,13 @@ class SearchExport(TimeStampedModel):
     def get_named_fetch_url(self):
         return reverse(
             "search:download_export_with_named_file_ext",
-            kwargs={"uuid": self.uuid, "same_uuid": self.uuid},
+            kwargs={"uuid": self.uuid, "same_uuid": self.uuid, "filetype": "csv"},
         )
 
-    def get_absolute_url(self):
-        return reverse("search:download_export", kwargs={"uuid": self.uuid})
+    def get_absolute_url(self, filetype="csv"):
+        return reverse(
+            "search:download_export", kwargs={"uuid": self.uuid, "filetype": filetype}
+        )
 
     def log_event(self, evt, *, start=None, end=None, task=None, **data):
         if hasattr(task, "id"):

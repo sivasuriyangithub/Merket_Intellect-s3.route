@@ -10,12 +10,12 @@ router.register(r"exports", views.SearchExportViewSet)
 app_name = "search"
 urlpatterns = [
     path(
-        "exports/<uuid:uuid>/download/results.csv",
+        "exports/<uuid:uuid>/download/results.<str:filetype>",
         view=views.download,
         name="download_export",
     ),
     path(
-        "exports/<uuid:uuid>/download/<uuid:same_uuid>__fetch.csv",
+        "exports/<uuid:uuid>/download/<uuid:same_uuid>__fetch.<str:filetype>",
         view=views.download,
         name="download_export_with_named_file_ext",
     ),

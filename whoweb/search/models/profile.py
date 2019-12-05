@@ -1,3 +1,4 @@
+import json
 import re
 from dataclasses import dataclass, asdict, field
 from typing import Optional, List, Dict
@@ -6,6 +7,7 @@ import dacite
 import requests
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.serializers.json import DjangoJSONEncoder
 
 from whoweb.core.router import router
 
@@ -366,6 +368,28 @@ class ResultProfile:
 
     def to_json(self):
         return asdict(self)
+
+    def to_version(self, version="2019-12-05"):
+        fields = {}
+        if version == "2019-12-05":
+            fields = {
+                "profile_id": self.id,
+                "relevance_score": self.relevance_score,
+                "first_name": self.first_name,
+                "last_name": self.last_name,
+                "company": self.company,
+                "title": self.title,
+                "industry": self.industry,
+                "city": self.city,
+                "state": self.state,
+                "country": self.country,
+                "email": [asdict(email) for email in self.graded_emails],
+                "phone": [asdict(p) for p in self.graded_phones],
+                "experience": [asdict(e) for e in self.experience],
+                "education_history": [asdict(edu) for edu in self.education_history],
+                "skills": [asdict(skill) for skill in self.skills],
+            }
+        return json.dumps(fields, cls=DjangoJSONEncoder)
 
     @classmethod
     def from_json(cls, data, validation_registry=None):

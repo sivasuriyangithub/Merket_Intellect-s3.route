@@ -1,6 +1,11 @@
 import csv
 
-from django.http import StreamingHttpResponse, Http404
+from django.http import (
+    StreamingHttpResponse,
+    Http404,
+    HttpResponse,
+    HttpResponseBadRequest,
+)
 from django.views.decorators.http import require_GET
 from rest_framework import mixins
 from rest_framework.permissions import IsAdminUser
@@ -23,7 +28,7 @@ class Echo:
 
 
 @require_GET
-def download(request, uuid):
+def download(request, uuid, filetype="csv"):
     try:
         export = SearchExport.objects.get(uuid=uuid)
     except SearchExport.DoesNotExist:
@@ -31,15 +36,43 @@ def download(request, uuid):
     export.log_event(evt=DOWNLOAD, data={"request": repr(request)})
 
     pseudo_buffer = Echo()
-    writer = csv.writer(pseudo_buffer)
-    response = StreamingHttpResponse(
-        (writer.writerow(row) for row in export.generate_csv_rows()),
-        content_type="text/csv",
-    )
-    response[
-        "Content-Disposition"
-    ] = f"attachment; filename=whoknows_search_results_{export.created.date()}.csv"
-    return response
+    if filetype == "csv":
+        writer = csv.writer(pseudo_buffer)
+        response = StreamingHttpResponse(
+            (writer.writerow(row) for row in export.generate_csv_rows()),
+            content_type="text/csv",
+        )
+        response[
+            "Content-Disposition"
+        ] = f"attachment; filename=whoknows_search_results_{export.created.date()}.csv"
+        return response
+    elif filetype == "json":
+
+        def content():
+            rows = export.generate_json_rows()
+            yield '{"results":['
+            first = True
+            while True:
+                try:
+                    row = rows.__next__()
+                except StopIteration:
+                    yield "]}"
+                    break
+                else:
+                    if first:
+                        yield row
+                        first = False
+                    else:
+                        yield "," + row
+
+        response = StreamingHttpResponse(
+            content(), content_type="application/json; charset=UTF-8"
+        )
+        response[
+            "Content-Disposition"
+        ] = f"attachment; filename=whoknows_search_results_{export.created.date()}.json"
+        return response
+    return HttpResponseBadRequest("Unknown file format requested.")
 
 
 @require_GET

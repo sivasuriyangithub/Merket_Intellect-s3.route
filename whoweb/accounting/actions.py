@@ -1,25 +1,22 @@
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal
-from functools import partial
 
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import F
 from django.db.transaction import atomic
 
-from .queries import validate_transaction
-from .exceptions import UnvoidableTransactionException
-from .models import get_or_create_manual_transaction_kind
 from .models import Ledger
 from .models import LedgerBalance
 from .models import LedgerEntry
 from .models import Transaction
 from .models import TransactionRelatedObject
+from .models import get_or_create_manual_transaction_kind
+from .queries import validate_transaction
 
 
 @dataclass
 class Debit:
-    amount: Decimal
+    amount: int
 
     def __post_init__(self):
         self.amount = -self.amount
@@ -27,7 +24,7 @@ class Debit:
 
 @dataclass
 class Credit:
-    amount: Decimal
+    amount: int
 
 
 @atomic

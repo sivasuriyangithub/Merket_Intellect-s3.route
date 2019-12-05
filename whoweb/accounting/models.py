@@ -1,6 +1,5 @@
 import operator
 import uuid
-from decimal import Decimal
 from enum import Enum
 from functools import reduce
 
@@ -235,7 +234,7 @@ class Transaction(models.Model):
         transaction still balance.
         """
         total = sum([entry.amount for entry in self.entries.all()])
-        if total != Decimal(0):
+        if total != 0:
             raise TransactionBalanceException(
                 "Credits do not equal debits. Mis-match of %s." % total
             )
@@ -282,48 +281,6 @@ class Ledger(models.Model):
         return "Ledger %s" % self.name
 
 
-def wkcredits_sold_ledger():
-
-    return Ledger.objects.get_or_create(
-        name="WhoKnows Customer Credit Sales",
-        account_code=100,
-        liability=False,
-        defaults=dict(description="Records all credit sales."),
-    )[0]
-
-
-def wkcredits_liability_ledger():
-
-    return Ledger.objects.get_or_create(
-        name="WhoKnows Customer Credits Outstanding",
-        account_code=200,
-        liability=True,
-        defaults=dict(
-            description="Records credits purchased but not used across all users."
-        ),
-    )[0]
-
-
-def wkcredits_fulfilled_ledger():
-
-    return Ledger.objects.get_or_create(
-        name="WhoKnows Customer Credits Fulfilled",
-        account_code=300,
-        liability=False,
-        defaults=dict(description="Records credits used across all users."),
-    )[0]
-
-
-def wkcredits_expired_ledger():
-
-    return Ledger.objects.get_or_create(
-        name="WhoKnows Customer Credits Expired",
-        account_code=400,
-        liability=False,
-        defaults=dict(description="Records all user credits expired."),
-    )[0]
-
-
 class LedgerEntry(models.Model):
     """
     A single entry in a single row in a ledger.
@@ -342,12 +299,10 @@ class LedgerEntry(models.Model):
         help_text=_("UUID for this ledger entry"), default=uuid.uuid4
     )
 
-    amount = models.DecimalField(
+    amount = models.IntegerField(
         help_text=_(
             "Amount for this entry." "Debits are positive, and credits are negative."
-        ),
-        max_digits=24,
-        decimal_places=4,
+        )
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -384,7 +339,7 @@ class LedgerBalance(models.Model):
         "related_object_content_type", "related_object_id"
     )
 
-    balance = models.DecimalField(default=Decimal(0), max_digits=24, decimal_places=4)
+    balance = models.IntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
@@ -402,7 +357,7 @@ def ledger_balances():
     Make a relation from an evidence model to its LedgerBalance entries.
     """
     return GenericRelation(
-        "whoweb.accounting.LedgerBalance",
+        "LedgerBalance",
         content_type_field="related_object_content_type",
         object_id_field="related_object_id",
     )

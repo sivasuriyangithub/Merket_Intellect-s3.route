@@ -4,8 +4,9 @@ import uuid as uuid
 import zipfile
 from datetime import timedelta
 from functools import partial
+from io import TextIOWrapper
 from math import ceil
-from typing import Optional, List, Iterable
+from typing import Optional, List, Iterable, Dict
 
 import requests
 from celery import group
@@ -27,7 +28,7 @@ from model_utils.fields import MonitorField
 from model_utils.managers import QueryManagerMixin
 from model_utils.models import TimeStampedModel
 from requests_cache import CachedSession
-from six import BytesIO
+from six import BytesIO, StringIO
 
 from whoweb.contrib.fields import CompressedBinaryJSONField
 from whoweb.contrib.postgres.fields import EmbeddedModelField
@@ -132,7 +133,7 @@ class SearchExport(TimeStampedModel):
     progress_counter = models.IntegerField(default=0)
     target = models.IntegerField(default=0)
 
-    valid_count = models.IntegerField(null=True, blank=True)
+    charged = models.IntegerField(null=True, blank=True)
 
     notify = models.BooleanField(default=False)
     charge = models.BooleanField(default=False)
@@ -177,6 +178,7 @@ class SearchExport(TimeStampedModel):
                     raise SubscriptionError(
                         "Not enough credits to complete this export."
                     )
+                export.charged = credits_to_charge
             export.save()
         tasks = export.processing_signatures()
         res = tasks.apply_async()
@@ -616,15 +618,21 @@ class SearchExport(TimeStampedModel):
         z = zipfile.ZipFile(BytesIO(r.content))
 
         for name in z.namelist():
-            data = BytesIO(z.read(name))
-            reader: Iterable[List[str]] = csv.reader(data)
-            for row in reader:
-                logger.debug(row)
-                if len(row) != 3:
-                    continue
-                if only_valid and row[2][0] not in ["A", "B"]:
-                    continue
-                yield {"email": row[0], "profile_id": row[1], "grade": row[2]}
+            data = z.open(name, "r")
+            reader: Iterable[Dict] = csv.DictReader(
+                TextIOWrapper(data), fieldnames=("email", "profile_id", "grade")
+            )
+            try:
+                for row in reader:
+                    print(row)
+                    if len(row) != 3:
+                        continue
+                    if only_valid and row["grade"] not in ["A", "B"]:
+                        continue
+                    yield row
+            except UnicodeDecodeError:
+                # not the csv file
+                continue
 
     def get_validation_registry(self):
         return {

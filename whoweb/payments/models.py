@@ -15,9 +15,8 @@ from organizations.abstract import (
 from organizations.signals import user_added
 
 from whoweb.accounting.actions import create_transaction, Debit, Credit
-from whoweb.accounting.models import (
-    Ledger,
-    LedgerEntry,
+from whoweb.accounting.models import Ledger, LedgerEntry
+from whoweb.accounting.ledgers import (
     wkcredits_liability_ledger,
     wkcredits_fulfilled_ledger,
 )
@@ -85,65 +84,6 @@ class BillingAccount(AbstractOrganization):
         verbose_name = _("billing account")
         verbose_name_plural = _("billing accounts")
 
-    @atomic
-    def consume_credits(
-        self,
-        amount,
-        initiated_by,
-        evidence=(),
-        notes="",
-        transaction_kind=None,
-        posted_at=None,
-    ):
-        updated = BillingAccount.objects.filter(
-            pk=self.pk, credit_pool__gte=amount
-        ).update(
-            credit_pool=F("credit_pool") - amount,
-            trial_credit_pool=Greatest(F("trial_credit_pool") - amount, Value(0)),
-        )
-        if updated:
-            create_transaction(
-                user=initiated_by,
-                ledger_entries=(
-                    LedgerEntry(
-                        ledger=wkcredits_liability_ledger(), amount=Debit(amount)
-                    ),
-                    LedgerEntry(
-                        ledger=wkcredits_fulfilled_ledger(), amount=Credit(amount)
-                    ),
-                ),
-                evidence=evidence + (self,),
-                notes=notes,
-                kind=transaction_kind,
-                posted_timestamp=posted_at,
-            )
-            return True
-        return False
-
-    @atomic
-    def refund_credits(
-        self,
-        amount,
-        initiated_by,
-        evidence=(),
-        notes="",
-        transaction_kind=None,
-        posted_at=None,
-    ):
-        self.credit_pool = F("credit_pool") + amount
-        self.save()
-        create_transaction(
-            user=initiated_by,
-            ledger_entries=(
-                LedgerEntry(ledger=wkcredits_liability_ledger(), amount=Credit(amount)),
-                LedgerEntry(ledger=wkcredits_fulfilled_ledger(), amount=Debit(amount)),
-            ),
-            evidence=evidence + (self,),
-            notes=notes,
-            kind=transaction_kind,
-            posted_timestamp=posted_at,
-        )
-
     def get_or_add_user(self, user, **kwargs):
         """
         Adds a new user to the organization, and if it's the first user makes
@@ -170,6 +110,28 @@ class BillingAccount(AbstractOrganization):
             # User added signal
             user_added.send(sender=self, user=user)
         return org_user, created
+
+    @atomic
+    def consume_credits(self, amount, *args, evidence=(), **kwargs):
+        updated = BillingAccount.objects.filter(
+            pk=self.pk, credit_pool__gte=amount
+        ).update(
+            credit_pool=F("credit_pool") - amount,
+            trial_credit_pool=Greatest(F("trial_credit_pool") - amount, Value(0)),
+        )
+        if updated:
+            record_transaction_consume_credits(
+                amount, *args, evidence=evidence + (self,), **kwargs
+            )
+        return bool(updated)
+
+    @atomic
+    def refund_credits(self, amount, *args, evidence=(), **kwargs):
+        self.credit_pool = F("credit_pool") + amount
+        self.save()
+        record_transaction_refund_credits(
+            amount, *args, evidence=evidence + (self,), **kwargs
+        )
 
 
 class BillingAccountMember(AbstractOrganizationUser):
@@ -203,21 +165,67 @@ class BillingAccountMember(AbstractOrganizationUser):
     def plan(self) -> Optional[WKPlan]:
         return self.organization.plan
 
-    def charge(self, amount=0):
+    @atomic
+    def consume_credits(self, amount, *args, evidence=(), **kwargs):
+        if self.pool_credits:
+            return self.organization.consume_credits(
+                amount, *args, evidence=evidence + (self,), **kwargs
+            )
         updated = BillingAccountMember.objects.filter(
             pk=self.pk, seat_credits__gte=amount
         ).update(
             seat_credits=F("seat_credits") - amount,
             seat_trial_credits=Greatest(F("seat_trial_credits") - amount, Value(0)),
         )
+        if updated:
+            record_transaction_consume_credits(
+                amount, *args, evidence=evidence + (self,), **kwargs
+            )
         return bool(updated)
 
-    def refund(self, amount=0):
+    @atomic
+    def refund_credits(self, amount, *args, evidence=(), **kwargs):
         self.seat_credits = F("seat_credits") + amount
         self.save()
+        record_transaction_refund_credits(
+            amount, *args, evidence=evidence + (self,), **kwargs
+        )
 
 
 class BillingAccountOwner(AbstractOrganizationOwner):
     class Meta:
         verbose_name = _("billing account owner")
         verbose_name_plural = _("billing account owners")
+
+
+def record_transaction_consume_credits(
+    amount, initiated_by, evidence=(), notes="", transaction_kind=None, posted_at=None
+):
+
+    create_transaction(
+        user=initiated_by,
+        ledger_entries=(
+            LedgerEntry(ledger=wkcredits_liability_ledger(), amount=Debit(amount)),
+            LedgerEntry(ledger=wkcredits_fulfilled_ledger(), amount=Credit(amount)),
+        ),
+        evidence=evidence,
+        notes=notes,
+        kind=transaction_kind,
+        posted_timestamp=posted_at,
+    )
+
+
+def record_transaction_refund_credits(
+    amount, initiated_by, evidence=(), notes="", transaction_kind=None, posted_at=None
+):
+    create_transaction(
+        user=initiated_by,
+        ledger_entries=(
+            LedgerEntry(ledger=wkcredits_liability_ledger(), amount=Credit(amount)),
+            LedgerEntry(ledger=wkcredits_fulfilled_ledger(), amount=Debit(amount)),
+        ),
+        evidence=evidence,
+        notes=notes,
+        kind=transaction_kind,
+        posted_timestamp=posted_at,
+    )

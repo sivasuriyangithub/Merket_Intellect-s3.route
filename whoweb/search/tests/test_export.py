@@ -155,48 +155,42 @@ def test_ensure_search_interface(query_contact_invites):
 
 @pytest.mark.parametrize(
     "target,charged,progress,refund",
-    [(1000, 1000, 999, 1), (1010, 1000, 1000, 10), (1000, 1000, 1000, 0)],
+    [(1000, 1000, 999, 1), (1010, 1010, 1000, 10), (1000, 1000, 1000, 0)],
 )
-def test_do_post_pages_completion(target, charged, progress, refund):
+@patch("whoweb.search.models.SearchExport.compute_charges")
+def test_do_post_pages_completion(compute_charges, target, charged, progress, refund):
     export: SearchExport = SearchExportFactory(
         target=target, charged=charged, progress_counter=progress, charge=True
     )
+    compute_charges.return_value = progress
     export.do_post_pages_completion()
     export.refresh_from_db()
-    assert export.refunded == refund
     assert export.charged == charged - refund
     assert export.seat.billing.seat_credits == refund
     assert export.status == 4
 
 
 @pytest.mark.parametrize(
-    "charged,valid,starting_refund,this_refund",
-    [(1000, 200, 100, 800), (1000, 0, 0, 1000), (990, 990, 10, 0)],
+    "charged,valid,this_refund", [(1000, 200, 800), (1000, 0, 1000), (990, 990, 0)]
 )
 @patch("whoweb.search.models.SearchExport.return_validation_results_to_cache")
-@patch("whoweb.search.models.SearchExport.get_validation_results")
+@patch("whoweb.search.models.SearchExport.compute_charges")
 def test_do_post_validation_completion(
-    get_validation_results,
+    compute_charges,
     cache_mock,
     charged,
     valid,
-    starting_refund,
     this_refund,
     query_contact_invites_defer_validation,
 ):
     export: SearchExport = SearchExportFactory(
-        query=query_contact_invites_defer_validation,
-        charged=charged,
-        refunded=starting_refund,
-        charge=True,
+        query=query_contact_invites_defer_validation, charged=charged, charge=True
     )
-    get_validation_results.return_value = [True] * valid
+    compute_charges.return_value = valid
     export.do_post_validation_completion()
     assert cache_mock.call_count == 1
     export.refresh_from_db()
-    assert export.refunded == starting_refund + this_refund
     assert export.charged == charged - this_refund
-    assert export.valid_count == charged - this_refund
     assert export.seat.billing.seat_credits == this_refund  # factory default creds == 0
     assert export.status == 16
 

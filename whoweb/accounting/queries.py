@@ -25,7 +25,7 @@ def get_balances_for_object(obj):
     when looking up the balance of a ledger for which the model
     has no associated transactions.
     """
-    balances = defaultdict(lambda: Decimal(0))
+    balances = defaultdict(lambda: 0)
     content_type = ContentType.objects.get_for_model(obj)
     ledger_balances = LedgerBalance.objects.filter(
         related_object_content_type=content_type, related_object_id=obj.id
@@ -52,7 +52,12 @@ def validate_transaction(
 
     Three, it checks that the ledger entries are new, unsaved models.
     """
-    total = sum([entry.amount for entry in ledger_entries])
+    total = sum(
+        [
+            (entry.amount.amount if hasattr(entry.amount, "amount") else entry.amount)
+            for entry in ledger_entries
+        ]
+    )
     if total != Decimal(0):
         raise TransactionBalanceException(
             "Credits do not equal debits. Mis-match of %s." % total

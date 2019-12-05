@@ -4,8 +4,9 @@ import uuid as uuid
 import zipfile
 from datetime import timedelta
 from functools import partial
+from io import TextIOWrapper
 from math import ceil
-from typing import Optional, List, Iterable
+from typing import Optional, List, Iterable, Dict
 
 import requests
 from celery import group
@@ -581,15 +582,21 @@ class SearchExport(TimeStampedModel):
         z = zipfile.ZipFile(BytesIO(r.content))
 
         for name in z.namelist():
-            data = BytesIO(z.read(name))
-            reader: Iterable[List[str]] = csv.reader(data)
-            for row in reader:
-                logger.debug(row)
-                if len(row) != 3:
-                    continue
-                if only_valid and row[2][0] not in ["A", "B"]:
-                    continue
-                yield {"email": row[0], "profile_id": row[1], "grade": row[2]}
+            data = z.open(name, "r")
+            reader: Iterable[Dict] = csv.DictReader(
+                TextIOWrapper(data), fieldnames=("email", "profile_id", "grade")
+            )
+            try:
+                for row in reader:
+                    print(row)
+                    if len(row) != 3:
+                        continue
+                    if only_valid and row["grade"] not in ["A", "B"]:
+                        continue
+                    yield row
+            except UnicodeDecodeError:
+                # not the csv file
+                continue
 
     def get_validation_registry(self):
         return {

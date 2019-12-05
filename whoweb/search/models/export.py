@@ -571,7 +571,9 @@ class SearchExport(TimeStampedModel):
         if not self.defer_validation or self.validation_list_id == self.SKIP_CODE:
             return []
 
-        s = CachedSession(expire_after=timedelta(days=30).total_seconds())
+        s = CachedSession(
+            expire_after=timedelta(days=30).total_seconds(), backend="sqlite"
+        )
         r = s.get(
             f"{DATAVALIDATION_URL}/list/{self.validation_list_id}/download_result/",
             headers={"Authorization": f"Bearer {settings.DATAVALIDATION_KEY}"},
@@ -588,7 +590,6 @@ class SearchExport(TimeStampedModel):
             )
             try:
                 for row in reader:
-                    print(row)
                     if len(row) != 3:
                         continue
                     if only_valid and row["grade"] not in ["A", "B"]:

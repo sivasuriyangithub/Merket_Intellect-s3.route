@@ -4,14 +4,26 @@ from whoweb.payments.models import (
     BillingAccountMember,
     BillingAccount,
     BillingAccountOwner,
+    WKPlan,
 )
 from whoweb.users.tests.factories import SeatFactory
+
+
+class WKPlanFactory(DjangoModelFactory):
+    credits_per_enrich = 100
+    credits_per_work_email = 100
+    credits_per_personal_email = 200
+    credits_per_phone = 400
+
+    class Meta:
+        model = WKPlan
 
 
 class BillingAccountFactory(DjangoModelFactory):
 
     name = Faker("company")
     group = SelfAttribute("..seat.organization")
+    plan = SubFactory(WKPlanFactory)
 
     class Meta:
         model = BillingAccount

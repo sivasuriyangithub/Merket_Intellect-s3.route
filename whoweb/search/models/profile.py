@@ -10,6 +10,7 @@ from django.contrib.auth import get_user_model
 from django.core.serializers.json import DjangoJSONEncoder
 
 from whoweb.core.router import router
+from whoweb.core.utils import PERSONAL_DOMAINS
 
 RETRY = "retry"
 COMPLETE = "complete"
@@ -47,6 +48,22 @@ class GradedEmail:
     email: str = ""
     grade: str = ""
     email_type: str = ""
+
+    @property
+    def is_passing(self):
+        return bool(self.email and self.grade[0] in ["A", "B"])
+
+    @property
+    def domain(self):
+        return self.email.lower().split("@")[1]
+
+    @property
+    def is_personal(self):
+        return self.email_type == PERSONAL or self.domain in PERSONAL_DOMAINS
+
+    @property
+    def is_work(self):
+        return self.email_type == WORK or self.domain not in PERSONAL_DOMAINS
 
 
 @dataclass

@@ -53,11 +53,10 @@ class WKPlan(models.Model):
         work = False
         personal = False
         phone = any(profile.graded_phones)
-        for graded_email in profile.sorted_graded_emails:
-            email = graded_email.email
-            if email and email.lower().split("@")[1] in PERSONAL_DOMAINS:
+        for graded_email in profile.graded_emails:
+            if graded_email.is_passing and graded_email.is_personal:
                 personal = True
-            if email and email.lower().split("@")[1] not in PERSONAL_DOMAINS:
+            if graded_email.is_passing and graded_email.is_work:
                 work = True
             if work and personal:
                 break

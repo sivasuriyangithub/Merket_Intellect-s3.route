@@ -175,7 +175,9 @@ def test_do_post_pages_completion(compute_charges, target, charged, progress, re
 )
 @patch("whoweb.search.models.SearchExport.return_validation_results_to_cache")
 @patch("whoweb.search.models.SearchExport.compute_charges")
+@patch("whoweb.search.models.SearchExport.get_validation_results")
 def test_do_post_validation_completion(
+    get_validation_results,
     compute_charges,
     cache_mock,
     charged,
@@ -186,6 +188,9 @@ def test_do_post_validation_completion(
     export: SearchExport = SearchExportFactory(
         query=query_contact_invites_defer_validation, charged=charged, charge=True
     )
+    get_validation_results.return_value = [
+        {"profile_id": "1", "email": "1@acme.com", "grade": "A+"}
+    ] * valid
     compute_charges.return_value = valid
     export.do_post_validation_completion()
     assert cache_mock.call_count == 1

@@ -3,11 +3,12 @@ from django.urls import include, path
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.views import defaults as default_views
-from rest_framework import routers
+from rest_framework_extensions.routers import ExtendedDefaultRouter
+
 from whoweb.search.urls import router as search_router
 from whoweb.users.urls import router as user_router
 
-router = routers.DefaultRouter()
+router = ExtendedDefaultRouter()
 router.root_view_name = "home"
 router.registry.extend(search_router.registry)
 router.registry.extend(user_router.registry)

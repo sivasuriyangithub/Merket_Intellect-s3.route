@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework.reverse import reverse
 from slugify import slugify
 
 from whoweb.contrib.rest_framework.fields import (
@@ -12,7 +13,9 @@ from whoweb.search.models import (
     FilteredSearchFilters,
     ExportOptions,
     FilteredSearchFilterElement,
+    ResultProfile,
 )
+from whoweb.search.models.export import SearchExportPage
 from whoweb.users.models import UserProfile
 
 
@@ -172,3 +175,13 @@ class SearchExportSerializer(serializers.ModelSerializer):
             uploadable=validated_data["uploadable"],
         )
         return export
+
+
+class SearchExportDataSerializer(serializers.Serializer):
+    _id = serializers.CharField()
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+    email = serializers.EmailField()
+    emails = serializers.ListField(serializers.EmailField())
+    grade = serializers.CharField()
+    derivation_status = serializers.CharField()

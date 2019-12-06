@@ -190,7 +190,9 @@ def test_do_post_validation_completion(
         refunded=starting_refund,
         charge=True,
     )
-    get_validation_results.return_value = [True] * valid
+    get_validation_results.return_value = [
+        {"profile_id": "1", "email": "1@acme.com", "grade": "A+"}
+    ] * valid
     export.do_post_validation_completion()
     assert cache_mock.call_count == 1
     export.refresh_from_db()

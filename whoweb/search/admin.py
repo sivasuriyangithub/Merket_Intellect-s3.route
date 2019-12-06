@@ -143,6 +143,7 @@ class ExportAdmin(ActionsModelAdmin):
         "column_names",
     )
     inlines = [EventTabularInline, SearchExportPageInline]
+    actions = ("store_validation_results",)
     actions_row = ("download",)
     actions_detail = ("run_publication_tasks", "download")
 
@@ -184,6 +185,19 @@ class ExportAdmin(ActionsModelAdmin):
         return redirect(reverse("admin:search_searchexport_change", args=[pk]))
 
     run_publication_tasks.short_description = "Rerun"
+
+    def store_validation_results(self, request, queryset):
+        for export in queryset:
+            results = export.get_validation_results(only_valid=True)
+            self.message_user(
+                request, f"Downloaded validation for {export}.", level=messages.SUCCESS
+            )
+            export.apply_validation_to_profiles_in_pages(validation=results)
+            self.message_user(
+                request,
+                f"Updated profiles in page data of {export} with validation results.",
+                level=messages.SUCCESS,
+            )
 
 
 @admin.register(ScrollSearch)

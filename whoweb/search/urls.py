@@ -1,11 +1,15 @@
 from django.urls import path
-from rest_framework import routers
+from rest_framework_extensions.routers import ExtendedSimpleRouter
 
 from . import views
 
-router = routers.SimpleRouter()
-router.register(r"exports", views.SearchExportViewSet)
-
+router = ExtendedSimpleRouter()
+router.register(r"exports", views.SearchExportViewSet, basename="export").register(
+    r"results",
+    views.SearchExportResultViewSet,
+    basename="exports-result",
+    parents_query_lookups=["export__uuid"],
+)
 
 app_name = "search"
 urlpatterns = [
@@ -20,4 +24,4 @@ urlpatterns = [
         name="download_export_with_named_file_ext",
     ),
     path("export/<uuid:uuid>/validate/", view=views.validate, name="validate_export"),
-]
+] + router.urls

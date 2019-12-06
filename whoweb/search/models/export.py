@@ -3,10 +3,9 @@ import logging
 import uuid as uuid
 import zipfile
 from datetime import timedelta
-from functools import partial
 from io import TextIOWrapper
 from math import ceil
-from typing import Optional, List, Iterable, Dict
+from typing import Optional, List, Iterable, Dict, Iterator
 
 import requests
 from celery import group
@@ -296,18 +295,16 @@ class SearchExport(TimeStampedModel):
         return self.scroll.ensure_live(force=force)
 
     def get_raw(self):
-        for page in self.pages.filter(data__isnull=False).iterator(chunk_size=4):
+        for page in self.pages.filter(data__isnull=False).iterator(chunk_size=1):
             for row in page.data:
                 yield row
 
-    def get_profiles(self, validation_registry=None, raw=None):
+    def get_profiles(self, raw=None) -> Iterator[ResultProfile]:
         if raw is None:
             raw = self.get_raw()
         for profile in raw:
             if profile:
-                yield ResultProfile.from_json(
-                    profile, validation_registry=validation_registry
-                )
+                yield ResultProfile.from_json(profile)
 
     def get_ungraded_email_rows(self):
         for profile in self.get_profiles():
@@ -322,9 +319,7 @@ class SearchExport(TimeStampedModel):
 
     def generate_email_id_pairs(self):
 
-        for profile in self.get_profiles(
-            validation_registry=self.get_validation_registry()
-        ):
+        for profile in self.get_profiles():
             if profile.email and profile.id:
                 yield (profile.email, profile.id)
 
@@ -348,7 +343,7 @@ class SearchExport(TimeStampedModel):
         if enforce_valid_contact:
             for i in range(3):
                 try:
-                    entry = profile.sorted_graded_emails[i]
+                    entry = profile.graded_emails[i]
                     row.extend([entry.email, "", entry.grade])  # profile.email_type
                 except IndexError:
                     row.extend(["", "", ""])
@@ -370,31 +365,34 @@ class SearchExport(TimeStampedModel):
             row += [profile.domain or "", profile.mx_domain or ""]
         return row
 
-    def generate_csv_rows(self, rows=None, validation_registry=None):
-        if validation_registry is None:
-            validation_registry = self.get_validation_registry()
-
-        profiles = partial(
-            self.get_profiles, validation_registry=validation_registry, raw=rows
-        )  # resettable generator, because we have to walk this twice.
+    def generate_csv_rows(self, rows=None):
 
         mx_registry = MXDomain.registry_for_domains(
-            domains=[profile.domain for profile in profiles() if profile.domain]
+            domains=(
+                profile.domain
+                for profile in self.get_profiles(raw=rows)
+                if profile.domain
+            )
         )
+
         mx_profiles = (
-            profile.set_mx(mx_registry=mx_registry) for profile in profiles()
+            profile.set_mx(mx_registry=mx_registry)
+            for profile in self.get_profiles(raw=rows)
         )
         yield self.get_column_names()
-        for _ in range(self.target):
-            try:
-                profile = mx_profiles.__next__()
-            except StopIteration:
-                return
-            yield self.get_csv_row(
+        count = 0
+        for profile in mx_profiles:
+            if count >= self.target:
+                break
+            row = self.get_csv_row(
                 profile,
                 enforce_valid_contact=self.should_derive_email,
                 with_invite=self.with_invites,
             )
+            if row is None:
+                continue
+            count += 1
+            yield row
 
     def _generate_pages(self) -> Optional[List["SearchExportPage"]]:
         """
@@ -467,48 +465,52 @@ class SearchExport(TimeStampedModel):
                 # set limit so we dont try to derive the whole page
             return SearchExportPage.objects.bulk_create(pages, ignore_conflicts=True)
 
+    @transaction.atomic
     def generate_pages(self, task_context=None):
-        with transaction.atomic():
-            export = self.locked()
-            if export:
-                self.log_event(GENERATING_PAGES, task=task_context)
-                export.status = SearchExport.STATUS.pages_working
-                export.save()
-                return export._generate_pages()
+        export = self.locked()
+        if export:
+            self.log_event(GENERATING_PAGES, task=task_context)
+            export.status = SearchExport.STATUS.pages_working
+            export.save()
+            return export._generate_pages()
 
     def get_next_empty_page(self, batch=1) -> Optional["SearchExportPage"]:
         return self.pages.filter(data__isnull=True)[:batch]
 
+    @transaction.atomic
     def do_post_pages_completion(self, task_context=None):
-        with transaction.atomic():
-            export = self.locked(status__lt=SearchExport.STATUS.pages_complete)
-            if export:
-                export.log_event(FINALIZING, task=task_context)
-                if export.charge:
-                    refund = export.target - min(export.progress_counter, export.target)
-                    export.seat.billing.refund(refund)
-                    export.charged = F("charged") - refund
-                    export.refunded = F("refunded") + refund
-                export.status = SearchExport.STATUS.pages_complete
-                export.save()
-
-    def do_post_validation_completion(self):
-        with transaction.atomic():
-            export = self.locked(status__lt=SearchExport.STATUS.validated)
-            if not export:
-                return
-            if export.charge and export.defer_validation:
-                valid = sum(1 for _ in export.get_validation_results())
-                refund = export.charged - valid
-                if refund > 0:
-                    export.seat.billing.refund(refund)
-                    export.charged = F("charged") - refund  # == valid, one would hope.
-                    export.refunded = F("refunded") + refund
-                export.valid_count = valid
-            export.status = SearchExport.STATUS.validated
+        export = self.locked(status__lt=SearchExport.STATUS.pages_complete)
+        if export:
+            export.log_event(FINALIZING, task=task_context)
+            if export.charge:
+                refund = export.target - min(export.progress_counter, export.target)
+                export.seat.billing.refund(refund)
+                export.charged = F("charged") - refund
+                export.refunded = F("refunded") + refund
+            export.status = SearchExport.STATUS.pages_complete
             export.save()
-        if export.defer_validation:
-            export.return_validation_results_to_cache()
+
+    @transaction.atomic
+    def do_post_validation_completion(self):
+        export = self.locked(status__lt=SearchExport.STATUS.validated)
+        if not export:
+            return
+        if not export.defer_validation:
+            return True
+        results = list(export.get_validation_results(only_valid=True))
+        export.apply_validation_to_profiles_in_pages(validation=results)
+        export.status = SearchExport.STATUS.validated
+        export.save()
+        if export.charge:
+            valid = len(results)
+            refund = export.charged - valid
+            if refund > 0:
+                export.seat.billing.refund(refund)
+                export.charged = F("charged") - refund  # == valid, one would hope.
+                export.refunded = F("refunded") + refund
+            export.valid_count = valid
+        export.save()
+        export.return_validation_results_to_cache()
         return True
 
     def upload_validation(self, task_context=None):
@@ -567,7 +569,7 @@ class SearchExport(TimeStampedModel):
         )
         return r.ok
 
-    def get_validation_results(self, only_valid=True):
+    def get_validation_results(self, only_valid=True) -> Iterator[Dict]:
         if not self.defer_validation or self.validation_list_id == self.SKIP_CODE:
             return []
 
@@ -599,10 +601,17 @@ class SearchExport(TimeStampedModel):
                 # not the csv file
                 continue
 
-    def get_validation_registry(self):
-        return {
-            grade["email"]: grade["grade"] for grade in self.get_validation_results()
-        }
+    def make_validation_registry(self, validation_generator: Iterator[Dict]):
+        return {grade["email"]: grade["grade"] for grade in validation_generator}
+
+    def apply_validation_to_profiles_in_pages(self, validation):
+        registry = self.make_validation_registry(validation_generator=validation)
+        for page in self.pages.filter(data__isnull=False).iterator(chunk_size=1):
+            profiles = self.get_profiles(raw=page.data)
+            page.data = [
+                profile.update_validation(registry).to_json() for profile in profiles
+            ]
+            page.save()
 
     def return_validation_results_to_cache(self):
         upload_limit = 250
@@ -668,43 +677,42 @@ class SearchExport(TimeStampedModel):
     #                 results.append(versioned_profile)
     #         for row in results:
     #             requests.post(url=hook, json=row)
-
+    @transaction.atomic
     def send_link(self):
         if self.sent:
             return
         if not self.notify:
             return
-        with transaction.atomic():
-            export = self.locked()
-            if not export:
-                return
-            if export.sent:
-                return
-            email = self.seat.email
-            link = external_link(self.get_absolute_url())
-            json_link = link + ".json"
-            subject = "Your WhoKnows Export Results"
-            template = "search/download_export.html"
-            html_message = render_to_string(
-                template_name=template,
-                context=dict(
-                    link=link,
-                    json_link=json_link,
-                    graph_url=None,
-                    tracker=None,
-                    unsubscribe_link=None,
-                ),
-            )
-            send_mail(
-                subject=subject,
-                html_message=html_message,
-                recipient_list=[email],
-                from_email=None,
-                message=html_message,
-            )
-            self.sent = email
-            self.status = self.STATUS.complete
-            self.save()
+        export = self.locked()
+        if not export:
+            return
+        if export.sent:
+            return
+        email = self.seat.email
+        link = external_link(self.get_absolute_url())
+        json_link = link + ".json"
+        subject = "Your WhoKnows Export Results"
+        template = "search/download_export.html"
+        html_message = render_to_string(
+            template_name=template,
+            context=dict(
+                link=link,
+                json_link=json_link,
+                graph_url=None,
+                tracker=None,
+                unsubscribe_link=None,
+            ),
+        )
+        send_mail(
+            subject=subject,
+            html_message=html_message,
+            recipient_list=[email],
+            from_email=None,
+            message=html_message,
+        )
+        self.sent = email
+        self.status = self.STATUS.complete
+        self.save()
 
     def processing_signatures(self, on_complete=None):
         from whoweb.search.tasks import (
@@ -835,11 +843,11 @@ class SearchExportPage(TimeStampedModel):
         self.export.target = F("target") + adjustment
         self.export.save()
 
+    @transaction.atomic
     def populate_data_directly(self):
-        with transaction.atomic():
-            page = self.locked()
-            if page:
-                return page._populate_data_directly()
+        page = self.locked()
+        if page:
+            return page._populate_data_directly()
 
     def do_page_process(self, task_context=None):
         from whoweb.search.tasks import (

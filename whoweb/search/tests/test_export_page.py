@@ -232,9 +232,11 @@ def test_get_csv_row(key_mock):
 @patch("whoweb.search.models.SearchExport.get_profiles")
 def test_generate_csv_rows(get_profiles_mock, key_mock, query_contact_invites):
     export: SearchExport = SearchExportFactory(target=200, query=query_contact_invites)
-    profiles: [ResultProfile] = ResultProfileFactory.create_batch(10)
+    profiles: [ResultProfile] = ResultProfileFactory.create_batch(
+        10, derivation_status=VALIDATED
+    )
     get_profiles_mock.return_value = profiles
-    csv = export.generate_csv_rows(validation_registry={})
+    csv = export.generate_csv_rows()
     assert isinstance(csv, types.GeneratorType)
     csv = list(csv)
     assert len(csv) == 11

@@ -31,6 +31,7 @@ django-admin-actions==0.1.1 # http://github.com/lukasvinclav/django-admin-action
 
 # Django REST Framework
 djangorestframework==3.10.0  # https://github.com/encode/django-rest-framework
+drf-extensions==0.5.0 # https://github.com/chibisov/drf-extensions
 coreapi==2.3.3  # https://github.com/core-api/python-client
 django-filter==2.2.0
 markdown==3.1.1

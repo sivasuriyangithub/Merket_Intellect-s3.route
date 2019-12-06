@@ -121,11 +121,13 @@ class DerivedContact:
             ]
         return potentially_unparsed_graded_emails
 
+    @property
     def requested_email(self):
-        return set(self.filters).intersection([WORK, PERSONAL])
+        return bool(set(self.filters).intersection([WORK, PERSONAL]))
 
+    @property
     def requested_phone(self):
-        return set(self.filters).intersection([PHONE])
+        return bool(set(self.filters).intersection([PHONE]))
 
     @classmethod
     def from_dict(self, data):
@@ -139,8 +141,6 @@ class ResultProfile:
     profile_id: Optional[str] = field(default=None, repr=False)
     primary_alias: Optional[str] = field(default=None, repr=False)
     web_profile_id: Optional[str] = field(default=None, repr=False)
-    validation_registry: Optional[Dict] = field(default=None, init=False)
-    derived_contact: Optional[DerivedContact] = field(default=None, init=False)
     derivation_status: Optional[str] = None
 
     first_name: str = ""
@@ -167,6 +167,10 @@ class ResultProfile:
     invite_key: Optional[str] = None
     mx_domain: Optional[str] = field(default=None, init=False)
 
+    derivation_requested_email: bool = False
+    derivation_requested_phone: bool = False
+    returned_status: str = ""
+
     GRADE_VALUES = {"A+": 100, "A": 90, "B+": 75, "B": 60}
 
     def __post_init__(self):
@@ -175,11 +179,6 @@ class ResultProfile:
         self._id = self._id or self.user_id or self.profile_id
         primary = self.primary_alias or self._id
         self.web_id = primary if primary.startswith("wp:") else self.web_profile_id
-        if self.derived_contact:
-            self.set_derived_contact(
-                derivation=self.derived_contact,
-                validation_registry=self.validation_registry,
-            )
 
     def __str__(self):
         return f"<ResultProfile {self.id} email: {self.email}>"
@@ -217,34 +216,44 @@ class ResultProfile:
         return self
 
     def graded_addresses(self):
-        return [graded.email for graded in self.sorted_graded_emails]
+        return [graded.email for graded in self.graded_emails]
 
-    def set_derived_contact(
-        self, derivation: DerivedContact, validation_registry: Dict = None
-    ):
-        self.email = derivation.email
-        self.emails = derivation.emails
+    def set_derived_contact(self, derived: DerivedContact):
+        self.email = derived.email
+        self.emails = derived.emails
+        self.graded_emails = sorted(
+            derived.graded_emails,
+            key=lambda g: ResultProfile.GRADE_VALUES.get(g.grade, 0),
+            reverse=True,
+        )
         if self.email:
             grades = {graded.email: graded.grade for graded in self.graded_emails}
             self.grade = grades.get(self.email, "")
-        elif validation_registry:
-            self.update_validation(validation_registry)
 
-        self.li_url = derivation.linkedin_url
-        self.facebook = derivation.facebook
-        self.twitter = derivation.twitter
-        self.graded_phones = sorted(derivation.phone_details, reverse=True)
+        self.graded_phones = sorted(derived.phone_details, reverse=True)
 
-        if not self.company and derivation.extra:
-            self.company = derivation.extra.company
-        if not self.title and derivation.extra:
-            self.title = derivation.extra.title
+        self.li_url = derived.linkedin_url
+        self.facebook = derived.facebook
+        self.twitter = derived.twitter
 
-        if (self.passing_grade and derivation.requested_email) or (
-            self.passing_phone and derivation.requested_phone
+        if not self.company and derived.extra:
+            self.company = derived.extra.company
+        if not self.title and derived.extra:
+            self.title = derived.extra.title
+
+        self.derivation_requested_email = derived.requested_email
+        self.derivation_requested_phone = derived.requested_email
+        self.returned_status = derived.status
+
+        self.set_status()
+        return self
+
+    def set_status(self):
+        if (self.passing_grade and self.derivation_requested_email) or (
+            self.passing_phone and self.derivation_requested_phone
         ):
             self.derivation_status = VALIDATED
-        elif derivation.status == RETRY:
+        elif self.returned_status == RETRY:
             self.derivation_status = RETRY
         elif self.email or self.emails or self.graded_phones:
             self.derivation_status = COMPLETE
@@ -252,16 +261,18 @@ class ResultProfile:
             self.derivation_status = FAILED
 
     def update_validation(self, validation_registry):
-        valid_emails = [email for email in self.emails if email in validation_registry]
-        if valid_emails:
-            self.email = max(
-                valid_emails,
-                key=lambda g: (
-                    ResultProfile.GRADE_VALUES.get(validation_registry.get(g), 0)
-                ),
+        graded = []
+        for email in self.emails:
+            grade = validation_registry.pop(email, None)
+            if grade:
+                graded.append((email, grade))
+
+        if graded:
+            self.email, self.grade = max(
+                graded, key=lambda x: ResultProfile.GRADE_VALUES.get(x[1])
             )
-        if self.email and not self.grade:
-            self.grade = validation_registry.get(self.email)
+            self.set_status()
+        return self
 
     def derive_contact(self, defer=(), filters=None, timeout=120, producer=None):
         if self.derivation_status == VALIDATED:
@@ -344,14 +355,6 @@ class ResultProfile:
         return clean_name.strip().encode("utf-8")
 
     @property
-    def sorted_graded_emails(self):
-        return sorted(
-            self.graded_emails,
-            key=lambda g: ResultProfile.GRADE_VALUES.get(g.grade, 0),
-            reverse=True,
-        )
-
-    @property
     def passing_grade(self):
         return self.grade[0] in ["A", "B"] if self.grade else False
 
@@ -368,9 +371,7 @@ class ResultProfile:
         return asdict(self)
 
     @classmethod
-    def from_json(cls, data, validation_registry=None):
-        if validation_registry:
-            data["validation_registry"] = validation_registry
+    def from_json(cls, data):
         return dacite.from_dict(data_class=cls, data=data, config=profile_load_config)
 
 

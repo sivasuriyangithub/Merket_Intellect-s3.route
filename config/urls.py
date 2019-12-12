@@ -3,6 +3,8 @@ from django.urls import include, path
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.views import defaults as default_views
+from django.views.decorators.csrf import csrf_exempt
+from graphene_django.views import GraphQLView
 from rest_framework_extensions.routers import ExtendedDefaultRouter
 
 from whoweb.search.urls import router as search_router
@@ -18,6 +20,7 @@ urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
     # path("accounts/", include("allauth.urls")),
     path("api/", include(router.urls)),
+    path("graphql", csrf_exempt(GraphQLView.as_view(graphiql=True))),
     # Your stuff: custom urls includes go here.
     path("search/", include("whoweb.search.urls", namespace="search")),
     # path("reply/", include("whoweb.coldemail.urls", namespace="coldemail")),

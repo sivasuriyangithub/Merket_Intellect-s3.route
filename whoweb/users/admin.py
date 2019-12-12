@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth import admin as auth_admin
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
+from guardian.admin import GuardedModelAdminMixin
 from organizations.base_admin import (
     BaseOrganizationAdmin,
     BaseOwnerInline,
@@ -23,7 +24,7 @@ class UserProfileInline(admin.StackedInline):
 
 
 @admin.register(User)
-class UserAdmin(auth_admin.UserAdmin):
+class UserAdmin(GuardedModelAdminMixin, auth_admin.UserAdmin):
     add_fieldsets = (
         (
             None,

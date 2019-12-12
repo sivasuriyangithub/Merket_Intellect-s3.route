@@ -18,7 +18,7 @@ dacite==1.0.2 # https://github.com/konradhalas/dacite/ (dataclasses from dict)
 
 # Django
 # ------------------------------------------------------------------------------
-django==2.2.6  # pyup: < 3.0  # https://www.djangoproject.com/
+django==2.2.8  # pyup: < 3.0  # https://www.djangoproject.com/
 django-environ==0.4.5  # https://github.com/joke2k/django-environ
 django-model-utils==3.2.0  # https://github.com/jazzband/django-model-utils
 django-allauth==0.39.1  # https://github.com/pennersr/django-allauth
@@ -37,3 +37,7 @@ django-filter==2.2.0
 markdown==3.1.1
 Pygments==2.4.2
 django-guardian==2.0.0
+
+# GraphQL
+graphene-django==2.7.1 # https://github.com/graphql-python/graphene-django
+django-graphql-jwt==0.3.0 # https://github.com/flavors/django-graphql-jwt

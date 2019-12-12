@@ -2,6 +2,7 @@ from allauth.account.models import EmailAddress
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
+from guardian.mixins import GuardianUserMixin
 from model_utils.models import TimeStampedModel
 
 
@@ -28,7 +29,7 @@ class UserProfile(TimeStampedModel):
 
 
 # WARN: See docstring.
-class User(AbstractUser):
+class User(GuardianUserMixin, AbstractUser):
     """
     Generally, only auth or permissions related fields should exist on this model.
     See UserProfile for custom fields that should be one-to-one with a user.

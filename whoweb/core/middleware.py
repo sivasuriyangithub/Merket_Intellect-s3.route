@@ -2,6 +2,8 @@ import logging
 
 from django.http import HttpResponse, HttpResponseServerError
 
+from .loaders import Loaders
+
 logger = logging.getLogger("probes")
 
 
@@ -59,3 +61,10 @@ class HealthCheckMiddleware(object):
             return HttpResponseServerError("cache: cannot connect to cache.")
 
         return HttpResponse("OK")
+
+
+class LoaderMiddleware:
+    def resolve(self, next, root, info, **args):
+        if not hasattr(info.context, "loaders"):
+            info.context.loaders = Loaders()
+        return next(root, info, **args)

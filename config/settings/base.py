@@ -1,6 +1,7 @@
 """
 Base settings to build other settings files upon.
 """
+from datetime import timedelta
 
 import environ
 
@@ -71,6 +72,7 @@ THIRD_PARTY_APPS = [
     "allauth.account",
     "allauth.socialaccount",
     "rest_framework",
+    "graphene_django",
     "django_celery_beat",
     "django_celery_results",
     "django_filters",
@@ -100,12 +102,15 @@ MIGRATION_MODULES = {"sites": "whoweb.contrib.sites.migrations"}
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#authentication-backends
 AUTHENTICATION_BACKENDS = [
+    "graphql_jwt.backends.JSONWebTokenBackend",
     "django.contrib.auth.backends.ModelBackend",
     "allauth.account.auth_backends.AuthenticationBackend",
     "guardian.backends.ObjectPermissionBackend",
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#auth-user-model
 AUTH_USER_MODEL = "users.User"
+# https://django-guardian.readthedocs.io/en/stable/userguide/custom-user-model.html
+GUARDIAN_MONKEY_PATCH = False
 # https://docs.djangoproject.com/en/dev/ref/settings/#login-redirect-url
 LOGIN_REDIRECT_URL = "users:redirect"
 # https://docs.djangoproject.com/en/dev/ref/settings/#login-url
@@ -197,6 +202,22 @@ TEMPLATES = [
         },
     }
 ]
+# https://docs.graphene-python.org/projects/django/en/latest/installation/
+GRAPHENE = {
+    "SCHEMA": "config.schema.schema",
+    "MIDDLEWARE": [
+        "graphql_jwt.middleware.JSONWebTokenMiddleware",
+        "whoweb.core.middleware.LoaderMiddleware",
+    ],
+}
+GRAPHQL_JWT = {
+    "JWT_ALLOW_ARGUMENT": True,
+    "JWT_ARGUMENT_NAME": "token",
+    "JWT_GET_USER_BY_NATURAL_KEY_HANDLER": "whoweb.contrib.graphql_jwt.utils.get_user_by_natural_key",
+    "JWT_VERIFY_EXPIRATION": True,
+    "JWT_EXPIRATION_DELTA": timedelta(days=7),
+    "JWT_REFRESH_EXPIRATION_DELTA": timedelta(days=30),
+}
 # http://django-crispy-forms.readthedocs.io/en/latest/install.html#template-packs
 CRISPY_TEMPLATE_PACK = "bootstrap4"
 

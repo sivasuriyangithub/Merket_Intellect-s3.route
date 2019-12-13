@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth import admin as auth_admin
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
-from guardian.admin import GuardedModelAdminMixin
+from guardian.admin import GuardedModelAdminMixin, GuardedModelAdmin
 from organizations.base_admin import (
     BaseOrganizationAdmin,
     BaseOwnerInline,
@@ -12,7 +12,13 @@ from organizations.base_admin import (
 from organizations.models import OrganizationOwner, OrganizationUser, Organization
 
 from whoweb.users.forms import GroupOwnerAdminForm, SeatAdminForm
-from whoweb.users.models import UserProfile, Group, Seat, GroupOwner
+from whoweb.users.models import (
+    UserProfile,
+    Group,
+    Seat,
+    GroupOwner,
+    OrganizationCredentials,
+)
 
 User = get_user_model()
 
@@ -58,7 +64,7 @@ class GroupOwnerInline(BaseOwnerInline):
     form = GroupOwnerAdminForm
 
 
-class GroupAdmin(BaseOrganizationAdmin):
+class GroupAdmin(GuardedModelAdminMixin, BaseOrganizationAdmin):
     inlines = [GroupOwnerInline]
 
 
@@ -76,3 +82,4 @@ admin.site.unregister(OrganizationOwner)
 admin.site.register(Group, GroupAdmin)
 admin.site.register(Seat, SeatAdmin)
 admin.site.register(GroupOwner, GroupOwnerAdmin)
+admin.site.register(OrganizationCredentials, GuardedModelAdmin)

@@ -15,7 +15,7 @@ dnspython
 requests-cache
 python-dateutil
 dacite==1.0.2 # https://github.com/konradhalas/dacite/ (dataclasses from dict)
-
+django-cryptography==0.3 # https://github.com/georgemarshall/django-cryptography
 # Django
 # ------------------------------------------------------------------------------
 django==2.2.8  # pyup: < 3.0  # https://www.djangoproject.com/
@@ -37,6 +37,7 @@ django-filter==2.2.0
 markdown==3.1.1
 Pygments==2.4.2
 django-guardian==2.0.0
+djangorestframework-guardian==0.3.0 # https://github.com/rpkilby/django-rest-framework-guardian
 djangorestframework_simplejwt==4.4.0 # https://github.com/davesque/django-rest-framework-simplejwt
 
 # GraphQL

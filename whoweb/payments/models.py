@@ -20,7 +20,6 @@ from whoweb.accounting.ledgers import (
     wkcredits_liability_ledger,
     wkcredits_fulfilled_ledger,
 )
-from whoweb.core.utils import PERSONAL_DOMAINS
 from whoweb.users.models import Seat, Group
 
 if TYPE_CHECKING:

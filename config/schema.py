@@ -17,7 +17,6 @@ class Viewer(UsersQuery, graphene.ObjectType):
 
 class Query(graphene.ObjectType):
     viewer = graphene.Field(Viewer, token=graphene.String(required=True))
-    # eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InphY2hAd2hva25vd3MuY29tIiwiZXhwIjoxNTc2MTE4NjI5LCJvcmlnSWF0IjoxNTc2MTE4MzI5fQ.YEX2hLOnlHTSUHtMA6hF2euD1QanzY25eywLNfhhFkQ
 
     @login_required
     def resolve_viewer(self, info, **kwargs):
@@ -26,10 +25,10 @@ class Query(graphene.ObjectType):
 
 class Mutation(UsersMutation, graphene.ObjectType):
     token_auth = graphql_jwt.relay.ObtainJSONWebToken.Field()
-    verify_token = graphql_jwt.relay.Verify.Field()
     refresh_token = graphql_jwt.relay.Refresh.Field()
+    verify_token = graphql_jwt.relay.Verify.Field() if settings.DEBUG else None
     # Long running refresh tokens
-    revoke_token = graphql_jwt.relay.Revoke.Field()
+    # revoke_token = graphql_jwt.relay.Revoke.Field()
 
 
 schema = graphene.Schema(query=Query, mutation=Mutation)

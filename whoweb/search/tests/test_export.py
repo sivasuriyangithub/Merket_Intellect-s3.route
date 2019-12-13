@@ -90,17 +90,27 @@ def test_export_set_target_from_profile_ids(query_specified_profiles_in_filters)
 
 
 @pytest_parametrize_plus(
-    "q,progress,needed",
+    "q,progress,target,needed",
     [
-        (fixture_ref("query_contact_invites"), 0, 17500),
-        (fixture_ref("query_contact_invites"), 1000, 14000),
-        (fixture_ref("query_no_contact"), 0, 5000),
-        (fixture_ref("query_no_contact"), 1000, 4000),
+        (
+            fixture_ref("query_contact_invites"),
+            0,
+            5000,
+            5000 * SearchExport.DERIVATION_RATIO,
+        ),
+        (
+            fixture_ref("query_contact_invites"),
+            1000,
+            5000,
+            5000 * SearchExport.DERIVATION_RATIO - 1000 * SearchExport.DERIVATION_RATIO,
+        ),
+        (fixture_ref("query_no_contact"), 0, 5000, 5000),
+        (fixture_ref("query_no_contact"), 1000, 5000, 4000),
     ],
 )
-def test_num_ids_needed(q, progress, needed):
+def test_num_ids_needed(q, progress, target, needed):
     export: SearchExport = SearchExportFactory(
-        query=q, progress_counter=progress, target=5000
+        query=q, progress_counter=progress, target=target
     )
     assert export.num_ids_needed == needed
 
@@ -109,8 +119,18 @@ def test_num_ids_needed(q, progress, needed):
     "q,progress,skip,start_at",
     [
         (fixture_ref("query_contact_invites"), 0, 0, 0),
-        (fixture_ref("query_contact_invites"), 0, 100, 350),
-        (fixture_ref("query_contact_invites"), 100, 100, 700),
+        (
+            fixture_ref("query_contact_invites"),
+            0,
+            100,
+            100 * SearchExport.DERIVATION_RATIO,
+        ),
+        (
+            fixture_ref("query_contact_invites"),
+            100,
+            100,
+            (100 + 100) * SearchExport.DERIVATION_RATIO,
+        ),
         (fixture_ref("query_no_contact"), 0, 0, 0),
         (fixture_ref("query_no_contact"), 0, 100, 100),
         (fixture_ref("query_no_contact"), 100, 100, 200),

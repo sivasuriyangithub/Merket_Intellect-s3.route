@@ -27,7 +27,7 @@ from model_utils.fields import MonitorField
 from model_utils.managers import QueryManagerMixin
 from model_utils.models import TimeStampedModel
 from requests_cache import CachedSession
-from six import BytesIO, StringIO
+from six import BytesIO
 
 from whoweb.contrib.fields import CompressedBinaryJSONField
 from whoweb.contrib.postgres.fields import EmbeddedModelField
@@ -62,7 +62,7 @@ class SearchExportManager(QueryManagerMixin, models.Manager):
 
 
 class SearchExport(TimeStampedModel):
-    DERIVATION_RATIO = 3.5
+    DERIVATION_RATIO = 4.0
     SIMPLE_CAP = 1000
     SKIP_CODE = "MAGIC_SKIP_CODE_NO_VALIDATION_NEEDED"
 

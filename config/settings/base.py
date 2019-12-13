@@ -202,22 +202,7 @@ TEMPLATES = [
         },
     }
 ]
-# https://docs.graphene-python.org/projects/django/en/latest/installation/
-GRAPHENE = {
-    "SCHEMA": "config.schema.schema",
-    "MIDDLEWARE": [
-        "graphql_jwt.middleware.JSONWebTokenMiddleware",
-        "whoweb.core.middleware.LoaderMiddleware",
-    ],
-}
-GRAPHQL_JWT = {
-    "JWT_ALLOW_ARGUMENT": True,
-    "JWT_ARGUMENT_NAME": "token",
-    "JWT_GET_USER_BY_NATURAL_KEY_HANDLER": "whoweb.contrib.graphql_jwt.utils.get_user_by_natural_key",
-    "JWT_VERIFY_EXPIRATION": True,
-    "JWT_EXPIRATION_DELTA": timedelta(days=7),
-    "JWT_REFRESH_EXPIRATION_DELTA": timedelta(days=30),
-}
+
 # http://django-crispy-forms.readthedocs.io/en/latest/install.html#template-packs
 CRISPY_TEMPLATE_PACK = "bootstrap4"
 
@@ -339,6 +324,7 @@ SOCIALACCOUNT_ADAPTER = "whoweb.users.adapters.SocialAccountAdapter"
 # ------------------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.BasicAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
@@ -347,6 +333,33 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 50,
 }
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    "USER_ID_FIELD": "email",
+    "USER_ID_CLAIM": "username",
+}
+# graphene
+# ------------------------------------------------------------------------------
+# https://docs.graphene-python.org/projects/django/en/latest/installation/
+GRAPHENE = {
+    "SCHEMA": "config.schema.schema",
+    "MIDDLEWARE": [
+        "graphql_jwt.middleware.JSONWebTokenMiddleware",
+        "whoweb.core.middleware.LoaderMiddleware",
+    ],
+}
+GRAPHQL_JWT = {
+    "JWT_ALLOW_ARGUMENT": True,
+    "JWT_ARGUMENT_NAME": "token",
+    "JWT_GET_USER_BY_NATURAL_KEY_HANDLER": "whoweb.contrib.graphql_jwt.utils.get_user_by_natural_key",
+    "JWT_VERIFY_EXPIRATION": True,
+    "JWT_EXPIRATION_DELTA": timedelta(days=7),
+    "JWT_REFRESH_EXPIRATION_DELTA": timedelta(days=30),
+}
+
+
 # Your stuff...
 # ------------------------------------------------------------------------------
 ORGS_SLUGFIELD = "autoslug.fields.AutoSlugField"

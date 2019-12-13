@@ -140,8 +140,8 @@ class SearchExportSerializer(serializers.ModelSerializer):
     def create(request, validated_data):
         from whoweb.users.models import Group
 
-        group_name = validated_data["group_name"]
-        group_id = validated_data.get("group_id", group_name)
+        group_id = validated_data["group_id"]
+        group_name = validated_data.get("group_name", group_id)
         billing_account_name = f"{group_name} Primary Billing Account"
         xperweb_id = validated_data["xperweb_id"]
         email = validated_data["email"]

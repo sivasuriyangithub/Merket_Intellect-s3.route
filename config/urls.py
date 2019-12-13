@@ -6,6 +6,7 @@ from django.views import defaults as default_views
 from django.views.decorators.csrf import csrf_exempt
 from graphene_django.views import GraphQLView
 from rest_framework_extensions.routers import ExtendedDefaultRouter
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from whoweb.search.urls import router as search_router
 from whoweb.users.urls import router as user_router
@@ -20,6 +21,8 @@ urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
     # path("accounts/", include("allauth.urls")),
     path("api/", include(router.urls)),
+    path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("graphql", csrf_exempt(GraphQLView.as_view(graphiql=True))),
     # Your stuff: custom urls includes go here.
     path("search/", include("whoweb.search.urls", namespace="search")),

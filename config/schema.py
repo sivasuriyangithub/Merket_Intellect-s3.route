@@ -5,6 +5,7 @@ from graphene_django.debug import DjangoDebug
 from graphql_jwt.decorators import login_required
 
 from whoweb.users.schema import Query as UsersQuery
+from whoweb.users.mutations import Mutation as UsersMutation
 
 
 class Viewer(UsersQuery, graphene.ObjectType):
@@ -23,7 +24,7 @@ class Query(graphene.ObjectType):
         return info.context.user
 
 
-class Mutation(graphene.ObjectType):
+class Mutation(UsersMutation, graphene.ObjectType):
     token_auth = graphql_jwt.relay.ObtainJSONWebToken.Field()
     verify_token = graphql_jwt.relay.Verify.Field()
     refresh_token = graphql_jwt.relay.Refresh.Field()

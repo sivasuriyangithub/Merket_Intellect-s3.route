@@ -5,7 +5,7 @@ import django.db.models.deletion
 import django.utils.timezone
 import django_cryptography.fields
 import model_utils.fields
-import whoweb.users.models.group
+import whoweb.users.models.organization
 
 
 class Migration(migrations.Migration):
@@ -44,7 +44,7 @@ class Migration(migrations.Migration):
                 (
                     "key",
                     models.CharField(
-                        default=whoweb.users.models.group.make_key,
+                        default=whoweb.users.models.organization.make_key,
                         max_length=64,
                         unique=True,
                     ),
@@ -53,7 +53,8 @@ class Migration(migrations.Migration):
                     "secret",
                     django_cryptography.fields.encrypt(
                         models.CharField(
-                            default=whoweb.users.models.group.make_secret, max_length=64
+                            default=whoweb.users.models.organization.make_secret,
+                            max_length=64,
                         )
                     ),
                 ),

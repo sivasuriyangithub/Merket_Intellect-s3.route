@@ -1,4 +1,4 @@
-from .network import Group, GroupOwner, Seat, OrganizationCredentials
+from .organization import Group, GroupOwner, Seat, OrganizationCredentials
 from .user_profile import User, UserProfile
 
 __all__ = [

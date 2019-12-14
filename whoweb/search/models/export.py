@@ -726,7 +726,7 @@ class SearchExport(TimeStampedModel):
             return
         email = self.seat.email
         link = external_link(self.get_absolute_url())
-        json_link = link + ".json"
+        json_link = external_link(self.get_absolute_url(filetype="json"))
         subject = "Your WhoKnows Export Results"
         template = "search/download_export.html"
         html_message = render_to_string(

@@ -137,7 +137,7 @@ class SearchExportSerializer(serializers.ModelSerializer):
     def get_status_name(self, obj):
         return SearchExport.STATUS[int(obj.status)]
 
-    def create(request, validated_data):
+    def create(self, validated_data):
         from whoweb.users.models import Group
 
         group_id = validated_data["group_id"]

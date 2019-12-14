@@ -16,13 +16,6 @@ class SeatViewSet(viewsets.ModelViewSet):
     serializer_class = SeatSerializer
 
 
-class OrgCredentialObjectPermissions(ObjectPermissions):
-    def has_object_permission(self, request, view, obj):
-        if super().has_object_permission(request, view, obj):
-            return request.user.has_perm("add_credentials", obj.group)
-        return False
-
-
 class OrganizationCredentialsSerializerViewSet(
     NestedViewSetMixin,
     mixins.CreateModelMixin,
@@ -32,11 +25,7 @@ class OrganizationCredentialsSerializerViewSet(
     GenericViewSet,
 ):
     queryset = OrganizationCredentials.objects.all()
+
     serializer_class = OrganizationCredentialsSerializer
     permission_classes = [IsSuperUser | ObjectPermissions]
     filter_backends = [ObjectPermissionsFilter]
-
-    # def get_queryset(self):
-    #     user = self.request.user
-    #     return get_objects_for_user(user)
-    #     return super().get_queryset().filter()

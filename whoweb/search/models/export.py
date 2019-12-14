@@ -408,22 +408,12 @@ class SearchExport(TimeStampedModel):
             count += 1
             yield row
 
-    def generate_json_rows(self, rows=None, validation_registry=None):
-        if validation_registry is None:
-            validation_registry = self.get_validation_registry()
-        return (
-            profile.to_version()
-            for profile in self.get_profiles(
-                validation_registry=validation_registry, raw=rows
-            )
-        )
+    def generate_json_rows(self, rows=None):
+        return (profile.to_version() for profile in self.get_profiles(raw=rows))
 
-    def compute_charges(self, validation_registry=None):
+    def compute_charges(self):
         charges = 0
-        if validation_registry is None:
-            validation_registry = self.get_validation_registry()
-
-        profiles = self.get_profiles(validation_registry=validation_registry)
+        profiles = self.get_profiles()
         plan: WKPlan = self.seat.billing.plan
         if self.charge:
             return sum(

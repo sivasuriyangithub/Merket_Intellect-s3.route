@@ -1,27 +1,16 @@
 import csv
 import itertools
 
-from django.http import (
-    StreamingHttpResponse,
-    Http404,
-    HttpResponse,
-    HttpResponseBadRequest,
-)
+from django.http import StreamingHttpResponse, Http404, HttpResponseBadRequest
 from django.views.decorators.http import require_GET
-from rest_framework import mixins, generics
-from rest_framework.decorators import action
-from rest_framework.pagination import (
-    CursorPagination,
-    PageNumberPagination,
-    BasePagination,
-)
+from rest_framework import mixins
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
-from rest_framework.viewsets import GenericViewSet, ModelViewSet
+from rest_framework.viewsets import GenericViewSet
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from whoweb.contrib.rest_framework.permissions import IsSuperUser
-from whoweb.search.models import ResultProfile
 from whoweb.search.models.export import SearchExportPage
 from .events import DOWNLOAD_VALIDATION, DOWNLOAD
 from .models import SearchExport

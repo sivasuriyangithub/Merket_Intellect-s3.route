@@ -16,6 +16,12 @@ class Group(AbstractOrganization):
     class Meta:
         verbose_name = _("group")
         verbose_name_plural = _("groups")
+        permissions = (
+            (
+                "add_organizationcredentials",
+                "May add credentials for this organization",
+            ),
+        )
 
     def get_or_add_user(self, user, **kwargs):
         """
@@ -143,6 +149,7 @@ class OrganizationCredentials(TimeStampedModel):
         related_name="credentials",
         blank=True,
     )
+    created_by = models.ForeignKey("users.User", on_delete=models.SET_NULL, null=True)
 
     @property
     def api_key(self):

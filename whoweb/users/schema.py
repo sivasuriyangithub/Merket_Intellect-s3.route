@@ -1,33 +1,37 @@
 import graphene
 from django.contrib.auth import get_user_model
 from graphene import relay
+from graphene_django import DjangoConnectionField
 from graphene_django.filter import DjangoFilterConnectionField
+from rest_framework_guardian.filters import ObjectPermissionsFilter
 
-from whoweb.contrib.graphene_django.types import ProtectedDjangoObjectType
-from whoweb.users.models import UserProfile, Group, Seat
+from whoweb.contrib.graphene_django.types import GuardedObjectType
+from whoweb.contrib.rest_framework.permissions import IsSuperUser, ObjectPermissions
+from whoweb.users.models import UserProfile, Group, Seat, OrganizationCredentials
 
 User = get_user_model()
 
 
-class UserNode(ProtectedDjangoObjectType):
+class UserNode(GuardedObjectType):
     class Meta:
         model = User
         fields = ("username",)
-        filter_fields = {
-            "username": ["exact", "icontains", "istartswith"],
-            "id": ["exact"],
-        }
+        filter_fields = {"username": ["exact", "icontains", "istartswith"]}
         interfaces = (relay.Node,)
+        permission_classes = [IsSuperUser | ObjectPermissions]
+        filter_backends = (ObjectPermissionsFilter,)
 
 
-class UserProfileNode(ProtectedDjangoObjectType):
+class UserProfileNode(GuardedObjectType):
     class Meta:
         model = UserProfile
         filter_fields = ["user"]
         interfaces = (relay.Node,)
+        permission_classes = [IsSuperUser | ObjectPermissions]
+        filter_backends = (ObjectPermissionsFilter,)
 
 
-class GroupNode(ProtectedDjangoObjectType):
+class GroupNode(GuardedObjectType):
     class Meta:
         model = Group
         filter_fields = {
@@ -35,17 +39,30 @@ class GroupNode(ProtectedDjangoObjectType):
             "name": ["exact", "icontains", "istartswith"],
         }
         interfaces = (relay.Node,)
+        permission_classes = [IsSuperUser | ObjectPermissions]
+        filter_backends = (ObjectPermissionsFilter,)
 
 
-class SeatNode(ProtectedDjangoObjectType):
+class SeatNode(GuardedObjectType):
     class Meta:
         model = Seat
-
         filter_fields = {
             "display_name": ["exact", "icontains", "istartswith"],
             "user": ["exact"],
         }
         interfaces = (relay.Node,)
+        permission_classes = [IsSuperUser | ObjectPermissions]
+        filter_backends = (ObjectPermissionsFilter,)
+
+
+class DeveloperKeyNode(GuardedObjectType):
+    class Meta:
+        model = OrganizationCredentials
+        fields = ("key", "secret", "test_key", "group", "created", "created_by")
+        filter_fields = ()
+        interfaces = (relay.Node,)
+        permission_classes = [IsSuperUser | ObjectPermissions]
+        filter_backends = (ObjectPermissionsFilter,)
 
 
 class Query(graphene.ObjectType):
@@ -54,3 +71,4 @@ class Query(graphene.ObjectType):
     user_profiles = DjangoFilterConnectionField(UserProfileNode)
     groups = DjangoFilterConnectionField(GroupNode)
     seats = DjangoFilterConnectionField(SeatNode)
+    developer_keys = DjangoConnectionField(DeveloperKeyNode)

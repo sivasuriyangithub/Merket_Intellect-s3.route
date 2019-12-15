@@ -1,5 +1,4 @@
 from rest_framework import permissions
-from rest_framework_guardian.filters import ObjectPermissionsFilter
 
 
 class IsSuperUser(permissions.BasePermission):

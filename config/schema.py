@@ -23,10 +23,17 @@ class Query(graphene.ObjectType):
         return info.context.user
 
 
-class Mutation(UsersMutation, graphene.ObjectType):
+class ViewerMutation(UsersMutation, graphene.ObjectType):
+    class Meta:
+        interfaces = [graphene.relay.Node]
+
+
+class Mutation(graphene.ObjectType):
     token_auth = graphql_jwt.relay.ObtainJSONWebToken.Field()
     refresh_token = graphql_jwt.relay.Refresh.Field()
     verify_token = graphql_jwt.relay.Verify.Field() if settings.DEBUG else None
+    viewer = graphene.Field(ViewerMutation, token=graphene.String(required=True))
+
     # Long running refresh tokens
     # revoke_token = graphql_jwt.relay.Revoke.Field()
 

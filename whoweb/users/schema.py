@@ -6,10 +6,20 @@ from graphene_django.filter import DjangoFilterConnectionField
 from rest_framework_guardian.filters import ObjectPermissionsFilter
 
 from whoweb.contrib.graphene_django.types import GuardedObjectType
-from whoweb.contrib.rest_framework.permissions import IsSuperUser, ObjectPermissions
-from whoweb.users.models import UserProfile, Group, Seat, OrganizationCredentials
+from whoweb.contrib.rest_framework.permissions import (
+    IsSuperUser,
+    ObjectPermissions,
+    ObjectPassesTest,
+)
+from whoweb.users.models import UserProfile, Group, Seat, DeveloperKey
 
 User = get_user_model()
+
+
+def member_of_network(viewer: User, user: User):
+    return not set(viewer.users_group.all().values_list("pk", flat=True)).isdisjoint(
+        user.users_group.all().values_list("pk", flat=True)
+    )
 
 
 class UserNode(GuardedObjectType):
@@ -18,7 +28,9 @@ class UserNode(GuardedObjectType):
         fields = ("username",)
         filter_fields = {"username": ["exact", "icontains", "istartswith"]}
         interfaces = (relay.Node,)
-        permission_classes = [IsSuperUser | ObjectPermissions]
+        permission_classes = [
+            ObjectPassesTest(member_of_network) | IsSuperUser | ObjectPermissions
+        ]
         filter_backends = (ObjectPermissionsFilter,)
 
 
@@ -57,7 +69,7 @@ class SeatNode(GuardedObjectType):
 
 class DeveloperKeyNode(GuardedObjectType):
     class Meta:
-        model = OrganizationCredentials
+        model = DeveloperKey
         fields = ("key", "secret", "test_key", "group", "created", "created_by")
         interfaces = (relay.Node,)
         permission_classes = [IsSuperUser | ObjectPermissions]

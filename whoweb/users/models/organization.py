@@ -15,17 +15,14 @@ from contrib.fields import ObscuredAutoField
 
 
 class Group(AbstractOrganization):
-    id = ObscuredAutoField(prefix="net", verbose_name="ID", primary_key=True)
+    id = ObscuredAutoField(prefix="ntw", verbose_name="ID", primary_key=True)
 
     class Meta:
-        verbose_name = _("group")
-        verbose_name_plural = _("groups")
+        verbose_name = _("network")
+        verbose_name_plural = _("networks")
         permissions = (
-            (
-                "add_organizationcredentials",
-                "May add credentials for this organization",
-            ),
-            ("add_seat", "May add seats to this organization"),
+            ("add_developerkeys", "May add credentials for this organization"),
+            ("add_seats", "May add seats to this organization"),
         )
 
     def get_or_add_user(self, user, **kwargs):
@@ -59,8 +56,8 @@ class Group(AbstractOrganization):
     def default_permission_groups(self):
         return (self.seat_viewers, self.network_viewers)
 
-    def add_user(self, *args, **kwargs):
-        raise DeprecationWarning("Use `get_or_add_user` instead.")
+    def add_user(self, user, **kwargs):
+        return self.get_or_add_user(user, **kwargs)[0]
 
     @transaction.atomic
     def remove_user(self, user):
@@ -73,10 +70,10 @@ class Group(AbstractOrganization):
             name=f"{self.slug}:developer_keys_admin"
         )
         if created:
-            assign_perm("add_organizationcredentials", group, self)  # object level
-            assign_perm("users.add_organizationcredentials", group)  # global
-            assign_perm("users.view_organizationcredentials", group)
-            assign_perm("users.delete_organizationcredentials", group)
+            assign_perm("add_developerkeys", group, self)  # object level
+            assign_perm("users.add_developerkey", group)  # global
+            assign_perm("users.view_developerkey", group)
+            assign_perm("users.delete_developerkey", group)
         return group
 
     @property
@@ -85,7 +82,7 @@ class Group(AbstractOrganization):
             name=f"org:{self.slug}.seat_admin"
         )
         if created:
-            assign_perm("add_seat", group, self)  # object level
+            assign_perm("add_seats", group, self)  # object level
             assign_perm("users.add_seat", group)  # global
             assign_perm("users.view_seat", group)
             assign_perm("users.delete_seat", group)
@@ -160,8 +157,8 @@ def make_secret():
     return token_hex(32)
 
 
-class OrganizationCredentials(TimeStampedModel):
-    id = ObscuredAutoField(prefix="dev", verbose_name="ID", primary_key=True)
+class DeveloperKey(TimeStampedModel):
+    id = ObscuredAutoField(prefix="dk", verbose_name="ID", primary_key=True)
     key = models.CharField(default=make_key, unique=True, max_length=64)
     secret = encrypt(models.CharField(default=make_secret, max_length=64))
     test_key = models.BooleanField(default=False)

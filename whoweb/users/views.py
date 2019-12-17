@@ -5,10 +5,10 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework_guardian.filters import ObjectPermissionsFilter
 
 from whoweb.contrib.rest_framework.permissions import ObjectPermissions, IsSuperUser
-from whoweb.users.models import Seat, OrganizationCredentials, Group
+from whoweb.users.models import Seat, DeveloperKey, Group
 from whoweb.users.serializers import (
     SeatSerializer,
-    OrganizationCredentialsSerializer,
+    DeveloperKeySerializer,
     NetworkSerializer,
     UserSerializer,
 )
@@ -44,7 +44,7 @@ class DeveloperKeyViewSet(
     mixins.DestroyModelMixin,
     GenericViewSet,
 ):
-    queryset = OrganizationCredentials.objects.all()
-    serializer_class = OrganizationCredentialsSerializer
+    queryset = DeveloperKey.objects.all()
+    serializer_class = DeveloperKeySerializer
     permission_classes = [IsSuperUser | ObjectPermissions]
     filter_backends = [DjangoFilterBackend, ObjectPermissionsFilter]

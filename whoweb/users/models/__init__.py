@@ -1,11 +1,4 @@
-from .organization import Group, GroupOwner, Seat, OrganizationCredentials
+from .organization import Group, GroupOwner, Seat, DeveloperKey
 from .user_profile import User, UserProfile
 
-__all__ = [
-    "User",
-    "UserProfile",
-    "Group",
-    "Seat",
-    "GroupOwner",
-    "OrganizationCredentials",
-]
+__all__ = ["User", "UserProfile", "Group", "Seat", "GroupOwner", "DeveloperKey"]

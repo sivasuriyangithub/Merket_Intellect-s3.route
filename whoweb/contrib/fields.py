@@ -1,9 +1,11 @@
 import base64
+import hashlib
 import json
 import zlib
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
+from django.utils.functional import Promise
 from django.utils.translation import ugettext_lazy as _
 
 
@@ -30,50 +32,63 @@ class CompressedBinaryJSONField(models.BinaryField):
         return value
 
 
-key = "0cd2441527430cd528448ff80a776e50b9f28c9bd5256a68c243bb552438a23b1d01c294fa5307186cd26466777248823367045953d2f7e626d3592b34c800b4"
-universe = "TiX5Ch9zr2kZOK0mvFtAdebqBfyw8HaclpWxQPNY17GgMuV6nD4soRES3jIJLU"  # shuffle(string.ascii_letters + string.digits)
-uni_len = len(universe)
+class Creator(object):
+    """
+    A placeholder class that provides a way to set the attribute on the model.
+    """
 
-ENCODE = "e"
-DECODE = "d"
-SEP = "A"
+    def __init__(self, field):
+        self.field = field
 
+    def __get__(self, obj, type=None):
+        if obj is None:
+            return self
+        return obj.__dict__[self.field.name]
 
-def vign(txt="", typ=DECODE, salt="A"):
-    if typ == ENCODE:
-        pre: str = base64.b64encode(((salt + txt) * 5).encode()).decode()[:10]
-        txt = (pre + SEP + txt)[-16:]
-    ret_txt = ""
-    k_len = len(key)
-    for i, l in enumerate(txt):
-        txt_idx = universe.index(l)
-        k = key[i % k_len]
-        key_idx = universe.index(k)
-        if typ == DECODE:
-            key_idx *= -1
-        code = universe[(txt_idx + key_idx) % uni_len]
-        ret_txt += code
-
-    if typ == DECODE:
-        ret_txt = ret_txt.split(SEP)[-1]
-    return ret_txt
+    def __set__(self, obj, value):
+        obj.__dict__[self.field.name] = self.field.to_python(value)
 
 
 class ObscuredInt(object):
-    def __init__(self, prefix, id):
-        self.id = id
-        self.encrypted = f"{prefix}_{vign(str(id), ENCODE, prefix)}"
+
+    ENCODE = "e"
+    DECODE = "d"
 
     @classmethod
-    def parse(cls, value, prefix=None):
-        if "_" in value:
-            prefix, encoded_id = value.split("_")
-            _id = vign(encoded_id, DECODE)
-            return ObscuredInt(prefix, id=int(_id))
-        return ObscuredInt(prefix, id=int(value))
+    def vign(cls, txt="", typ=DECODE, salt="A"):
+        SEP = "a"
+        key = "0cd2441527430cd528448ff80a776e50b9f28c9bd5256a68c243bb552438a23b1d01c294fa5307186cd26466777248823367045953d2f7e626d3592b34c800b4"
+        universe = "TiX5Ch9zr2kZOK0mvFtAdebqBfyw8HaclpWxQPNY17GgMuV6nD4soRES3jIJLU"  # shuffle(string.ascii_letters + string.digits)
+        uni_len = len(universe)
 
-    def __str__(self):
-        return self.encrypted
+        if typ == cls.ENCODE:
+            md5 = hashlib.md5(txt.encode())
+            pre = base64.b32encode(md5.digest()).decode().rstrip("=")
+            txt = (pre + SEP + txt)[-1 * max(12, len(txt) + 1) :]
+        ret_txt = ""
+        k_len = len(key)
+        for i, l in enumerate(txt):
+            txt_idx = universe.index(l)
+            k = key[i % k_len]
+            key_idx = universe.index(k)
+            if typ == cls.DECODE:
+                key_idx *= -1
+            code = universe[(txt_idx + key_idx) % uni_len]
+            ret_txt += code
+
+        if typ == cls.DECODE:
+            ret_txt = ret_txt.split(SEP)[-1]
+        return ret_txt
+
+    @classmethod
+    def encode(cls, value, prefix=None):
+        return f"{prefix}_{cls.vign(str(value), cls.ENCODE, prefix)}"
+
+    @classmethod
+    def decode(cls, value):
+        prefix, encoded_id = value.split("_")
+        decoded = cls.vign(encoded_id, cls.DECODE)
+        return decoded
 
 
 class ObscuredAutoField(models.AutoField):
@@ -81,20 +96,36 @@ class ObscuredAutoField(models.AutoField):
         self.prefix = prefix
         super().__init__(*args, **kwargs)
 
+    def contribute_to_class(self, cls, name, **kwargs):
+        super().contribute_to_class(cls, name, **kwargs)
+        setattr(cls, self.name, Creator(self))
+
+    def deconstruct(self):
+        name, path, args, kwargs = super().deconstruct()
+        kwargs["prefix"] = self.prefix
+        return name, path, args, kwargs
+
     def from_db_value(self, value, *args, **kwargs):
         if value is None:
             return value
-        return ObscuredInt(self.prefix, value)
+        return ObscuredInt.encode(value, self.prefix)
 
     def to_python(self, value):
-        if isinstance(value, ObscuredInt):
+        if isinstance(value, str) and "_" in value:
             return value
         if value is None:
             return value
-        return ObscuredInt.parse(value, self.prefix)
+        return ObscuredInt.encode(value, self.prefix)
 
     def get_prep_value(self, value):
-        if value is None:
+        from django.db.models.expressions import OuterRef
+
+        if isinstance(value, Promise):  # super.super
+            value = value._proxy____cast()
+        if value is None or isinstance(value, OuterRef):  # super
             return value
-        value = self.to_python(value)
-        return value.id
+        return int(ObscuredInt.decode(value))
+
+    def value_to_string(self, obj):
+        value = self.value_from_object(obj)
+        return self.get_prep_value(value)

@@ -9,6 +9,20 @@ class IsSuperUser(permissions.BasePermission):
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_superuser)
 
+    def has_object_permission(self, request, view, obj):
+        return self.has_permission(request, view)
+
+
+def ObjectPassesTest(func):
+    class Passes(permissions.BasePermission):
+        # def has_permission(self, request, view):
+        #     return False
+
+        def has_object_permission(self, request, view, obj):
+            return func(request.user, obj)
+
+    return Passes
+
 
 class ObjectPermissions(permissions.DjangoObjectPermissions):
     """

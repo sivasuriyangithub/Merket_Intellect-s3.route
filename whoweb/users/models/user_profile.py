@@ -37,7 +37,7 @@ class User(GuardianUserMixin, AbstractUser):
     See UserProfile for custom fields that should be one-to-one with a user.
     """
 
-    id = ObscuredAutoField(prefix="user", verbose_name="ID", primary_key=True)
+    id = ObscuredAutoField(prefix="usr", verbose_name="ID", primary_key=True)
     email = models.EmailField(
         _("email address"),
         unique=True,

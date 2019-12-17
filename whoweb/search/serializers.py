@@ -190,6 +190,7 @@ class SearchExportDataSerializer(serializers.Serializer):
     first_name = serializers.CharField()
     last_name = serializers.CharField()
     email = serializers.EmailField()
+    graded_emails = serializers.JSONField()
     emails = serializers.ListField(serializers.EmailField())
     grade = serializers.CharField()
     derivation_status = serializers.CharField()

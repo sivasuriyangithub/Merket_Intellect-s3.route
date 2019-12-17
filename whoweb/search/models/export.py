@@ -355,10 +355,13 @@ class SearchExport(TimeStampedModel):
             profile.country,
         ]
         if enforce_valid_contact:
+            profile.normalize_email_grades()
             for i in range(3):
                 try:
                     entry = profile.graded_emails[i]
-                    row.extend([entry.email, "", entry.grade])  # profile.email_type
+                    row.extend(
+                        [entry.email, entry.email_type, entry.grade]
+                    )  # profile.email_type
                 except IndexError:
                     row.extend(["", "", ""])
             for i in range(3):
@@ -408,22 +411,12 @@ class SearchExport(TimeStampedModel):
             count += 1
             yield row
 
-    def generate_json_rows(self, rows=None, validation_registry=None):
-        if validation_registry is None:
-            validation_registry = self.get_validation_registry()
-        return (
-            profile.to_version()
-            for profile in self.get_profiles(
-                validation_registry=validation_registry, raw=rows
-            )
-        )
+    def generate_json_rows(self, rows=None):
+        return (profile.to_version() for profile in self.get_profiles(raw=rows))
 
-    def compute_charges(self, validation_registry=None):
+    def compute_charges(self):
         charges = 0
-        if validation_registry is None:
-            validation_registry = self.get_validation_registry()
-
-        profiles = self.get_profiles(validation_registry=validation_registry)
+        profiles = self.get_profiles()
         plan: WKPlan = self.seat.billing.plan
         if self.charge:
             return sum(
@@ -736,7 +729,7 @@ class SearchExport(TimeStampedModel):
             return
         email = self.seat.email
         link = external_link(self.get_absolute_url())
-        json_link = link + ".json"
+        json_link = external_link(self.get_absolute_url(filetype="json"))
         subject = "Your WhoKnows Export Results"
         template = "search/download_export.html"
         html_message = render_to_string(

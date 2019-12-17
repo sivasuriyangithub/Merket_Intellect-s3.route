@@ -49,6 +49,10 @@ class GradedEmail:
     grade: str = ""
     email_type: str = ""
 
+    def __post_init__(self):
+        if not self.email_type:
+            self.email_type = PERSONAL if self.is_personal else WORK
+
     @property
     def is_passing(self):
         return bool(self.email and self.grade[0] in ["A", "B"])
@@ -263,7 +267,7 @@ class ResultProfile:
         self.derivation_requested_email = derived.requested_email
         self.derivation_requested_phone = derived.requested_email
         self.returned_status = derived.status
-
+        # self.normalize_email_grades()
         self.set_status()
         return self
 
@@ -290,8 +294,15 @@ class ResultProfile:
             self.email, self.grade = max(
                 graded, key=lambda x: ResultProfile.GRADE_VALUES.get(x[1])
             )
+            # self.normalize_email_grades()
             self.set_status()
         return self
+
+    def normalize_email_grades(self):
+        if self.email and self.grade:
+            graded = GradedEmail(email=self.email, grade=self.grade)
+            if graded not in self.graded_emails:
+                self.graded_emails.append(graded)
 
     def derive_contact(self, defer=(), filters=None, timeout=120, producer=None):
         if self.derivation_status == VALIDATED:

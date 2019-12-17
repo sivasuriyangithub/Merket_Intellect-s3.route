@@ -355,10 +355,13 @@ class SearchExport(TimeStampedModel):
             profile.country,
         ]
         if enforce_valid_contact:
+            profile.normalize_email_grades()
             for i in range(3):
                 try:
                     entry = profile.graded_emails[i]
-                    row.extend([entry.email, "", entry.grade])  # profile.email_type
+                    row.extend(
+                        [entry.email, entry.email_type, entry.grade]
+                    )  # profile.email_type
                 except IndexError:
                     row.extend(["", "", ""])
             for i in range(3):

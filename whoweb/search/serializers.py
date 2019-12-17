@@ -21,15 +21,9 @@ from whoweb.users.models import UserProfile
 
 
 class ExportOptionsSerializer(serializers.ModelSerializer):
-    format = serializers.ChoiceField(
-        choices=ExportOptions.FORMAT_CHOICES,
-        required=False,
-        default=ExportOptions.FORMAT_CHOICES.NESTED,
-    )
-
     class Meta:
         model = ExportOptions
-        fields = ("webhooks", "format")
+        fields = ("webhooks", "format", "title", "metadata")
 
     def to_representation(self, instance):
         return instance.serialize()

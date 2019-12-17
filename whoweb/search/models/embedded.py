@@ -48,6 +48,8 @@ class ExportOptions(AbstractEmbeddedModel):
 
     FORMAT_CHOICES = Choices(("nested", "NESTED", "nested"), ("flat", "FLAT", "flat"))
     webhooks = ArrayField(models.URLField(), default=list, blank=True)
+    title = models.CharField(max_length=255, blank=True, default="")
+    metadata = JSONField(blank=True, default=dict)
     format = models.CharField(
         default=FORMAT_CHOICES.NESTED,
         max_length=255,

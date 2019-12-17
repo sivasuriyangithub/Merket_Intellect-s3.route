@@ -58,7 +58,8 @@ class ObscuredInt(object):
     def vign(cls, txt="", typ=DECODE, salt="A"):
         SEP = "a"
         key = "0cd2441527430cd528448ff80a776e50b9f28c9bd5256a68c243bb552438a23b1d01c294fa5307186cd26466777248823367045953d2f7e626d3592b34c800b4"
-        universe = "TiX5Ch9zr2kZOK0mvFtAdebqBfyw8HaclpWxQPNY17GgMuV6nD4soRES3jIJLU"  # shuffle(string.ascii_letters + string.digits)
+        # shuffle(string.ascii_letters + string.digits)
+        universe = "TiX5Ch9zr2kZOK0mvFtAdebqBfyw8HaclpWxQPNY17GgMuV6nD4soRES3jIJLU"
         uni_len = len(universe)
 
         if typ == cls.ENCODE:

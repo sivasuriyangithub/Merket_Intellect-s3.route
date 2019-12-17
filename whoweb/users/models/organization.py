@@ -11,7 +11,7 @@ from organizations.abstract import AbstractOrganization, AbstractOrganizationOwn
 from organizations.abstract import AbstractOrganizationUser
 from organizations.signals import user_added
 
-from contrib.fields import ObscuredAutoField
+from whoweb.contrib.fields import ObscuredAutoField
 
 
 class Group(AbstractOrganization):

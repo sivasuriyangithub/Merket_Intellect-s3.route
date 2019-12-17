@@ -11,8 +11,12 @@ from organizations.abstract import AbstractOrganization, AbstractOrganizationOwn
 from organizations.abstract import AbstractOrganizationUser
 from organizations.signals import user_added
 
+from contrib.fields import ObscuredAutoField
+
 
 class Group(AbstractOrganization):
+    id = ObscuredAutoField(prefix="net", verbose_name="ID", primary_key=True)
+
     class Meta:
         verbose_name = _("group")
         verbose_name_plural = _("groups")
@@ -21,13 +25,14 @@ class Group(AbstractOrganization):
                 "add_organizationcredentials",
                 "May add credentials for this organization",
             ),
+            ("add_seat", "May add seats to this organization"),
         )
 
     def get_or_add_user(self, user, **kwargs):
         """
         Same as super(), but
-         - skips making owner an Admin
-         - adds credentials group permissions
+         - allows for additional keyword user defaults
+         - adds default and owner permission groups
         """
 
         users_count = self.users.all().count()
@@ -40,20 +45,32 @@ class Group(AbstractOrganization):
             self._org_owner_model.objects.create(
                 organization=self, organization_user=org_user
             )
-            creds_group = self.organization.credentials_authgroup
-            user.groups.remove(creds_group)
+            creds_group = self.organization.credentials_admin_authgroup
+            if created:
+                user.groups.add(creds_group)
+
         if created:
             # User added signal
             user_added.send(sender=self, user=user)
+            user.groups.add(self.default_permission_groups)
         return org_user, created
+
+    @transaction.atomic
+    def default_permission_groups(self):
+        return (self.seat_viewers, self.network_viewers)
 
     def add_user(self, *args, **kwargs):
         raise DeprecationWarning("Use `get_or_add_user` instead.")
 
+    @transaction.atomic
+    def remove_user(self, user):
+        super().remove_user(user)
+        user.groups.remove(self.default_permission_groups)
+
     @property
-    def credentials_authgroup(self):
+    def credentials_admin_authgroup(self):
         group, created = authGroup.objects.get_or_create(
-            name=f"{self.slug}:developer_keys"
+            name=f"{self.slug}:developer_keys_admin"
         )
         if created:
             assign_perm("add_organizationcredentials", group, self)  # object level
@@ -62,22 +79,40 @@ class Group(AbstractOrganization):
             assign_perm("users.delete_organizationcredentials", group)
         return group
 
-    def update_credentials_group(self, credentials=None):
+    @property
+    def seat_admin_authgroup(self):
+        group, created = authGroup.objects.get_or_create(
+            name=f"org:{self.slug}.seat_admin"
+        )
+        if created:
+            assign_perm("add_seat", group, self)  # object level
+            assign_perm("users.add_seat", group)  # global
+            assign_perm("users.view_seat", group)
+            assign_perm("users.delete_seat", group)
+        return group
 
-        assign_perm(
-            "delete_organizationcredentials",
-            self.credentials_authgroup,
-            credentials or self.credentials,
+    @property
+    def seat_viewers(self):
+        group, created = authGroup.objects.get_or_create(
+            name=f"org:{self.slug}.seat_viewers"
         )
-        assign_perm(
-            "view_organizationcredentials",
-            self.credentials_authgroup,
-            credentials or self.credentials,
+        if created:
+            assign_perm("users.view_seat", group)
+        return group
+
+    @property
+    def network_viewers(self):
+        group, created = authGroup.objects.get_or_create(
+            name=f"org:{self.slug}.network)_viewers"
         )
+        if created:
+            assign_perm("users.view_group", group)
+            assign_perm("users.view_group", group, self)
+        return group
 
     @transaction.atomic
     def change_owner(self, new_owner):
-        creds_group = self.organization.credentials_authgroup
+        creds_group = self.organization.credentials_admin_authgroup
         from_user = self.owner.organization_user.user
         from_user.groups.remove(creds_group)
 
@@ -88,6 +123,7 @@ class Group(AbstractOrganization):
 
 
 class Seat(AbstractOrganizationUser):
+    id = ObscuredAutoField(prefix="seat", verbose_name="ID", primary_key=True)
     display_name = models.CharField(
         _("Name"),
         db_column="name",
@@ -109,17 +145,6 @@ class Seat(AbstractOrganizationUser):
     def email(self):
         return EmailAddress.objects.get_primary(user=self.user).email
 
-    @transaction.atomic
-    def save(self, *args, **kwargs):
-        if self.pk is not None:
-            from_user = Seat.objects.get(pk=self.pk).user
-            to_user = self.user
-            creds_group = self.organization.credentials_authgroup
-            if from_user.groups.filter(name=creds_group.name).exists():
-                from_user.groups.remove(creds_group)
-                to_user.groups.add(creds_group)
-        super().save(*args, **kwargs)
-
 
 class GroupOwner(AbstractOrganizationOwner):
     class Meta:
@@ -136,6 +161,7 @@ def make_secret():
 
 
 class OrganizationCredentials(TimeStampedModel):
+    id = ObscuredAutoField(prefix="dev", verbose_name="ID", primary_key=True)
     key = models.CharField(default=make_key, unique=True, max_length=64)
     secret = encrypt(models.CharField(default=make_secret, max_length=64))
     test_key = models.BooleanField(default=False)
@@ -156,11 +182,3 @@ class OrganizationCredentials(TimeStampedModel):
         return "{liveness}_{key}".format(
             liveness="test" if self.test_key else "live", key=self.key
         )
-
-    def save(self, *args, **kwargs):
-        new = False
-        if not self.pk:
-            new = True
-        super().save(*args, **kwargs)
-        if new:
-            self.group.update_credentials_group(credentials=self)

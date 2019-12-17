@@ -5,6 +5,8 @@ from django.utils.translation import ugettext_lazy as _
 from guardian.mixins import GuardianUserMixin
 from model_utils.models import TimeStampedModel
 
+from whoweb.contrib.fields import ObscuredAutoField
+
 
 class UserProfile(TimeStampedModel):
     user = models.ForeignKey("User", on_delete=models.CASCADE, related_name="profile")
@@ -35,6 +37,7 @@ class User(GuardianUserMixin, AbstractUser):
     See UserProfile for custom fields that should be one-to-one with a user.
     """
 
+    id = ObscuredAutoField(prefix="user", verbose_name="ID", primary_key=True)
     email = models.EmailField(
         _("email address"),
         unique=True,

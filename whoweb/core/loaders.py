@@ -1,9 +1,5 @@
-from collections import defaultdict
-
 from promise import Promise
 from promise.dataloader import DataLoader
-
-from whoweb.users.schema import UserNode
 
 
 def genLoader(Type, attr="pk"):

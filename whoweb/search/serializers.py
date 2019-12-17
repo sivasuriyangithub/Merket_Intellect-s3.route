@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from rest_framework.reverse import reverse
+from rest_framework_extensions.fields import ResourceUriField
 from slugify import slugify
 
 from whoweb.contrib.rest_framework.fields import (
@@ -35,6 +36,8 @@ class ExportOptionsSerializer(serializers.ModelSerializer):
 
 
 class FilteredSearchFilterElementSerializer(serializers.ModelSerializer):
+    value = serializers.JSONField(source="value", style={"base_template": "input.html"})
+
     class Meta:
         model = FilteredSearchFilterElement
         fields = ("field", "value", "truth")
@@ -76,12 +79,18 @@ class FilteredSearchQuerySerializer(serializers.ModelSerializer):
         return instance.serialize()
 
 
-class SearchExportSerializer(serializers.ModelSerializer):
+class SearchExportSerializer(serializers.HyperlinkedModelSerializer):
     query = FilteredSearchQuerySerializer()
+    results_url = serializers.HyperlinkedRelatedField(
+        view_name="exportresult-detail",
+        read_only=True,
+        # lookup_field="uuid",
+        source="uuid",
+    )
     status_name = serializers.SerializerMethodField()
     xperweb_id = serializers.CharField(write_only=True)
-    group_name = serializers.CharField(write_only=True)
-    group_id = serializers.CharField(allow_blank=True, write_only=True)
+    group_name = serializers.CharField(write_only=True, allow_blank=True)
+    group_id = serializers.CharField(write_only=True)
     email = serializers.EmailField(write_only=True)
     seat_credits = serializers.IntegerField(write_only=True)
     for_campaign = serializers.BooleanField(source="uploadable", required=False)
@@ -94,10 +103,10 @@ class SearchExportSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SearchExport
+        extra_kwargs = {"url": {"lookup_field": "uuid"}}
         depth = 1
         read_only_fields = [
             "status",
-            "id",
             "status_name",
             "status_changed",
             "progress_counter",
@@ -106,9 +115,11 @@ class SearchExportSerializer(serializers.ModelSerializer):
             "charged",
             "target",
             "with_invites",
+            "results_url",
         ]
         fields = [
-            "id",
+            "url",
+            "results_url",
             "uuid",
             "seat",
             "query",

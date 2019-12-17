@@ -31,7 +31,7 @@ class UserProfileNode(GuardedObjectType):
         filter_backends = (ObjectPermissionsFilter,)
 
 
-class GroupNode(GuardedObjectType):
+class NetworkNode(GuardedObjectType):
     class Meta:
         model = Group
         filter_fields = {
@@ -59,7 +59,6 @@ class DeveloperKeyNode(GuardedObjectType):
     class Meta:
         model = OrganizationCredentials
         fields = ("key", "secret", "test_key", "group", "created", "created_by")
-        filter_fields = ()
         interfaces = (relay.Node,)
         permission_classes = [IsSuperUser | ObjectPermissions]
         filter_backends = (ObjectPermissionsFilter,)
@@ -69,6 +68,6 @@ class Query(graphene.ObjectType):
     user = relay.Node.Field(UserNode)
     users = DjangoFilterConnectionField(UserNode)
     user_profiles = DjangoFilterConnectionField(UserProfileNode)
-    groups = DjangoFilterConnectionField(GroupNode)
+    networks = DjangoFilterConnectionField(NetworkNode)
     seats = DjangoFilterConnectionField(SeatNode)
     developer_keys = DjangoConnectionField(DeveloperKeyNode)

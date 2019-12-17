@@ -9,20 +9,28 @@ from whoweb.users.models import Seat, OrganizationCredentials, Group
 from whoweb.users.serializers import (
     SeatSerializer,
     OrganizationCredentialsSerializer,
-    GroupSerializer,
+    NetworkSerializer,
+    UserSerializer,
 )
 
 User = get_user_model()
 
 
-class NetworkViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Group.objects.all()
-    serializer_class = GroupSerializer
+class UserViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
     permission_classes = [IsSuperUser | ObjectPermissions]
     filter_backends = [DjangoFilterBackend, ObjectPermissionsFilter]
 
 
-class SeatViewSet(viewsets.ReadOnlyModelViewSet):
+class NetworkViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Group.objects.all()
+    serializer_class = NetworkSerializer
+    permission_classes = [IsSuperUser | ObjectPermissions]
+    filter_backends = [DjangoFilterBackend, ObjectPermissionsFilter]
+
+
+class SeatViewSet(viewsets.ModelViewSet):
     queryset = Seat.objects.all()
     serializer_class = SeatSerializer
     permission_classes = [IsSuperUser | ObjectPermissions]

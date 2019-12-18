@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="developerkey",
             name="id",
-            field=contrib.fields.ObscuredAutoField(
+            field=whoweb.contrib.fields.ObscuredAutoField(
                 prefix="dk", primary_key=True, serialize=False, verbose_name="ID"
             ),
         )

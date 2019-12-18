@@ -27,14 +27,14 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="group",
             name="id",
-            field=contrib.fields.ObscuredAutoField(
+            field=whoweb.contrib.fields.ObscuredAutoField(
                 prefix="ntw", primary_key=True, serialize=False, verbose_name="ID"
             ),
         ),
         migrations.AlterField(
             model_name="seat",
             name="id",
-            field=contrib.fields.ObscuredAutoField(
+            field=whoweb.contrib.fields.ObscuredAutoField(
                 prefix="seat", primary_key=True, serialize=False, verbose_name="ID"
             ),
         ),

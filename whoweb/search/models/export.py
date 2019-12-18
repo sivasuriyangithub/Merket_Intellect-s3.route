@@ -411,7 +411,7 @@ class SearchExport(TimeStampedModel):
             count += 1
             yield row
 
-    def generate_json_rows(self, rows=None):
+    def generate_json_rows(self, rows=None) -> Iterator[str]:
         return (profile.to_version() for profile in self.get_profiles(raw=rows))
 
     def compute_charges(self):

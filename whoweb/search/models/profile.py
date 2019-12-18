@@ -44,6 +44,28 @@ class Skill:
 
 
 @dataclass
+class GenderDiversity:
+    male: float = None
+    female: float = None
+
+
+@dataclass
+class EthnicDiversity:
+    multiple: Optional[float] = None
+    hispanic: Optional[float] = None
+    black: Optional[float] = None
+    asian: Optional[float] = None
+    white: Optional[float] = None
+    native: Optional[float] = None
+
+
+@dataclass
+class Diversity:
+    gender: Optional[GenderDiversity] = None
+    ethnic: Optional[EthnicDiversity] = None
+
+
+@dataclass
 class GradedEmail:
     email: str = ""
     grade: str = ""
@@ -178,6 +200,15 @@ class ResultProfile:
     experience: List[ResultExperience] = field(default_factory=list)
     education_history: List[ResultEducation] = field(default_factory=list)
     skills: List[Skill] = field(default_factory=list)
+
+    geo_loc: Optional[List[float]] = None
+    picture_url: str = ""
+    seniority_level: str = ""
+    time_at_current_company: int = None
+    time_at_current_position: int = None
+    total_experience: int = None
+    business_function: str = ""
+    diversity: Optional[Diversity] = None
 
     email: Optional[str] = None
     emails: List[str] = field(default_factory=list)
@@ -404,11 +435,17 @@ class ResultProfile:
         fields = {}
         if version == "2019-12-05":
             fields = {
-                "profile_id": self.id,
-                "relevance_score": self.relevance_score,
+                "profile_id": self.id or self.web_id,
                 "first_name": self.first_name,
                 "last_name": self.last_name,
                 "company": self.company,
+                "geo_loc": self.geo_loc,
+                "total_experience": self.total_experience,
+                "time_at_current_company": self.time_at_current_company,
+                "time_at_current_position": self.time_at_current_position,
+                "seniority_level": self.seniority_level,
+                "business_function": self.business_function,
+                "diversity": asdict(self.diversity),
                 "title": self.title,
                 "industry": self.industry,
                 "city": self.city,

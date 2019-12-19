@@ -1,6 +1,7 @@
 import json
 import re
 from dataclasses import dataclass, asdict, field
+from enum import Enum
 from typing import Optional, List, Dict
 
 import dacite
@@ -24,6 +25,33 @@ PHONE = "phone"
 PROFILE = "profile"
 
 User = get_user_model()
+
+
+class SocialTypeName(Enum):
+    GOOGLE = "google"
+    HI5 = "hi5"
+    ANGEL = "angel"
+    PINTEREST = "pinterest"
+    TWITTER = "twitter"
+    QUORA = "quora"
+    LINKEDIN = "linkedin"
+    MEETUP = "meetup"
+    CRUNCHBASE = "crunchbase"
+    GRAVATAR = "gravatar"
+    KLOUT = "klout"
+    FACEBOOK = "facebook"
+    GOOGLEPLUS = "googleplus"
+    ABOUTME = "aboutme"
+    ANGELLIST = "angellist"
+
+    def __str__(self):
+        return self.value
+
+
+@dataclass(frozen=True)
+class SocialLink:
+    typeName: str
+    url: str
 
 
 @dataclass
@@ -139,16 +167,12 @@ class DerivedContact:
     phone: List[str] = field(default_factory=list)
     graded_phones: Dict = field(default_factory=dict)
     phone_details: List[GradedPhone] = field(default_factory=list)
+    social_links: List[SocialLink] = field(default_factory=list)
     filters: List[str] = field(default_factory=list)
 
     def __post_init__(self):
-        if not self.fc:
-            return
-        social_profiles = self.fc.get("socialProfiles", [])
         social_profiles_by_type = {
-            social["typeId"]: social["url"]
-            for social in social_profiles
-            if social and social.get("typeId") and social.get("url")
+            social.typeName: social.url for social in self.social_links
         }
         if not self.linkedin_url:
             self.linkedin_url = social_profiles_by_type.get("linkedin")
@@ -215,6 +239,7 @@ class ResultProfile:
     grade: Optional[str] = None
     graded_emails: List[GradedEmail] = field(default_factory=list)
     graded_phones: List[GradedPhone] = field(default_factory=list)
+    social_links: List[SocialLink] = field(default_factory=list)
     li_url: str = ""
     facebook: str = ""
     twitter: str = ""
@@ -289,6 +314,7 @@ class ResultProfile:
         self.li_url = derived.linkedin_url
         self.facebook = derived.facebook
         self.twitter = derived.twitter
+        self.social_links = derived.social_links
 
         if not self.company and derived.extra:
             self.company = derived.extra.company
@@ -456,6 +482,7 @@ class ResultProfile:
                 "experience": [asdict(e) for e in self.experience],
                 "education_history": [asdict(edu) for edu in self.education_history],
                 "skills": [asdict(skill) for skill in self.skills],
+                "social_links": [asdict(link) for link in self.social_links],
             }
         return json.dumps(fields, cls=DjangoJSONEncoder)
 

@@ -30,7 +30,7 @@ class ExportOptionsSerializer(serializers.ModelSerializer):
 
 
 class FilteredSearchFilterElementSerializer(serializers.ModelSerializer):
-    value = serializers.JSONField(source="value", style={"base_template": "input.html"})
+    value = serializers.JSONField(style={"base_template": "input.html"})
 
     class Meta:
         model = FilteredSearchFilterElement

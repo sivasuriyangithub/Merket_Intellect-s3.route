@@ -73,7 +73,7 @@ def process_export(self, export_id):
         if pages:
             raise self.retry(max_retries=2000, countdown=4)
         else:
-            export.do_post_page_completion(task_context=self.request)
+            export.do_post_pages_completion(task_context=self.request)
 
 
 @celery_app.task(

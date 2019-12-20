@@ -869,7 +869,7 @@ class SearchExportPage(TimeStampedModel):
             return
         scroll = self.export.scroll
         ids = scroll.get_ids_for_page(self.page_num)
-        profiles = scroll.get_profiles_for_page(self.page_num)
+        profiles = [p.to_json() for p in scroll.get_profiles_for_page(self.page_num)]
         if self.limit:
             self.count = min(self.limit, len(profiles))
             self.data = profiles[: self.limit]

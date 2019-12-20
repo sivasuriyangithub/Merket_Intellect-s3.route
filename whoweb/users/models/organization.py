@@ -42,7 +42,7 @@ class Group(AbstractOrganization):
             self._org_owner_model.objects.create(
                 organization=self, organization_user=org_user
             )
-            creds_group = self.organization.credentials_admin_authgroup
+            creds_group = self.credentials_admin_authgroup
             if created:
                 user.groups.add(creds_group)
 
@@ -109,7 +109,7 @@ class Group(AbstractOrganization):
 
     @transaction.atomic
     def change_owner(self, new_owner):
-        creds_group = self.organization.credentials_admin_authgroup
+        creds_group = self.credentials_admin_authgroup
         from_user = self.owner.organization_user.user
         from_user.groups.remove(creds_group)
 

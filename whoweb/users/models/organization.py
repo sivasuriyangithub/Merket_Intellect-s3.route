@@ -49,7 +49,7 @@ class Group(AbstractOrganization):
         if created:
             # User added signal
             user_added.send(sender=self, user=user)
-            user.groups.add(self.default_permission_groups)
+            user.groups.add(self.default_permission_groups())
         return org_user, created
 
     @transaction.atomic
@@ -62,7 +62,7 @@ class Group(AbstractOrganization):
     @transaction.atomic
     def remove_user(self, user):
         super().remove_user(user)
-        user.groups.remove(self.default_permission_groups)
+        user.groups.remove(self.default_permission_groups())
 
     @property
     def credentials_admin_authgroup(self):
@@ -100,7 +100,7 @@ class Group(AbstractOrganization):
     @property
     def network_viewers(self):
         group, created = authGroup.objects.get_or_create(
-            name=f"org:{self.slug}.network)_viewers"
+            name=f"org:{self.slug}.network_viewers"
         )
         if created:
             assign_perm("users.view_group", group)

@@ -25,6 +25,10 @@ class Group(AbstractOrganization):
             ("add_seats", "May add seats to this organization"),
         )
 
+    @property
+    def permissions_scope(self):
+        return f"org.{self.slug}"
+
     def get_or_add_user(self, user, **kwargs):
         """
         Same as super(), but
@@ -42,32 +46,40 @@ class Group(AbstractOrganization):
             self._org_owner_model.objects.create(
                 organization=self, organization_user=org_user
             )
-            creds_group = self.credentials_admin_authgroup
             if created:
-                user.groups.add(creds_group)
+                user.groups.add(*self.default_admin_permission_groups)
 
         if created:
             # User added signal
             user_added.send(sender=self, user=user)
-            user.groups.add(*self.default_permission_groups())
+            user.groups.add(*self.default_permission_groups)
         return org_user, created
 
+    @property
+    @transaction.atomic
+    def default_admin_permission_groups(self):
+        return [self.credentials_admin_authgroup, self.seat_admin_authgroup]
+
+    @property
     @transaction.atomic
     def default_permission_groups(self):
-        return (self.seat_viewers, self.network_viewers)
+        return [self.seat_viewers, self.network_viewers]
 
     def add_user(self, user, **kwargs):
         return self.get_or_add_user(user, **kwargs)[0]
 
     @transaction.atomic
     def remove_user(self, user):
+        group_authGroups = authGroup.objects.filter(
+            name__startswith=f"{self.permissions_scope}:"
+        )
+        user.groups.remove(*list(group_authGroups))
         super().remove_user(user)
-        user.groups.remove(*self.default_permission_groups())
 
     @property
     def credentials_admin_authgroup(self):
         group, created = authGroup.objects.get_or_create(
-            name=f"{self.slug}:developer_keys_admin"
+            name=f"{self.permissions_scope}:developer_keys_admin"
         )
         if created:
             assign_perm("add_developerkeys", group, self)  # object level
@@ -79,7 +91,7 @@ class Group(AbstractOrganization):
     @property
     def seat_admin_authgroup(self):
         group, created = authGroup.objects.get_or_create(
-            name=f"org:{self.slug}.seat_admin"
+            name=f"{self.permissions_scope}:seat_admin"
         )
         if created:
             assign_perm("add_seats", group, self)  # object level
@@ -91,7 +103,7 @@ class Group(AbstractOrganization):
     @property
     def seat_viewers(self):
         group, created = authGroup.objects.get_or_create(
-            name=f"org:{self.slug}.seat_viewers"
+            name=f"{self.permissions_scope}:seat_viewers"
         )
         if created:
             assign_perm("users.view_seat", group)
@@ -100,7 +112,7 @@ class Group(AbstractOrganization):
     @property
     def network_viewers(self):
         group, created = authGroup.objects.get_or_create(
-            name=f"org:{self.slug}.network_viewers"
+            name=f"{self.permissions_scope}:network_viewers"
         )
         if created:
             assign_perm("users.view_group", group)
@@ -108,15 +120,18 @@ class Group(AbstractOrganization):
         return group
 
     @transaction.atomic
-    def change_owner(self, new_owner):
-        creds_group = self.credentials_admin_authgroup
+    def change_owner(self, new_owner: "Seat"):
         from_user = self.owner.organization_user.user
-        from_user.groups.remove(creds_group)
+        admin_groups = list(
+            from_user.groups.filter(name__startswith=f"{self.permissions_scope}:")
+        )
+        from_user.groups.remove(*admin_groups)
+        from_user.groups.add(*self.default_permission_groups)
 
         super().change_owner(new_owner)
 
         to_user = new_owner.user
-        to_user.groups.add(creds_group)
+        to_user.groups.add(*admin_groups)
 
 
 class Seat(AbstractOrganizationUser):
@@ -147,6 +162,10 @@ class GroupOwner(AbstractOrganizationOwner):
     class Meta:
         verbose_name = _("network admin")
         verbose_name_plural = _("network admins")
+
+    @property
+    def user(self):
+        return self.organization_user.user
 
 
 def make_key():

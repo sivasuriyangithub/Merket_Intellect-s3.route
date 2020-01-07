@@ -1,5 +1,12 @@
 from whoweb.accounting.models import Ledger
 
+account_code_to_short_name = {
+    100: "credits_sold",
+    200: "credits_outstanding",
+    300: "credits_used",
+    400: "credits_expired",
+}
+
 
 def wkcredits_sold_ledger():
 

@@ -1,8 +1,7 @@
 from rest_framework import serializers
-from rest_framework.reverse import reverse
-from rest_framework_extensions.fields import ResourceUriField
 from slugify import slugify
 
+from whoweb.accounting.serializers import TransactionSerializer
 from whoweb.contrib.rest_framework.fields import (
     MultipleChoiceListField,
     PublicPrivateMultipleChoiceListField,
@@ -14,9 +13,7 @@ from whoweb.search.models import (
     FilteredSearchFilters,
     ExportOptions,
     FilteredSearchFilterElement,
-    ResultProfile,
 )
-from whoweb.search.models.export import SearchExportPage
 from whoweb.users.models import UserProfile
 
 
@@ -94,6 +91,7 @@ class SearchExportSerializer(serializers.HyperlinkedModelSerializer):
         write_only=True, required=False
     )
     credits_per_phone = serializers.IntegerField(write_only=True, required=False)
+    transactions = TransactionSerializer(many=True, read_only=True)
 
     class Meta:
         model = SearchExport
@@ -110,6 +108,7 @@ class SearchExportSerializer(serializers.HyperlinkedModelSerializer):
             "target",
             "with_invites",
             "results_url",
+            "transactions",
         ]
         fields = [
             "url",
@@ -137,6 +136,7 @@ class SearchExportSerializer(serializers.HyperlinkedModelSerializer):
             "credits_per_work_email",
             "credits_per_personal_email",
             "credits_per_phone",
+            "transactions",
         ]
 
     def get_status_name(self, obj):
@@ -175,6 +175,7 @@ class SearchExportSerializer(serializers.HyperlinkedModelSerializer):
             query=validated_data["query"],
             notify=True,
             uploadable=validated_data["uploadable"],
+            charge=True,
         )
         return export
 

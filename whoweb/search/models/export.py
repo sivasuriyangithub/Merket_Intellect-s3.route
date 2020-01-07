@@ -29,6 +29,9 @@ from model_utils.models import TimeStampedModel
 from requests_cache import CachedSession
 from six import BytesIO
 
+from whoweb.accounting.models import Transaction, MatchType
+from whoweb.accounting.ledgers import wkcredits_fulfilled_ledger
+from whoweb.accounting.queries import get_balances_for_object
 from whoweb.contrib.fields import CompressedBinaryJSONField
 from whoweb.contrib.postgres.fields import EmbeddedModelField
 from whoweb.core.models import ModelEvent
@@ -132,8 +135,6 @@ class SearchExport(TimeStampedModel):
     progress_counter = models.IntegerField(default=0)
     target = models.IntegerField(default=0)
 
-    charged = models.IntegerField(null=True, blank=True)
-
     notify = models.BooleanField(default=False)
     charge = models.BooleanField(default=False)
     uploadable = models.BooleanField(default=False, editable=False)
@@ -156,9 +157,11 @@ class SearchExport(TimeStampedModel):
     def create_from_query(cls, seat: Seat, query: dict, **kwargs):
         with transaction.atomic():
             export = cls(seat=seat, query=query, **kwargs)
-            export._set_target()
             if not export.should_derive_email:
                 export.charge = False
+            export = export._set_target(
+                save=True
+            )  # save here because export needs a pk to be added as evidence to transaction below
             if export.charge:
                 plan: WKPlan = seat.billing.plan
                 if not plan:
@@ -175,15 +178,14 @@ class SearchExport(TimeStampedModel):
                 )
                 if not charged:
                     raise SubscriptionError(
-                        "Not enough credits to complete this export."
+                        f"Not enough credits to complete this export. "
+                        f"{seat.billing.credits} available but {credits_to_charge} required"
                     )
-                export.charged = credits_to_charge
-            export.save()
-        tasks = export.processing_signatures()
-        res = tasks.apply_async()
-        export.log_event(
-            evt=ENQUEUED_FROM_QUERY, signatures=str(tasks), async_result=str(res)
-        )
+        # tasks = export.processing_signatures()
+        # res = tasks.apply_async()
+        # export.log_event(
+        #     evt=ENQUEUED_FROM_QUERY, signatures=str(tasks), async_result=str(res)
+        # )
         return export
 
     def locked(self, **kwargs):
@@ -277,6 +279,20 @@ class SearchExport(TimeStampedModel):
         if self.uploadable:
             columns = columns + self.UPLOADABLE_COLS
         return sorted(columns)
+
+    @property
+    def charged(self):
+        used_credit_ledger = wkcredits_fulfilled_ledger()
+        for ledger, balance in get_balances_for_object(self).items():
+            if ledger == used_credit_ledger:
+                return balance
+        return 0
+
+    @property
+    def transactions(self):
+        return Transaction.objects.filter_by_related_objects(
+            (self,), match_type=MatchType.ANY
+        )
 
     def _set_target(self, save=False):
         limit = self.query.filters.limit or 0
@@ -523,7 +539,6 @@ class SearchExport(TimeStampedModel):
                     evidence=(export,),
                     notes="Computed for inline-validated export at post page completion stage.",
                 )
-                export.charged = F("charged") - credits_to_refund
             export.status = SearchExport.STATUS.pages_complete
             export.save()
 
@@ -547,8 +562,6 @@ class SearchExport(TimeStampedModel):
                 evidence=(export,),
                 notes="Computed for deferred-validation export at post validation stage.",
             )
-            export.charged = F("charged") - credits_to_refund
-        export.save()
         export.return_validation_results_to_cache()
         return True
 

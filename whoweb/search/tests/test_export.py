@@ -4,6 +4,7 @@ from unittest.mock import patch, Mock, PropertyMock
 import pytest
 from pytest_cases import fixture_ref, pytest_parametrize_plus
 
+from whoweb.payments.tests.factories import BillingAccountMemberFactory
 from whoweb.search.models import SearchExport
 from whoweb.search.tests.factories import SearchExportFactory
 
@@ -177,28 +178,65 @@ def test_ensure_search_interface(query_contact_invites):
     "target,charged,progress,refund",
     [(1000, 1000, 999, 1), (1010, 1010, 1000, 10), (1000, 1000, 1000, 0)],
 )
+@patch("whoweb.search.models.SearchExport.charged", new_callable=PropertyMock)
 @patch("whoweb.search.models.SearchExport.compute_charges")
-def test_do_post_pages_completion(compute_charges, target, charged, progress, refund):
+def test_do_post_pages_completion(
+    compute_charges, charged_mock, target, charged, progress, refund
+):
     export: SearchExport = SearchExportFactory(
-        target=target, charged=charged, progress_counter=progress, charge=True
+        target=target, progress_counter=progress, charge=True
     )
+    charged_mock.return_value = charged
     compute_charges.return_value = progress
     export.do_post_pages_completion()
     export.refresh_from_db()
-    assert export.charged == charged - refund
     assert export.seat.billing.seat_credits == refund
     assert export.status == 4
+
+
+@patch("whoweb.search.models.SearchExport.processing_signatures")
+@patch("whoweb.search.models.SearchExport.return_validation_results_to_cache")
+@patch("whoweb.search.models.SearchExport.compute_charges")
+@patch("whoweb.search.models.SearchExport.get_validation_results")
+def test_lifecyle_charges(
+    get_validation_results,
+    compute_charges,
+    cache_mock,
+    processing_signatures,
+    query_contact_invites_defer_validation,
+):
+    seat = BillingAccountMemberFactory(seat_credits=3500000).seat
+    export = SearchExport.create_from_query(
+        seat=seat, query=query_contact_invites_defer_validation, charge=True
+    )
+    export.refresh_from_db()
+    assert export.target == 5000
+    assert export.charged == 3500000
+    seat.refresh_from_db()
+    assert seat.billing.credits == 0
+
+    get_validation_results.return_value = [
+        {"profile_id": "1", "email": "1@acme.com", "grade": "A+"}
+    ] * 100
+    compute_charges.return_value = 10000
+    export.do_post_validation_completion()
+
+    assert export.charged == 10000
+    seat.refresh_from_db()
+    assert seat.billing.credits == 3490000
 
 
 @pytest.mark.parametrize(
     "charged,valid,this_refund", [(1000, 200, 800), (1000, 0, 1000), (990, 990, 0)]
 )
 @patch("whoweb.search.models.SearchExport.return_validation_results_to_cache")
+@patch("whoweb.search.models.SearchExport.charged", new_callable=PropertyMock)
 @patch("whoweb.search.models.SearchExport.compute_charges")
 @patch("whoweb.search.models.SearchExport.get_validation_results")
 def test_do_post_validation_completion(
     get_validation_results,
     compute_charges,
+    charged_mock,
     cache_mock,
     charged,
     valid,
@@ -206,8 +244,9 @@ def test_do_post_validation_completion(
     query_contact_invites_defer_validation,
 ):
     export: SearchExport = SearchExportFactory(
-        query=query_contact_invites_defer_validation, charged=charged, charge=True
+        query=query_contact_invites_defer_validation, charge=True
     )
+    charged_mock.return_value = charged
     get_validation_results.return_value = [
         {"profile_id": "1", "email": "1@acme.com", "grade": "A+"}
     ] * valid
@@ -215,7 +254,6 @@ def test_do_post_validation_completion(
     export.do_post_validation_completion()
     assert cache_mock.call_count == 1
     export.refresh_from_db()
-    assert export.charged == charged - this_refund
     assert export.seat.billing.seat_credits == this_refund  # factory default creds == 0
     assert export.status == 16
 

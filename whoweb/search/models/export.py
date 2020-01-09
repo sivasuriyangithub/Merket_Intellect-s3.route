@@ -117,7 +117,7 @@ class SearchExport(TimeStampedModel):
         (128, "complete", "Export Complete"),
     )
 
-    seat = models.ForeignKey(Seat, on_delete=models.CASCADE)
+    seat = models.ForeignKey(Seat, on_delete=models.CASCADE, null=True)
     scroll = models.ForeignKey(ScrollSearch, on_delete=models.SET_NULL, null=True)
     uuid = models.UUIDField(default=uuid.uuid4, db_index=True, blank=True)
     query = EmbeddedModelField(
@@ -181,11 +181,11 @@ class SearchExport(TimeStampedModel):
                         f"Not enough credits to complete this export. "
                         f"{seat.billing.credits} available but {credits_to_charge} required"
                     )
-        # tasks = export.processing_signatures()
-        # res = tasks.apply_async()
-        # export.log_event(
-        #     evt=ENQUEUED_FROM_QUERY, signatures=str(tasks), async_result=str(res)
-        # )
+        tasks = export.processing_signatures()
+        res = tasks.apply_async()
+        export.log_event(
+            evt=ENQUEUED_FROM_QUERY, signatures=str(tasks), async_result=str(res)
+        )
         return export
 
     def locked(self, **kwargs):

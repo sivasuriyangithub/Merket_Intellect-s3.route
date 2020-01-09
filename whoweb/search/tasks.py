@@ -20,19 +20,17 @@ MAX_DERIVE_RETRY = 3
     bind=True, max_retries=3000, track_started=True, autoretry_for=NETWORK_ERRORS
 )
 def alert_xperweb(self, export_id):
-    logger.info("Letting Xperweb know to charge user for <SearchExport %s>", export_id)
+    logger.info("Letting Xperweb know <SearchExport %s> is done", export_id)
     try:
         export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
         return
-    if export.charge:
-        res = router.alert_xperweb_export_completion(
-            idempotency_key=export.uuid, amount=export.charged
-        )
-        if not res.ok:
-            self.retry(max_retries=50)
-        return res.content
-    return True
+    res = router.alert_xperweb_export_completion(
+        idempotency_key=export.uuid, amount=export.charged
+    )
+    if not res.ok:
+        self.retry(max_retries=50)
+    return res.content
 
 
 @celery_app.task(

@@ -159,8 +159,9 @@ class SearchExportSerializer(serializers.HyperlinkedModelSerializer):
             ]:
                 if field not in attrs:
                     raise serializers.ValidationError(
-                        "All fields are required for this export."
+                        "All user fields are required for this export."
                     )
+        return attrs
 
     def create(self, validated_data):
         from whoweb.users.models import Group

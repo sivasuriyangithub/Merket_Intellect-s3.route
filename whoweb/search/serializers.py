@@ -169,7 +169,6 @@ class SearchExportSerializer(serializers.HyperlinkedModelSerializer):
         if not validated_data["uploadable"]:
             group_id = validated_data["group_id"]
             group_name = validated_data.get("group_name", group_id)
-            billing_account_name = f"{group_name} Primary Billing Account"
             xperweb_id = validated_data["xperweb_id"]
             email = validated_data["email"]
             profile, _ = UserProfile.get_or_create(username=xperweb_id, email=email)
@@ -185,6 +184,10 @@ class SearchExportSerializer(serializers.HyperlinkedModelSerializer):
                 credits_per_personal_email=validated_data["credits_per_personal_email"],
                 credits_per_phone=validated_data["credits_per_phone"],
             )
+            if group_id == "public":
+                billing_account_name = f"{xperweb_id} Primary Billing Account"
+            else:
+                billing_account_name = f"{group_name} Primary Billing Account"
             billing_account, _ = BillingAccount.objects.update_or_create(
                 name=billing_account_name,
                 slug=slugify(billing_account_name),

@@ -1,7 +1,7 @@
 import json
 import logging
 from copy import deepcopy
-from typing import Optional, Union, List
+from typing import Optional, Union, List, Type
 
 import requests
 import six
@@ -12,44 +12,6 @@ from .requestor import ColdEmailApiRequestor
 from .utils import utf8
 
 logger = logging.getLogger("coldEmail")
-
-
-def convert_to_coldemail_object(
-    action: str, resp: Union[dict, list, "ColdEmailObject"], api_key: Optional[str]
-) -> Union["ColdEmailObject", List["ColdEmailObject"], None]:
-    types = {
-        "campaign": Campaign,
-        "list": CampaignList,
-        "message": Message,
-        "record": ListRecord,
-        "single_email": SingleEmail,
-    }
-    if isinstance(resp, list):
-        return [convert_to_coldemail_object(action, i, api_key) for i in resp]
-    elif isinstance(resp, dict) and not isinstance(resp, ColdEmailObject):
-        resp = resp.copy()
-
-        klass_name = None
-        for typ in types.keys():
-            if resp.get(typ):
-                klass_name = typ
-
-        if isinstance(klass_name, six.string_types):
-            klass = types.get(klass_name, ColdEmailObject)
-        else:
-            klass = ColdEmailObject
-
-        if klass_name in resp:
-            obj_or_array = resp[klass_name]
-            if isinstance(obj_or_array, list):
-                return [
-                    klass.construct_from(action, obj, api_key) for obj in obj_or_array
-                ]
-            return klass.construct_from(action, obj_or_array, api_key)
-        else:
-            return klass.construct_from(action, resp, api_key)
-    else:
-        return resp
 
 
 def _compute_diff(current, previous):
@@ -282,9 +244,47 @@ class ColdEmailObject(dict):
         return copied
 
 
+def convert_to_coldemail_object(
+    action: str, resp: Union[dict, list, ColdEmailObject], api_key: Optional[str]
+) -> Union[Type[ColdEmailObject], List[Type[ColdEmailObject]], None]:
+    types = {
+        "campaign": Campaign,
+        "list": CampaignList,
+        "message": Message,
+        "record": ListRecord,
+        "single_email": SingleEmail,
+    }
+    if isinstance(resp, list):
+        return [convert_to_coldemail_object(action, i, api_key) for i in resp]
+    elif isinstance(resp, dict) and not isinstance(resp, ColdEmailObject):
+        resp = resp.copy()
+
+        klass_name = None
+        for typ in types.keys():
+            if resp.get(typ):
+                klass_name = typ
+
+        if isinstance(klass_name, six.string_types):
+            klass = types.get(klass_name, ColdEmailObject)
+        else:
+            klass = ColdEmailObject
+
+        if klass_name in resp:
+            obj_or_array = resp[klass_name]
+            if isinstance(obj_or_array, list):
+                return [
+                    klass.construct_from(action, obj, api_key) for obj in obj_or_array
+                ]
+            return klass.construct_from(action, obj_or_array, api_key)
+        else:
+            return klass.construct_from(action, resp, api_key)
+    else:
+        return resp
+
+
 class APIResource(ColdEmailObject):
     @classmethod
-    def retrieve(cls, id, api_key=None, **params):
+    def retrieve(cls, id, api_key=None, **params) -> "APIResource":
         instance = cls(id, api_key, **params)
         instance.refresh()
         return instance
@@ -477,7 +477,7 @@ class CampaignList(CreateableResource, DeleteableResource, ListableResource):
             return super().construct_from(action, values, key)
 
     @classmethod
-    def create_by_url(cls, api_key=None, **params):
+    def create_by_url(cls, api_key=None, **params) -> Optional["CampaignList"]:
         requestor = ColdEmailApiRequestor(api_key)
         response, api_key = requestor.request(cls.area, "uploadlistbyurl", **params)
         return convert_to_coldemail_object(

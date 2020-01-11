@@ -11,30 +11,28 @@ import requests
 from celery import group
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.postgres.fields import JSONField, ArrayField
 from django.core.mail import send_mail
 from django.db import models, transaction
 from django.db.models import F
 from django.template.loader import render_to_string
 from django.urls import reverse
-from django.utils.six import string_types
 from django.utils.translation import ugettext_lazy as _
 from django_celery_results.models import TaskResult
 from dns import resolver
 from model_utils import Choices
 from model_utils.fields import MonitorField
 from model_utils.managers import QueryManagerMixin
-from model_utils.models import TimeStampedModel
+from model_utils.models import TimeStampedModel, SoftDeletableModel
 from requests_cache import CachedSession
 from six import BytesIO
 
-from whoweb.accounting.models import Transaction, MatchType
 from whoweb.accounting.ledgers import wkcredits_fulfilled_ledger
+from whoweb.accounting.models import Transaction, MatchType
 from whoweb.accounting.queries import get_balances_for_object
 from whoweb.contrib.fields import CompressedBinaryJSONField
 from whoweb.contrib.postgres.fields import EmbeddedModelField
-from whoweb.core.models import ModelEvent
+from whoweb.core.models import EventLoggingModel
 from whoweb.core.router import router, external_link
 from whoweb.payments.models import WKPlan
 from whoweb.search.events import (
@@ -64,7 +62,7 @@ class SearchExportManager(QueryManagerMixin, models.Manager):
     pass
 
 
-class SearchExport(TimeStampedModel):
+class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     DERIVATION_RATIO = 4.0
     SIMPLE_CAP = 1000
     SKIP_CODE = "MAGIC_SKIP_CODE_NO_VALIDATION_NEEDED"
@@ -107,6 +105,7 @@ class SearchExport(TimeStampedModel):
     DERIVATION_COLS = list(range(10, 25)) + [26, 27, 28]
     UPLOADABLE_COLS = [29, 30]
 
+    EVENT_REVERSE_NAME = "export"
     STATUS = Choices(
         (0, "created", "Created"),
         (2, "pages_working", "Pages Running"),
@@ -140,8 +139,6 @@ class SearchExport(TimeStampedModel):
     uploadable = models.BooleanField(default=False, editable=False)
 
     on_trial = models.BooleanField(default=False)  # ????
-
-    events = GenericRelation(ModelEvent, related_query_name="export")
 
     # Managers
     objects = SearchExportManager()
@@ -811,29 +808,6 @@ class SearchExport(TimeStampedModel):
         return reverse(
             "search:download_export", kwargs={"uuid": self.uuid, "filetype": filetype}
         )
-
-    def log_event(self, evt, *, start=None, end=None, task=None, **data):
-        if hasattr(task, "id"):
-            data["task_id"] = task.id
-        if isinstance(evt, string_types):
-            code = 0
-            message = evt
-        else:
-            code = evt[0]
-            message = evt[1]
-        try:
-            ModelEvent.objects.create(
-                ref=self, code=code, message=message, start=start, end=end, data=data
-            )
-        except TypeError:
-            ModelEvent.objects.create(
-                ref=self,
-                code=code,
-                message=message,
-                start=start,
-                end=end,
-                data=str(data),
-            )
 
 
 class SearchExportPage(TimeStampedModel):

@@ -1,7 +1,6 @@
 from admin_actions.admin import ActionsModelAdmin
 from django.contrib import admin, messages
 from django.contrib.admin import TabularInline
-from django.db.models import Case, When, BooleanField
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.safestring import mark_safe
@@ -129,7 +128,6 @@ class ExportAdmin(ActionsModelAdmin):
         "target",
         "sent",
         "sent_at",
-        "charged",
         "validation_list_id",
         "column_names",
     )

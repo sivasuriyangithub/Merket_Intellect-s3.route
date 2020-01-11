@@ -309,8 +309,8 @@ class LedgerEntry(models.Model):
     modified_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return "LedgerEntry: ${amount} in {ledger}".format(
-            amount=self.amount, ledger=self.ledger.name
+        return "LedgerEntry: {amount} credits in {ledger}".format(
+            amount=self.amount / 100, ledger=self.ledger.name
         )
 
 
@@ -357,7 +357,7 @@ def ledger_balances():
     Make a relation from an evidence model to its LedgerBalance entries.
     """
     return GenericRelation(
-        "LedgerBalance",
+        "accounting.LedgerBalance",
         content_type_field="related_object_content_type",
         object_id_field="related_object_id",
     )

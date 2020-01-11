@@ -396,22 +396,24 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         return row
 
     def generate_csv_rows(self, rows=None):
-
-        mx_registry = MXDomain.registry_for_domains(
-            domains=(
-                profile.domain
-                for profile in self.get_profiles(raw=rows)
-                if profile.domain
+        if self.uploadable:
+            mx_registry = MXDomain.registry_for_domains(
+                domains=(
+                    profile.domain
+                    for profile in self.get_profiles(raw=rows)
+                    if profile.domain
+                )
             )
-        )
 
-        mx_profiles = (
-            profile.set_mx(mx_registry=mx_registry)
-            for profile in self.get_profiles(raw=rows)
-        )
+            profiles = (
+                profile.set_mx(mx_registry=mx_registry)
+                for profile in self.get_profiles(raw=rows)
+            )
+        else:
+            profiles = self.get_profiles(raw=rows)
         yield self.get_column_names()
         count = 0
-        for profile in mx_profiles:
+        for profile in profiles:
             if count >= self.target:
                 break
             row = self.get_csv_row(

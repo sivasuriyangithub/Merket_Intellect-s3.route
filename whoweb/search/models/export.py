@@ -188,7 +188,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     def locked(self, **kwargs):
         return (
             self.__class__.objects.filter(id=self.pk, **kwargs)
-            .select_for_update(skip_locked=True, of=("self",))
+            .select_for_update(of=("self",))
             .first()
         )
 

@@ -55,3 +55,6 @@ class CampaignMessage(ColdemailBaseModel):
 class CampaignMessageTemplate(CampaignMessage):
     def publish(self, *args, **kwargs):
         raise NotImplemented
+
+    def api_upload(self, *args, **kwargs):
+        raise NotImplemented

@@ -1,12 +1,12 @@
-from typing import Union, Type
+from typing import Union
 
 from django.db import models
+from django.utils.translation import ugettext_lazy as _
 from model_utils import Choices
 from model_utils.fields import MonitorField
-from model_utils.models import TimeStampedModel, StatusModel, SoftDeletableModel
+from model_utils.models import TimeStampedModel, SoftDeletableModel
 
 from whoweb.coldemail.api.resource import (
-    APIResource,
     CreateableResource,
     ListableResource,
     UpdateableResource,
@@ -15,14 +15,21 @@ from whoweb.coldemail.api.resource import (
 from whoweb.core.models import EventLoggingModel
 
 
-class ColdemailBaseModel(
-    TimeStampedModel, StatusModel, EventLoggingModel, SoftDeletableModel
-):
+class ColdemailBaseModel(TimeStampedModel, EventLoggingModel, SoftDeletableModel):
     api_class: Union[
         CreateableResource, ListableResource, UpdateableResource, DeleteableResource
     ] = None
-    STATUS = Choices("created", "pending", "published", "paused")
 
+    STATUS = Choices(
+        (0, "created", "Created"),
+        (2, "pending", "Pending"),
+        (4, "published", "Published"),
+        (8, "paused", "Paused"),
+    )
+    status = models.IntegerField(
+        _("status"), db_index=True, choices=STATUS, blank=True, default=STATUS.created
+    )
+    status_changed = MonitorField(_("status changed"), monitor="status")
     coldemail_id = models.CharField(max_length=100)
     is_removed_changed = MonitorField("deleted at", monitor="is_removed")
     published_at = MonitorField(monitor="status", when=["published"])

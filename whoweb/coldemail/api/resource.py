@@ -140,7 +140,7 @@ class ColdEmailObject(dict):
         return reduce_value
 
     @classmethod
-    def construct_from(cls, action, values, key):
+    def construct_from(cls, action, values, key) -> "ColdEmailObject":
         instance = cls(values.get("id"), api_key=key)
         instance.refresh_from(values, api_key=key)
         return instance
@@ -245,8 +245,10 @@ class ColdEmailObject(dict):
 
 
 def convert_to_coldemail_object(
-    action: str, resp: Union[dict, list, ColdEmailObject], api_key: Optional[str]
-) -> Union[Type[ColdEmailObject], List[Type[ColdEmailObject]], None]:
+    action: Optional[str],
+    resp: Union[dict, list, Type[ColdEmailObject]],
+    api_key: Optional[str],
+) -> Union[ColdEmailObject, List[ColdEmailObject], None]:
     types = {
         "campaign": Campaign,
         "list": CampaignList,
@@ -254,9 +256,11 @@ def convert_to_coldemail_object(
         "record": ListRecord,
         "single_email": SingleEmail,
     }
-    if isinstance(resp, list):
+    if isinstance(resp, ColdEmailObject):
+        return resp
+    elif isinstance(resp, list):
         return [convert_to_coldemail_object(action, i, api_key) for i in resp]
-    elif isinstance(resp, dict) and not isinstance(resp, ColdEmailObject):
+    elif isinstance(resp, dict):
         resp = resp.copy()
 
         klass_name = None

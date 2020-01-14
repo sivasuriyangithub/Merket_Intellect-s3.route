@@ -27,6 +27,7 @@ from model_utils.models import TimeStampedModel, SoftDeletableModel
 from requests_cache import CachedSession
 from six import BytesIO
 
+from core.exceptions import ModelLockedError
 from whoweb.accounting.ledgers import wkcredits_fulfilled_ledger
 from whoweb.accounting.models import Transaction, MatchType
 from whoweb.accounting.queries import get_balances_for_object
@@ -116,7 +117,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         (128, "complete", "Export Complete"),
     )
 
-    seat = models.ForeignKey(Seat, on_delete=models.CASCADE, null=True)
+    seat = models.ForeignKey(Seat, on_delete=models.CASCADE, null=True, blank=True)
     scroll = models.ForeignKey(ScrollSearch, on_delete=models.SET_NULL, null=True)
     uuid = models.UUIDField(default=uuid.uuid4, db_index=True, blank=True)
     query = EmbeddedModelField(
@@ -520,6 +521,8 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             export.status = SearchExport.STATUS.pages_working
             export.save()
             return export._generate_pages()
+        else:
+            raise ModelLockedError
 
     def get_next_empty_page(self, batch=1) -> Optional["SearchExportPage"]:
         return self.pages.filter(data__isnull=True)[:batch]

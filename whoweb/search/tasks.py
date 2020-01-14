@@ -5,6 +5,7 @@ from celery.result import GroupResult
 from requests import HTTPError, Timeout, ConnectionError
 
 from config import celery_app
+from core.exceptions import ModelLockedError
 from whoweb.core.router import router
 from whoweb.search.models import SearchExport, ResultProfile
 from whoweb.search.models.export import MXDomain, SearchExportPage
@@ -66,7 +67,7 @@ def process_export(self, export_id):
     else:
         try:
             pages = export.generate_pages(task_context=self.request)
-        except (HTTPError, Timeout, ConnectionError) as exc:
+        except (HTTPError, Timeout, ConnectionError, ModelLockedError) as exc:
             raise self.retry(exc=exc, max_retries=2000, retry_backoff=True)
         if pages:
             raise self.retry(max_retries=2000, countdown=4)

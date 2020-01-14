@@ -1,0 +1,2 @@
+class ModelLockedError(Exception):
+    pass

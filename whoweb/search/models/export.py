@@ -694,11 +694,9 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
                 tasks.append(fetch_mx_domain.si(mxd.pk))
         if not tasks:
             return None
-        task_group = group(tasks)
-        group_task = task_group.apply_async()
-        group_result = group_task.save()
-        self.log_event(evt=SPAWN_MX, task=group_result)
-        return group_result
+        mx_tasks = group(tasks)
+        self.log_event(evt=SPAWN_MX)
+        return mx_tasks
 
     def push_to_webhooks(self, rows):
         pass
@@ -770,7 +768,6 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             send_notification,
             do_post_validation_completion,
             spawn_mx_group,
-            header_check,
             alert_xperweb,
         )
 
@@ -786,10 +783,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         if self.notify:
             sigs |= send_notification.si(self.pk)
         if self.uploadable:
-            sigs |= (
-                spawn_mx_group.si(self.pk)
-                | header_check.s()  # mutable signature to accept group_id
-            )
+            sigs |= spawn_mx_group.si(self.pk)
         sigs |= alert_xperweb.si(self.pk)
         return sigs
 
@@ -845,7 +839,7 @@ class SearchExportPage(TimeStampedModel):
     def locked(self):
         return (
             self.__class__.objects.filter(id=self.pk)
-            .select_for_update(skip_locked=True, of=("self",))
+            .select_for_update(of=("self",))
             .first()
         )
 
@@ -872,8 +866,7 @@ class SearchExportPage(TimeStampedModel):
     @transaction.atomic
     def populate_data_directly(self):
         page = self.locked()
-        if page:
-            return page._populate_data_directly()
+        return page._populate_data_directly()
 
     def do_page_process(self, task_context=None):
         from whoweb.search.tasks import (
@@ -932,8 +925,7 @@ class SearchExportPage(TimeStampedModel):
     def do_post_page_process(self, task_context=None):
         with transaction.atomic():
             page = self.locked()
-            if page:
-                profiles = page._do_post_page_process(task_context=task_context)
+            profiles = page._do_post_page_process(task_context=task_context)
         self.export.push_to_webhooks(profiles)
 
 

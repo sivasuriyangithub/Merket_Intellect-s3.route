@@ -1,8 +1,8 @@
 import logging
 
 from celery import group
-from celery.result import GroupResult
 from requests import HTTPError, Timeout, ConnectionError
+from sentry_sdk import capture_exception
 
 from config import celery_app
 from whoweb.core.router import router
@@ -56,14 +56,15 @@ def process_export(self, export_id):
     if page_tasks:
         tasks = [pt[0] for pt in page_tasks]
         pages = [pt[1] for pt in page_tasks]
-        (
-            group(*tasks)
-            | process_export.si(export.pk).on_error(process_export.si(export.pk))
-        ).delay()
         for page in pages:
             page.status = SearchExportPage.STATUS.working
             page.save()
-        return "Exited task after queuing pages."
+        raise self.replace(
+            (
+                group(*tasks)
+                | process_export.si(export.pk).on_error(process_export.si(export.pk))
+            )
+        )
     else:
         try:
             pages = export.generate_pages(task_context=self.request)
@@ -139,36 +140,23 @@ def fetch_mx_domain(domain):
         mxd = MXDomain.objects.get(domain=domain)
     except MXDomain.DoesNotExist:
         return 404
-    return mxd.fetch_mx()
+    try:
+        return mxd.fetch_mx()
+    except:
+        capture_exception()
+        return None
 
 
-@celery_app.task(autoretry_for=NETWORK_ERRORS)
-def spawn_mx_group(export_id):
+@celery_app.task(bind=True, autoretry_for=NETWORK_ERRORS)
+def spawn_mx_group(self, export_id):
     try:
         export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
         return 404
-    group_result = export.get_mx_task_group()
-    if group_result is None:
+    group_signature = export.get_mx_task_group()
+    if group_signature is None:
         return False
-    return group_result.id
-
-
-@celery_app.task(
-    bind=True, max_retries=90, ignore_result=False, autoretry_for=NETWORK_ERRORS
-)
-def header_check(self, group_result_id):
-    """
-    Chords are buggy; this is the chord header check as a standalone task.
-    If using this task's signature in a chain, you probably want it mutable: `.s()`
-    """
-
-    if not group_result_id:
-        return True
-
-    results = GroupResult.restore(group_result_id)
-    if any(not result.ready() for result in results) and self.request.retries < 80:
-        raise self.retry(countdown=300)
+    raise self.replace(group_signature)
 
 
 def process_derivation(

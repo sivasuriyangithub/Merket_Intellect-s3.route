@@ -155,38 +155,39 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         export = cls(seat=seat, query=query, **kwargs)
         if not export.should_derive_email:
             export.charge = False
-        with transaction.atomic():
-            export = export._set_target(
-                save=True
-            )  # save here because export needs a pk to be added as evidence to transaction below
-            if export.charge:
-                plan: WKPlan = seat.billing.plan
-                if not plan:
-                    raise SubscriptionError("No plan or subscription found for user.")
-                credits_to_charge = export.target * sum(
-                    (
-                        plan.credits_per_work_email,
-                        plan.credits_per_phone,
-                        plan.credits_per_personal_email,
-                    )
-                )  # maximum possible -- credit hold
-                charged = seat.billing.consume_credits(
-                    amount=credits_to_charge, initiated_by=seat.user, evidence=(export,)
+        # save here because export needs a pk to be added as evidence to transaction below
+        export = export._set_target(save=True)
+        if export.charge:
+            plan: WKPlan = seat.billing.plan
+            if not plan:
+                raise SubscriptionError("No plan or subscription found for user.")
+            credits_to_charge = export.target * sum(
+                (
+                    plan.credits_per_work_email,
+                    plan.credits_per_phone,
+                    plan.credits_per_personal_email,
                 )
-                if not charged:
-                    raise SubscriptionError(
-                        f"Not enough credits to complete this export. "
-                        f"{seat.billing.credits} available but {credits_to_charge} required"
-                    )
-        # seems like there is a race with the above transaction not
-        # committing before tasks begin to be consumed,
-        # so let's refresh from db to be sure.
-        export.refresh_from_db()
+            )  # maximum possible -- credit hold
+            charged = seat.billing.consume_credits(
+                amount=credits_to_charge, initiated_by=seat.user, evidence=(export,)
+            )
+            if not charged:
+                raise SubscriptionError(
+                    f"Not enough credits to complete this export. "
+                    f"{seat.billing.credits} available but {credits_to_charge} required"
+                )
         tasks = export.processing_signatures()
-        res = tasks.apply_async()
-        export.log_event(
-            evt=ENQUEUED_FROM_QUERY, signatures=str(tasks), async_result=str(res)
-        )
+
+        def on_commit():
+            """
+            ATOMIC_REQUESTS is True
+            """
+            res = tasks.apply_async()
+            export.log_event(
+                evt=ENQUEUED_FROM_QUERY, signatures=str(tasks), async_result=str(res)
+            )
+
+        transaction.on_commit(on_commit)
         return export
 
     def locked(self, **kwargs):

@@ -28,6 +28,8 @@ def alert_xperweb(self, export_id):
     router.alert_xperweb_export_completion(
         idempotency_key=export.uuid, amount=export.charged
     )
+    export.status = export.STATUS.complete
+    export.save()
 
 
 @celery_app.task(

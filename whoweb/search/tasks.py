@@ -24,7 +24,7 @@ def alert_xperweb(self, export_id):
     try:
         export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
-        return
+        return 404
     res = router.alert_xperweb_export_completion(
         idempotency_key=export.uuid, amount=export.charged
     )
@@ -41,11 +41,11 @@ def process_export(self, export_id):
     try:
         export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
-        return
+        return 404
 
     if export.is_done_processing_pages:
         export.do_post_pages_completion(task_context=self.request)
-        return True
+        return "Exited having done page processing."
 
     page_tasks = []
     empty_pages = export.get_next_empty_page(3)
@@ -63,6 +63,7 @@ def process_export(self, export_id):
         for page in pages:
             page.status = SearchExportPage.STATUS.working
             page.save()
+        return "Exited task after queuing pages."
     else:
         try:
             pages = export.generate_pages(task_context=self.request)
@@ -72,6 +73,7 @@ def process_export(self, export_id):
             raise self.retry(max_retries=2000, countdown=4)
         else:
             export.do_post_pages_completion(task_context=self.request)
+            return "Exited after no additional pages generated."
 
 
 @celery_app.task(
@@ -84,7 +86,7 @@ def check_export_has_data(self, export_id):
     try:
         export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
-        return
+        return 404
 
     if export.is_done_processing_pages:
         return True
@@ -97,7 +99,7 @@ def validate_rows(self, export_id):
     try:
         export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
-        return
+        return 404
     return export.upload_validation(task_context=self.request)
 
 
@@ -106,7 +108,7 @@ def fetch_validation_results(self, export_id):
     try:
         export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
-        return
+        return 404
 
     complete = export.get_validation_status(task_context=self.request)
     if complete is False:
@@ -118,7 +120,7 @@ def send_notification(export_id):
     try:
         export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
-        return
+        return 404
     return export.send_link()
 
 
@@ -127,7 +129,7 @@ def do_post_validation_completion(export_id):
     try:
         export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
-        return
+        return 404
     return export.do_post_validation_completion()
 
 
@@ -136,7 +138,7 @@ def fetch_mx_domain(domain):
     try:
         mxd = MXDomain.objects.get(domain=domain)
     except MXDomain.DoesNotExist:
-        return
+        return 404
     return mxd.fetch_mx()
 
 
@@ -145,7 +147,7 @@ def spawn_mx_group(export_id):
     try:
         export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
-        return
+        return 404
     group_result = export.get_mx_task_group()
     if group_result is None:
         return False

@@ -515,11 +515,10 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     @transaction.atomic
     def generate_pages(self, task_context=None):
         export = self.locked()
-        if export:
-            self.log_event(GENERATING_PAGES, task=task_context)
-            export.status = SearchExport.STATUS.pages_working
-            export.save()
-            return export._generate_pages()
+        self.log_event(GENERATING_PAGES, task=task_context)
+        export.status = SearchExport.STATUS.pages_working
+        export.save()
+        return export._generate_pages()
 
     def get_next_empty_page(self, batch=1) -> Optional["SearchExportPage"]:
         return self.pages.filter(data__isnull=True)[:batch]
@@ -527,25 +526,22 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     @transaction.atomic
     def do_post_pages_completion(self, task_context=None):
         export = self.locked(status__lt=SearchExport.STATUS.pages_complete)
-        if export:
-            export.log_event(FINALIZING, task=task_context)
-            if export.charge and not export.defer_validation:
-                charges = export.compute_charges()
-                credits_to_refund = export.charged - charges
-                export.seat.billing.refund_credits(
-                    amount=credits_to_refund,
-                    initiated_by=export.seat.user,
-                    evidence=(export,),
-                    notes="Computed for inline-validated export at post page completion stage.",
-                )
-            export.status = SearchExport.STATUS.pages_complete
-            export.save()
+        export.log_event(FINALIZING, task=task_context)
+        if export.charge and not export.defer_validation:
+            charges = export.compute_charges()
+            credits_to_refund = export.charged - charges
+            export.seat.billing.refund_credits(
+                amount=credits_to_refund,
+                initiated_by=export.seat.user,
+                evidence=(export,),
+                notes="Computed for inline-validated export at post page completion stage.",
+            )
+        export.status = SearchExport.STATUS.pages_complete
+        export.save()
 
     @transaction.atomic
     def do_post_validation_completion(self):
         export = self.locked(status__lt=SearchExport.STATUS.validated)
-        if not export:
-            return
         if not export.defer_validation:
             return True
         results = list(export.get_validation_results(only_valid=True))

@@ -152,10 +152,10 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
     @classmethod
     def create_from_query(cls, seat: Seat, query: dict, **kwargs):
+        export = cls(seat=seat, query=query, **kwargs)
+        if not export.should_derive_email:
+            export.charge = False
         with transaction.atomic():
-            export = cls(seat=seat, query=query, **kwargs)
-            if not export.should_derive_email:
-                export.charge = False
             export = export._set_target(
                 save=True
             )  # save here because export needs a pk to be added as evidence to transaction below
@@ -178,6 +178,10 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
                         f"Not enough credits to complete this export. "
                         f"{seat.billing.credits} available but {credits_to_charge} required"
                     )
+        # seems like there is a race with the above transaction not
+        # committing before tasks begin to be consumed,
+        # so let's refresh from db to be sure.
+        export.refresh_from_db()
         tasks = export.processing_signatures()
         res = tasks.apply_async()
         export.log_event(

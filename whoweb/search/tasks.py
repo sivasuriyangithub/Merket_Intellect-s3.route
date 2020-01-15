@@ -25,12 +25,9 @@ def alert_xperweb(self, export_id):
         export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
         return 404
-    res = router.alert_xperweb_export_completion(
+    router.alert_xperweb_export_completion(
         idempotency_key=export.uuid, amount=export.charged
     )
-    if not res.ok:
-        self.retry(max_retries=50)
-    return res.content
 
 
 @celery_app.task(

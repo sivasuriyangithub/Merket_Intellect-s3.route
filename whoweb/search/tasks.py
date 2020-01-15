@@ -33,7 +33,11 @@ def alert_xperweb(self, export_id):
 
 
 @celery_app.task(
-    bind=True, max_retries=3000, track_started=True, autoretry_for=NETWORK_ERRORS
+    bind=True,
+    max_retries=3000,
+    track_started=True,
+    ignore_result=False,
+    autoretry_for=NETWORK_ERRORS,
 )
 def process_export(self, export_id):
     logger.info("Processing <SearchExport %s>", export_id)

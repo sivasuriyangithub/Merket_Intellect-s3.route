@@ -168,7 +168,7 @@ class SearchExportSerializer(serializers.HyperlinkedModelSerializer):
 
         if not validated_data["uploadable"]:
             group_id = validated_data["group_id"]
-            group_name = validated_data.get("group_name", group_id)
+            group_name = validated_data.get("group_name") or group_id
             xperweb_id = validated_data["xperweb_id"]
             email = validated_data["email"]
             profile, _ = UserProfile.get_or_create(username=xperweb_id, email=email)

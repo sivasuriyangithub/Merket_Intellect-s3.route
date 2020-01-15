@@ -17,8 +17,10 @@ service:
   paths: "/ww/"
 deployment:
   replicas: 1
-  cpuRequest: "500m"
+  cpuRequest: "2"
   memoryRequest: "1Gi"
+  cpuLimit: "12"
+  memoryLimit: "16Gi"
   postgresqlInNamespace: false
   envConfigMapRef: "whoweb-config"
   envSecretRef: "whoweb-secrets"

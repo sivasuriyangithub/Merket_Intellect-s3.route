@@ -22,7 +22,8 @@ class Requestor(object):
             kwargs["data"] = json.dumps(kwargs.pop("json"), default=encoder)
         r = requestfunc(url, params=params, **kwargs)
         r.raise_for_status()
-        return r.json(object_hook=json_util.object_hook)
+        if r.content:
+            return r.json(object_hook=json_util.object_hook)
 
     @classmethod
     def request(cls, method, url, params=None, cache=False, **kwargs):

@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "jx.fullname" . }}
+  name: {{ template "jx.fullname" . }}-app
   labels:
     app: {{ template "jx.name" . }}
     chart: {{ template "jx.chart" . }}
@@ -78,3 +78,6 @@ spec:
             requests:
               cpu: {{ .Values.deployment.cpuRequest }}
               memory: {{ .Values.deployment.memoryRequest }}
+            limits:
+              cpu: {{ .Values.deployment.cpuLimit }}
+              memory: {{ .Values.deployment.memoryLimit }}

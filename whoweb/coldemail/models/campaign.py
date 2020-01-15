@@ -2,6 +2,7 @@ import logging
 import time
 from calendar import calendar
 from datetime import timedelta
+from typing import Iterator, Iterable
 
 from django.conf import settings
 from django.contrib.postgres.fields import JSONField
@@ -232,11 +233,10 @@ class CampaignSend(ColdemailBaseModel):
 
     def _annotate_web_ids(self, cold_log):
         log = cold_log.log
-        lookup = self.email_lookup
+        lookup = {el.email: el.web_id for el in self.email_lookups}
         for entry in log:
             try:
-                email = entry["email"]
-                entry["web_id"] = lookup[email]
+                entry["web_id"] = lookup[entry["email"]]
             except KeyError:
                 continue
 
@@ -249,7 +249,7 @@ class CampaignEmailLookup(models.Model):
         indexes = (models.Index(fields=("campaign",)),)
 
     campaign = models.ForeignKey(
-        CampaignSend, on_delete=models.CASCADE, related_name="email_lookup"
+        CampaignSend, on_delete=models.CASCADE, related_name="email_lookups"
     )
     email = models.EmailField()
     web_id = models.CharField(max_length=160)

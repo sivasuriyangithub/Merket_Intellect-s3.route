@@ -766,8 +766,9 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
     def processing_signatures(self, on_complete=None):
         from whoweb.search.tasks import (
-            process_export,
-            check_export_has_data,
+            generate_pages,
+            process_pages,
+            do_post_pages_completion,
             validate_rows,
             fetch_validation_results,
             send_notification,
@@ -776,7 +777,11 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             alert_xperweb,
         )
 
-        sigs = process_export.si(self.pk) | check_export_has_data.si(export_id=self.pk)
+        sigs = (
+            generate_pages.si(self.pk)
+            | process_pages.s(self.pk)
+            | do_post_pages_completion.si(self.pk)
+        )
         if on_complete:
             sigs |= on_complete
         if self.defer_validation:
@@ -860,6 +865,7 @@ class SearchExportPage(TimeStampedModel):
         else:
             self.count = len(profiles)
             self.data = profiles
+        self.status = self.STATUS.complete
         self.save()
         # Sometimes search removes duplicate profiles which show up as different ids,
         # in which case we need to push the progress-based skip by the number of dupes.

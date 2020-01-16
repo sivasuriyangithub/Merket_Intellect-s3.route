@@ -59,8 +59,10 @@ spec:
           - name: DJANGO_SETTINGS_MODULE
             value: {{ .Values.deployment.settingsModule }}
           envFrom:
+          {{- range .Values.deployment.envConfigMapRef }}
           - configMapRef:
-              name: {{ .Values.deployment.envConfigMapRef }}
+              name: {{ . }}
+          {{- end }}
           - secretRef:
               name: {{ .Values.deployment.envSecretRef }}
           resources:

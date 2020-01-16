@@ -22,7 +22,8 @@ deployment:
   cpuLimit: "12"
   memoryLimit: "16Gi"
   postgresqlInNamespace: false
-  envConfigMapRef: "whoweb-config"
+  envConfigMapRef:
+    - "whoweb-config"
   envSecretRef: "whoweb-secrets"
   settingsModule: "config.settings.production"
 celery:

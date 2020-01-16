@@ -49,7 +49,9 @@ spec:
                 name: {{ .Release.Name }}-postgresql
           {{- end }}
           envFrom:
+          {{- range .Values.deployment.envConfigMapRef }}
           - configMapRef:
-              name: {{ .Values.deployment.envConfigMapRef }}
+              name: {{ . }}
+          {{- end }}
           - secretRef:
               name: {{ .Values.deployment.envSecretRef }}

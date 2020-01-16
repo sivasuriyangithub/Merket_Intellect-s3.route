@@ -195,10 +195,10 @@ class SearchExportSerializer(serializers.HyperlinkedModelSerializer):
                 defaults=dict(plan=plan),
             )
             billing_member, _ = billing_account.get_or_add_user(
-                user=profile.user,
-                seat=seat,
-                seat_credits=validated_data["seat_credits"],
+                user=profile.user, seat=seat
             )
+            billing_member.seat_credits = validated_data["seat_credits"]
+            billing_member.save()
         else:
             seat = None
         export = SearchExport.create_from_query(

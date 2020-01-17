@@ -27,18 +27,12 @@ class HealthCheckMiddleware(object):
         return HttpResponse("OK")
 
     def readiness(self, request):
-        # Connect to each database and do a generic standard SQL query
-        # that doesn't write any data and doesn't depend on any tables
-        # being present.
+        # Connect to each database
         try:
             from django.db import connections
 
-            for name in connections:
-                cursor = connections[name].cursor()
-                cursor.execute("SELECT 1;")
-                row = cursor.fetchone()
-                if row is None:
-                    return HttpResponseServerError("db: invalid response")
+            for db in connections:
+                db.ensure_connection()
         except Exception as e:
             logger.exception(e)
             return HttpResponseServerError("db: cannot connect to database.")

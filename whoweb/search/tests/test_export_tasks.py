@@ -2,11 +2,15 @@ from unittest.mock import patch
 
 import pytest
 from celery import group
-from celery.exceptions import Ignore
 
-from whoweb.search.models.export import SearchExportPage
 from whoweb.search.models import SearchExport
-from whoweb.search.tasks import generate_pages, process_pages
+from whoweb.search.models.export import SearchExportPage
+from whoweb.search.tasks import (
+    generate_pages,
+    process_pages,
+    do_process_page_chunk,
+    check_do_more_pages,
+)
 from whoweb.search.tests.factories import SearchExportFactory, SearchExportPageFactory
 
 pytestmark = pytest.mark.django_db
@@ -34,7 +38,9 @@ def test_process_pages_task_no_pages(query_contact_invites_defer_validation, set
     export: SearchExport = SearchExportFactory(
         query=query_contact_invites_defer_validation, charge=True
     )
-    assert process_pages.delay(99, export.pk).get() == "No empty pages remaining."
+    assert (
+        do_process_page_chunk.delay(5, export.pk).get() == "No empty pages remaining."
+    )
 
 
 def test_process_pages_task_pages_done(
@@ -46,7 +52,9 @@ def test_process_pages_task_pages_done(
         query=query_contact_invites_defer_validation, charge=True
     )
     SearchExportPageFactory.create_batch(3, export=export)
-    assert process_pages.delay(99, export.pk).get() == "No empty pages remaining."
+    assert (
+        do_process_page_chunk.delay(5, export.pk).get() == "No empty pages remaining."
+    )
 
 
 @patch("whoweb.search.models.export.SearchExportPage.do_page_process")
@@ -59,7 +67,8 @@ def test_process_pages_task_no_async_page_tasks(
     SearchExportPageFactory.create_batch(3, export=export, data=None)
     page_process_mock.return_value = []
     assert (
-        process_pages.delay(3, export.pk).get() == "No page tasks required. Pages done."
+        do_process_page_chunk.delay(3, export.pk).get()
+        == "No page tasks required. Pages done."
     )
     assert page_process_mock.call_count == 3
 
@@ -74,7 +83,7 @@ def test_process_pages_task_produces_replacement(
         query=query_contact_invites_defer_validation, charge=True
     )
     SearchExportPageFactory.create_batch(3, export=export, data=None)
-    process_pages.delay(3, export.pk)
+    do_process_page_chunk.delay(3, export.pk)
     assert page_process_mock.call_count == 3
     for page in export.pages.all():
         assert page.status == SearchExportPage.STATUS.working
@@ -119,12 +128,12 @@ def test_integration_generate_pages_and_process_pages_tasks(
         nonlocal ct
         if ct < 2:
             ct = ct + 1
-            return SearchExportPageFactory.create_batch(2, export=export, data=None)
+            return SearchExportPageFactory.create_batch(20, export=export, data=None)
         return None
 
     gen_pages_mock.side_effect = page_gen_effect
-    sigs = generate_pages.si(export.pk) | process_pages.s(export.pk)
-    res = sigs.apply_async()
+    sigs = generate_pages.si(export.pk) | check_do_more_pages.s(export.pk)
+    res = sigs.apply_async(throw=True, disable_sync_subtasks=False)
     assert gen_pages_mock.call_count == 3
-    assert page_process_mock.call_count == 4
-    assert res.get() == "No empty pages remaining."
+    assert page_process_mock.call_count == 40
+    assert res.get() == "Done"

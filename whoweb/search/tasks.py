@@ -1,4 +1,5 @@
 import logging
+from math import ceil
 
 from celery import group, chain, chord
 from requests import HTTPError, Timeout, ConnectionError
@@ -15,11 +16,14 @@ logger = logging.getLogger(__name__)
 NETWORK_ERRORS = [HTTPError, Timeout, ConnectionError]
 MAX_DERIVE_RETRY = 3
 
+MAX_NUM_PAGES_TO_PROCESS_IN_SINGLE_TASK = 5
+
 
 @celery_app.task(
     bind=True,
     max_retries=2000,
     retry_backoff=True,
+    track_started=True,
     ignore_result=False,
     autoretry_for=NETWORK_ERRORS,
 )
@@ -37,32 +41,61 @@ def generate_pages(self, export_id):
     autoretry_for=NETWORK_ERRORS,
 )
 def process_pages(self, num_pages, export_id):
+    if not num_pages:
+        return True
+    batch_size = MAX_NUM_PAGES_TO_PROCESS_IN_SINGLE_TASK
+    return self.replace(
+        chain(
+            *[
+                do_process_page_chunk.si(batch_size, export_id)
+                for _ in range(ceil(num_pages / batch_size))
+            ]
+        )
+    )
+
+
+@celery_app.task(
+    bind=True,
+    max_retries=3000,
+    track_started=True,
+    ignore_result=False,
+    autoretry_for=NETWORK_ERRORS,
+)
+def do_process_page_chunk(self, batch_size, export_id):
     export = SearchExport.objects.get(pk=export_id)
-    empty_pages = export.get_next_empty_page(num_pages)
+    empty_pages = export.get_next_empty_page(batch_size)
     if not empty_pages:
         return "No empty pages remaining."
-
-    page_tasks = []
-    for page in empty_pages:
-        page_sigs = page.do_page_process(task_context=self.request)
+    page_chords = []
+    for empty_page in empty_pages:
+        page_sigs = empty_page.do_page_process(task_context=self.request)
         if not page_sigs:
             continue
-        page_tasks.append(page_sigs)
-        page.status = SearchExportPage.STATUS.working
-        page.save()
-    if page_tasks:
-        return self.replace(
-            chain(*page_tasks)
-            | generate_pages.si(export_id)
-            | process_pages.s(export_id)
-        )
+        page_chords.append(page_sigs)
+        empty_page.status = SearchExportPage.STATUS.working
+        empty_page.save()
+    if page_chords:
+        return self.replace(group(page_chords))
     return "No page tasks required. Pages done."
+
+
+@celery_app.task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
+def check_do_more_pages(self, num_pages, export_id):
+    if num_pages:
+        self.replace(
+            chain(
+                process_pages.si(num_pages, export_id),
+                generate_pages.si(export_id),
+                check_do_more_pages.s(export_id),
+            )
+        )
+    return "Done"
 
 
 @celery_app.task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
 def do_post_pages_completion(self, export_id):
     export = SearchExport.objects.get(pk=export_id)
-    assert export.is_done_processing_pages, f"{export} not done processing pages."
+    # assert export.is_done_processing_pages, f"{export} not done processing pages."
     export.do_post_pages_completion(task_context=self.request)
 
 

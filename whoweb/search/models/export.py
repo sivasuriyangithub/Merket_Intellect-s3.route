@@ -767,7 +767,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     def processing_signatures(self, on_complete=None):
         from whoweb.search.tasks import (
             generate_pages,
-            process_pages,
+            check_do_more_pages,
             do_post_pages_completion,
             validate_rows,
             fetch_validation_results,
@@ -779,8 +779,10 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
         sigs = (
             generate_pages.si(self.pk)
-            | process_pages.s(self.pk)
-            | do_post_pages_completion.si(self.pk)
+            | check_do_more_pages.s(self.pk)
+            | do_post_pages_completion.si(self.pk).on_error(
+                do_post_pages_completion.si(self.pk)
+            )
         )
         if on_complete:
             sigs |= on_complete

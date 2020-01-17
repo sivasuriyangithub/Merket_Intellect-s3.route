@@ -29,10 +29,9 @@ class HealthCheckMiddleware(object):
     def readiness(self, request):
         # Connect to each database
         try:
-            from django.db import connections
+            from django.db import connection
 
-            for db in connections:
-                db.ensure_connection()
+            connection.ensure_connection()
         except Exception as e:
             logger.exception(e)
             return HttpResponseServerError("db: cannot connect to database.")
@@ -41,15 +40,11 @@ class HealthCheckMiddleware(object):
         # This can effectively check if each is online.
         try:
             from django.core.cache import caches
-            from django.core.cache.backends.memcached import BaseMemcachedCache
+            from django_redis.cache import RedisCache
 
             for cache in caches.all():
-                if isinstance(cache, BaseMemcachedCache):
-                    stats = cache._cache.get_stats()
-                    if len(stats) != len(cache._servers):
-                        return HttpResponseServerError(
-                            "cache: cannot connect to cache."
-                        )
+                if isinstance(cache, RedisCache):
+                    cache.get(None)
         except Exception as e:
             logger.exception(e)
             return HttpResponseServerError("cache: cannot connect to cache.")

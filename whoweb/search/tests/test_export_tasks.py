@@ -1,16 +1,13 @@
 from unittest.mock import patch
 
+import celery
 import pytest
 from celery import group
 
+from config import celery_app
 from whoweb.search.models import SearchExport
 from whoweb.search.models.export import SearchExportPage
-from whoweb.search.tasks import (
-    generate_pages,
-    process_pages,
-    do_process_page_chunk,
-    check_do_more_pages,
-)
+from whoweb.search.tasks import generate_pages, do_process_page_chunk, fetch_mx_domain
 from whoweb.search.tests.factories import SearchExportFactory, SearchExportPageFactory
 
 pytestmark = pytest.mark.django_db
@@ -57,70 +54,76 @@ def test_process_pages_task_pages_done(
     )
 
 
-@patch("whoweb.search.models.export.SearchExportPage.do_page_process")
+@patch("whoweb.search.models.export.SearchExportPage.populate_data_directly")
 def test_process_pages_task_no_async_page_tasks(
-    page_process_mock, query_no_contact, settings
+    populate_data_directly_mock, query_no_contact, settings
 ):
     settings.CELERY_TASK_ALWAYS_EAGER = True
 
     export: SearchExport = SearchExportFactory(query=query_no_contact, charge=True)
-    SearchExportPageFactory.create_batch(3, export=export, data=None)
-    page_process_mock.return_value = []
-    assert (
-        do_process_page_chunk.delay(3, export.pk).get()
-        == "No page tasks required. Pages done."
-    )
-    assert page_process_mock.call_count == 3
+    SearchExportPageFactory.create_batch(10, export=export, data=None)
+    assert do_process_page_chunk.delay(3, export.pk).get() == True
+    assert populate_data_directly_mock.call_count == 3
 
 
-@patch("whoweb.search.models.export.SearchExportPage.do_page_process")
-@patch("celery.Task.replace")
+# @patch("celery.result.assert_will_not_block")
+@patch("whoweb.search.models.export.SearchExportPage.get_derivation_tasks")
 def test_process_pages_task_produces_replacement(
-    replace_mock, page_process_mock, query_contact_invites_defer_validation, settings
+    get_derivation_tasks_mock,
+    # no_block_mock,
+    query_contact_invites_defer_validation,
+    redis,
+    mocker,
 ):
-    settings.CELERY_TASK_ALWAYS_EAGER = True
     export: SearchExport = SearchExportFactory(
         query=query_contact_invites_defer_validation, charge=True
     )
     SearchExportPageFactory.create_batch(3, export=export, data=None)
-    do_process_page_chunk.delay(3, export.pk)
-    assert page_process_mock.call_count == 3
-    for page in export.pages.all():
-        assert page.status == SearchExportPage.STATUS.working
-    assert replace_mock.call_count == 1
-
-
-@patch("whoweb.search.models.export.SearchExportPage.do_page_process")
-@patch("whoweb.search.models.SearchExport.generate_pages")
-@patch("whoweb.search.models.scroll.ScrollSearch.get_profiles_for_page")
-def test_integration_generate_pages_and_process_pages_tasks(
-    get_profiles_mock,
-    gen_pages_mock,
-    page_process_mock,
-    query_contact_invites_defer_validation,
-    search_result_profiles,
-    celery_app,
-    settings,
-):
-    settings.CELERY_TASK_ALWAYS_EAGER = True
-
-    export: SearchExport = SearchExportFactory(
-        query=query_contact_invites_defer_validation, charge=True
-    )
-    get_profiles_mock.return_value = search_result_profiles
-    export.ensure_search_interface()
+    replacement = mocker.spy(celery.Task, "replace")
 
     @celery_app.task
     def dummy_derive_task(i):
         return i
 
-    @celery_app.task
-    def dummy_finalize_page_task():
-        return True
+    get_derivation_tasks_mock.return_value = [
+        dummy_derive_task.si(1),
+        dummy_derive_task.si(2),
+    ]
 
-    page_process_mock.return_value = group(
-        dummy_derive_task.si(i) for i in range(0, 10)
-    ) | dummy_finalize_page_task.si().on_error(dummy_finalize_page_task.si())
+    do_process_page_chunk.apply((3, export.pk))
+    assert replacement.call_count == 1
+    for page in export.pages.all():
+        assert page.status == SearchExportPage.STATUS.complete
+    assert get_derivation_tasks_mock.call_count == 3
+
+
+@patch("whoweb.core.router.router.alert_xperweb_export_completion")
+@patch("whoweb.search.models.export.MXDomain.objects")
+@patch("whoweb.search.models.SearchExport.get_mx_task_group")
+@patch("whoweb.search.models.SearchExport.send_link")
+@patch("whoweb.search.models.SearchExport.do_post_validation_completion")
+@patch("whoweb.search.models.SearchExport.get_validation_status")
+@patch("whoweb.search.models.SearchExport.upload_validation")
+@patch("whoweb.search.models.export.SearchExportPage.do_post_derive_process")
+@patch("whoweb.search.models.export.SearchExportPage.get_derivation_tasks")
+@patch("whoweb.search.models.SearchExport.generate_pages")
+def test_integration_all_processing_tasks(
+    gen_pages_mock,
+    get_derivation_tasks_mock,
+    post_derive_mock,
+    upload_validation_mock,
+    get_validation_mock,
+    do_post_valid_mock,
+    notify_mock,
+    get_mx_task_group_mock,
+    mx_object_mock,
+    alert_xperweb_mock,
+    query_contact_invites_defer_validation,
+):
+    export: SearchExport = SearchExportFactory(
+        query=query_contact_invites_defer_validation, charge=True, notify=True
+    )
+    export = export._set_target(save=True)
 
     ct = 0
 
@@ -132,8 +135,41 @@ def test_integration_generate_pages_and_process_pages_tasks(
         return None
 
     gen_pages_mock.side_effect = page_gen_effect
-    sigs = generate_pages.si(export.pk) | check_do_more_pages.s(export.pk)
-    res = sigs.apply_async(throw=True, disable_sync_subtasks=False)
+
+    @celery_app.task(bind=True)
+    def dummy_derive_task(self, i):
+        if i % 4 == 0:
+            self.retry()
+        return i
+
+    @celery_app.task
+    def noop():
+        return True
+
+    @celery_app.task
+    def dummy_finalize_page_task():
+        return True
+
+    get_derivation_tasks_mock.return_value = list(
+        dummy_derive_task.si(i).on_error(noop.s()) for i in range(0, 10)
+    )
+
+    @celery_app.task
+    def dummy_mx_task(i):
+        return i
+
+    get_mx_task_group_mock.return_value = group(
+        fetch_mx_domain.si(i) for i in range(0, 10)
+    )
+
+    sigs = export.processing_signatures()
+    res = sigs.apply()
     assert gen_pages_mock.call_count == 3
-    assert page_process_mock.call_count == 40
-    assert res.get() == "Done"
+    assert get_derivation_tasks_mock.call_count == 40
+    assert post_derive_mock.call_count == 40
+    assert upload_validation_mock.call_count == 1
+    assert get_validation_mock.call_count == 1
+    assert do_post_valid_mock.call_count == 1
+    assert notify_mock.call_count == 1
+    assert alert_xperweb_mock.call_count == 1
+    assert res.get() == True

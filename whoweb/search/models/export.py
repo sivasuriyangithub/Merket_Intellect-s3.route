@@ -875,27 +875,20 @@ class SearchExportPage(TimeStampedModel):
         self.export.progress_counter = F("progress_counter") + self.count + adjustment
         self.export.target = F("target") + adjustment
         self.export.save()
+        return self.count
 
     @transaction.atomic
-    def populate_data_directly(self):
+    def populate_data_directly(self, task_context=None):
+        self.export.log_event(
+            evt=POPULATE_DATA, task=task_context, data={"page": self.page_num}
+        )
         page = self.locked()
         return page._populate_data_directly()
 
-    def do_page_process(self, task_context=None):
-        from whoweb.search.tasks import (
-            process_derivation_fast,
-            process_derivation_slow,
-            finalize_page,
-        )
+    def get_derivation_tasks(self):
+        from whoweb.search.tasks import process_derivation_fast, process_derivation_slow
 
         if self.data:
-            return None
-
-        if not self.export.should_derive_email:
-            self.export.log_event(
-                evt=POPULATE_DATA, task=task_context, data={"page": self.page_num}
-            )
-            self.populate_data_directly()
             return None
 
         profiles = self.export.scroll.get_profiles_for_page(self.page_num)
@@ -911,16 +904,13 @@ class SearchExportPage(TimeStampedModel):
             self.export.with_invites,
             self.export.query.contact_filters or [WORK, PERSONAL, SOCIAL, PROFILE],
         )
-        page_sigs = group(
+        derivation_sigs = [
             process_derivation.si(self.pk, profile.to_json(), *args)
             for profile in profiles
-        ) | finalize_page.si(self.pk).on_error(finalize_page.si(self.pk))
-        return page_sigs
+        ]
+        return derivation_sigs
 
-    def _do_post_page_process(self, task_context=None) -> [dict]:
-        self.export.log_event(
-            evt=FINALIZE_PAGE, task=task_context, data={"page": self.page_num}
-        )
+    def _do_post_derive_process(self) -> [dict]:
         if self.data:
             return []
         profiles = list(self.working_data.values()) if self.working_data else []
@@ -935,10 +925,13 @@ class SearchExportPage(TimeStampedModel):
         self.export.save()
         return profiles
 
-    def do_post_page_process(self, task_context=None):
+    def do_post_derive_process(self, task_context=None):
+        self.export.log_event(
+            evt=FINALIZE_PAGE, task=task_context, data={"page": self.page_num}
+        )
         with transaction.atomic():
             page = self.locked()
-            profiles = page._do_post_page_process(task_context=task_context)
+            profiles = page._do_post_derive_process()
         self.export.push_to_webhooks(profiles)
 
 

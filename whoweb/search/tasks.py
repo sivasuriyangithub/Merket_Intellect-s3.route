@@ -1,7 +1,7 @@
 import logging
 from math import ceil
 
-from celery import group, chain, chord
+from celery import chain, chord, group
 from requests import HTTPError, Timeout, ConnectionError
 from sentry_sdk import capture_exception
 
@@ -33,25 +33,20 @@ def generate_pages(self, export_id):
     return len(pages) if pages else 0
 
 
-@celery_app.task(
-    bind=True,
-    max_retries=3000,
-    track_started=True,
-    ignore_result=False,
-    autoretry_for=NETWORK_ERRORS,
-)
-def process_pages(self, num_pages, export_id):
-    if not num_pages:
-        return True
-    batch_size = MAX_NUM_PAGES_TO_PROCESS_IN_SINGLE_TASK
-    return self.replace(
-        chain(
-            *[
-                do_process_page_chunk.si(batch_size, export_id)
-                for _ in range(ceil(num_pages / batch_size))
-            ]
-        )
-    )
+@celery_app.task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
+def accumulate_derivation_tasks(self, page_pk):
+    page = SearchExportPage.objects.get(pk=page_pk)
+    page.status = SearchExportPage.STATUS.working
+    page.save()
+    tasks = page.get_derivation_tasks()
+    return self.replace(group(tasks))
+    # for task in tasks:
+    #     self.add_to_chord(task)
+
+
+@celery_app.task(autoretry_for=NETWORK_ERRORS)
+def batch_done():
+    return True
 
 
 @celery_app.task(
@@ -66,29 +61,37 @@ def do_process_page_chunk(self, batch_size, export_id):
     empty_pages = export.get_next_empty_page(batch_size)
     if not empty_pages:
         return "No empty pages remaining."
+    if not export.should_derive_email:
+        for page in empty_pages:
+            page.populate_data_directly(task_context=self.request)
+        return True
     page_chords = []
     for empty_page in empty_pages:
-        page_sigs = empty_page.do_page_process(task_context=self.request)
-        if not page_sigs:
-            continue
-        page_chords.append(page_sigs)
-        empty_page.status = SearchExportPage.STATUS.working
-        empty_page.save()
+        page_chord = chord(
+            accumulate_derivation_tasks.si(empty_page.pk),
+            finalize_page.si(empty_page.pk).on_error(finalize_page.si(empty_page.pk)),
+        )
+        page_chords.append(page_chord)
     if page_chords:
-        return self.replace(group(page_chords))
+        batch = chord(page_chords, batch_done.si().on_error(batch_done.si()))
+        return self.replace(batch)
     return "No page tasks required. Pages done."
 
 
 @celery_app.task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
 def check_do_more_pages(self, num_pages, export_id):
+    batch_size = MAX_NUM_PAGES_TO_PROCESS_IN_SINGLE_TASK
     if num_pages:
-        self.replace(
-            chain(
-                process_pages.si(num_pages, export_id),
-                generate_pages.si(export_id),
-                check_do_more_pages.s(export_id),
-            )
+        sigs = chain(
+            *[
+                do_process_page_chunk.si(batch_size, export_id)
+                for _ in range(ceil(num_pages / batch_size))
+            ],
+            generate_pages.si(export_id),
+            check_do_more_pages.s(export_id),
         )
+        print(sigs)
+        self.replace(sigs)
     return "Done"
 
 
@@ -152,6 +155,7 @@ def alert_xperweb(self, export_id):
     )
     export.status = export.STATUS.complete
     export.save()
+    return True
 
 
 @celery_app.task(ignore_result=False, autoretry_for=NETWORK_ERRORS)
@@ -262,4 +266,4 @@ def process_derivation_fast(
 )
 def finalize_page(self, pk):
     export_page = SearchExportPage.objects.get(pk=pk)  # allow DoesNotExist exception
-    export_page.do_post_page_process(task_context=self.request)
+    export_page.do_post_derive_process(task_context=self.request)

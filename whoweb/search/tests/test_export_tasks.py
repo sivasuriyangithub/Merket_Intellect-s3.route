@@ -66,14 +66,9 @@ def test_process_pages_task_no_async_page_tasks(
     assert populate_data_directly_mock.call_count == 3
 
 
-# @patch("celery.result.assert_will_not_block")
 @patch("whoweb.search.models.export.SearchExportPage.get_derivation_tasks")
 def test_process_pages_task_produces_replacement(
-    get_derivation_tasks_mock,
-    # no_block_mock,
-    query_contact_invites_defer_validation,
-    redis,
-    mocker,
+    get_derivation_tasks_mock, query_contact_invites_defer_validation, mocker
 ):
     export: SearchExport = SearchExportFactory(
         query=query_contact_invites_defer_validation, charge=True
@@ -91,7 +86,7 @@ def test_process_pages_task_produces_replacement(
     ]
 
     do_process_page_chunk.apply((3, export.pk))
-    assert replacement.call_count == 1
+    assert replacement.call_count == 1 + 3  # each page, plus chunk task
     for page in export.pages.all():
         assert page.status == SearchExportPage.STATUS.complete
     assert get_derivation_tasks_mock.call_count == 3

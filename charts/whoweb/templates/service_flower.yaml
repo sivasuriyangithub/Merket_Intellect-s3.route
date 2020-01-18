@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.flower.serviceName }}
+  labels:
+    chart: {{ template "jx.chart" . }}
+  {{- if .Values.flower.serviceAnnotations }}
+  annotations:
+{{ toYaml .Values.flower.serviceAnnotations | indent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  sessionAffinity: {{ .Values.service.sessionAffinity | default "None" }}
+  ports:
+  {{- range $name, $p := .Values.flower.ports }}
+  - name: {{ $name | quote }}
+    port: {{ $p.port }}
+    targetPort: {{ $p.targetPort }}
+    {{- if $p.nodePort }}
+    nodePort: {{ $p.nodePort }}
+    {{- end }}
+    protocol: TCP
+  {{- end }}
+  selector:
+    app: {{ template "jx.name" . }}-flower
+    release: "{{ .Release.Name }}"

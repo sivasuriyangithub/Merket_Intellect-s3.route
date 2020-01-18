@@ -1,0 +1,25 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{- printf "%s-%s-flower" .Release.Name .Chart.Name | trunc 63 | trimSuffix "-" -}}
+  labels:
+    chart: {{ template "jx.chart" . }}
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/auth-secret: jx-basic-auth
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  tls:
+    - hosts:
+        - {{ template "ingress.url" . }}
+      secretName: {{ .Values.global.tlsSecretName }}
+  rules:
+  - host: {{ template "ingress.url" . }}
+    http:
+      paths:
+      - path: /flower(/|$)(.*)
+        backend:
+          serviceName: {{ .Values.flower.serviceNamename }}
+          servicePort: {{ .Values.flower.port.http.port }}

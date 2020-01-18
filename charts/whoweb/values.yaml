@@ -40,6 +40,7 @@ beat:
   cpuRequest: "100m"
   memoryRequest: "64Mi"
 flower:
+  serviceName: flower
   cpuRequest: "200m"
   memoryRequest: "128Mi"
   cpuLimit: "1"

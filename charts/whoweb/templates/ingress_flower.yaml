@@ -22,4 +22,4 @@ spec:
       - path: /flower(/|$)(.*)
         backend:
           serviceName: {{ .Values.flower.serviceNamename }}
-          servicePort: {{ .Values.flower.port.http.port }}
+          servicePort: {{ .Values.flower.ports.http.port }}

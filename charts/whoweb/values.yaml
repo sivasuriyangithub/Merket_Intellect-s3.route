@@ -40,7 +40,7 @@ beat:
   cpuRequest: "100m"
   memoryRequest: "64Mi"
 flower:
-  serviceName: flower
+  serviceName: celeryflower # using "flower" populates k8s env vars, which clash config
   cpuRequest: "200m"
   memoryRequest: "128Mi"
   cpuLimit: "1"

@@ -466,9 +466,12 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         else:
             ids = []
 
-        search = self.ensure_search_interface(force=True)
+        if already_generated_pages := self.pages.filter(
+            data__isnull=True, status=SearchExportPage.STATUS.created
+        ):
+            return already_generated_pages
 
-        pages = []
+        search = self.ensure_search_interface(force=True)
 
         if ids:
             num_ids_needed = min(self.num_ids_needed, len(ids))
@@ -487,6 +490,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         else:
             start_page = last_completed_page.page_num + 1
 
+        pages = []
         if ids:
             # Mock scroll with given ids.
             for page in range(start_page, num_pages + start_page):
@@ -498,7 +502,6 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
                 ids = ids[search.page_size :]
                 if len(ids) == 0:
                     break
-
         else:
             # Actual Scrolling
             for page in range(start_page, num_pages + start_page):
@@ -508,7 +511,6 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
                     pages.append(SearchExportPage(page_num=page, export=self))
                 else:
                     break
-
         if pages:
             # Last page
             remainder = num_ids_needed % search.page_size
@@ -526,7 +528,9 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         return export._generate_pages()
 
     def get_next_empty_page(self, batch=1) -> Optional["SearchExportPage"]:
-        return self.pages.filter(data__isnull=True)[:batch]
+        return self.pages.filter(
+            data__isnull=True, status=SearchExportPage.STATUS.created
+        )[:batch]
 
     @transaction.atomic
     def do_post_pages_completion(self, task_context=None):
@@ -858,6 +862,8 @@ class SearchExportPage(TimeStampedModel):
     def _populate_data_directly(self):
         if self.data:
             return
+        self.status = SearchExportPage.STATUS.working
+        self.save()
         scroll = self.export.scroll
         ids = scroll.get_ids_for_page(self.page_num)
         profiles = [p.to_json() for p in scroll.get_profiles_for_page(self.page_num)]

@@ -7,7 +7,11 @@ from celery import group
 from config import celery_app
 from whoweb.search.models import SearchExport
 from whoweb.search.models.export import SearchExportPage
-from whoweb.search.tasks import generate_pages, do_process_page_chunk, fetch_mx_domain
+from whoweb.search.tasks import (
+    generate_pages,
+    do_process_page_chunk,
+    fetch_mx_domain,
+)
 from whoweb.search.tests.factories import SearchExportFactory, SearchExportPageFactory
 
 pytestmark = pytest.mark.django_db
@@ -86,7 +90,7 @@ def test_process_pages_task_produces_replacement(
     ]
 
     do_process_page_chunk.apply((3, export.pk))
-    assert replacement.call_count == 1 + 3  # each page, plus chunk task
+    assert replacement.call_count == 1
     for page in export.pages.all():
         assert page.status == SearchExportPage.STATUS.complete
     assert get_derivation_tasks_mock.call_count == 3

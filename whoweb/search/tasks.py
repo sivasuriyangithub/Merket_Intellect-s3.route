@@ -2,6 +2,7 @@ import logging
 from math import ceil
 
 from celery import chain, chord, group
+from celery.exceptions import MaxRetriesExceededError
 from requests import HTTPError, Timeout, ConnectionError
 from sentry_sdk import capture_exception
 
@@ -39,13 +40,14 @@ def accumulate_derivation_tasks(self, page_pk):
     page.status = SearchExportPage.STATUS.working
     page.save()
     tasks = page.get_derivation_tasks()
-    return self.replace(group(tasks))
-    # for task in tasks:
-    #     self.add_to_chord(task)
+    if self.request.is_eager:
+        return self.replace(group(tasks) | noop.si().on_error(noop.si()))
+    for task in tasks:
+        self.add_to_chord(task)  # ? celery doesn't see this as in a chord in eager mode
 
 
-@celery_app.task(autoretry_for=NETWORK_ERRORS)
-def batch_done():
+@celery_app.task
+def noop():
     return True
 
 
@@ -67,28 +69,56 @@ def do_process_page_chunk(self, batch_size, export_id):
         return True
     page_chords = []
     for empty_page in empty_pages:
+        empty_page.status = SearchExportPage.STATUS.working
+        empty_page.save()
+        tasks = empty_page.get_derivation_tasks()
         page_chord = chord(
-            accumulate_derivation_tasks.si(empty_page.pk),
+            tasks,
             finalize_page.si(empty_page.pk).on_error(finalize_page.si(empty_page.pk)),
         )
         page_chords.append(page_chord)
     if page_chords:
-        batch = chord(page_chords, batch_done.si().on_error(batch_done.si()))
+        batch = chord(page_chords, noop.si().on_error(noop.si()))
         return self.replace(batch)
     return "No page tasks required. Pages done."
 
 
+@celery_app.task(
+    bind=True,
+    max_retries=3000,
+    track_started=True,
+    ignore_result=False,
+    autoretry_for=NETWORK_ERRORS,
+)
+def do_process_page(self, page_pk):
+    page = SearchExportPage.objects.get(pk=page_pk)
+    if not page.export.should_derive_email:
+        return page.populate_data_directly(task_context=self.request)
+
+    if tasks := page.get_derivation_tasks():
+        page_chord = chord(
+            tasks, finalize_page.si(page.pk).on_error(finalize_page.si(page.pk)),
+        )
+        page.status = SearchExportPage.STATUS.working
+        page.save()
+        return self.replace(page_chord)
+    else:
+        return "No page tasks required. Pages done."
+
+
 @celery_app.task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
 def check_do_more_pages(self, num_pages, export_id):
-    batch_size = MAX_NUM_PAGES_TO_PROCESS_IN_SINGLE_TASK
-    if num_pages:
-        sigs = chain(
-            *[
-                do_process_page_chunk.si(batch_size, export_id)
-                for _ in range(ceil(num_pages / batch_size))
+    export = SearchExport.objects.get(pk=export_id)
+    if empty_pages := export.get_next_empty_page(num_pages):
+        after_pages = generate_pages.si(export_id) | check_do_more_pages.s(export_id)
+        sigs = chord(
+            [
+                do_process_page.signature(
+                    args=(page.pk,), immutable=True, countdown=i * 60
+                )
+                for i, page in enumerate(empty_pages)
             ],
-            generate_pages.si(export_id),
-            check_do_more_pages.s(export_id),
+            after_pages.on_error(after_pages),
         )
         print(sigs)
         self.replace(sigs)
@@ -227,15 +257,18 @@ def process_derivation(
 def process_derivation_slow(
     self, page_pk, profile_data, defer, omit_failures, add_invite_key, filters=None
 ):
-    return process_derivation(
-        self,
-        page_pk,
-        profile_data,
-        defer,
-        omit_failures,
-        add_invite_key,
-        filters=filters,
-    )
+    try:
+        return process_derivation(
+            self,
+            page_pk,
+            profile_data,
+            defer,
+            omit_failures,
+            add_invite_key,
+            filters=filters,
+        )
+    except MaxRetriesExceededError:
+        pass
 
 
 @celery_app.task(
@@ -250,15 +283,18 @@ def process_derivation_slow(
 def process_derivation_fast(
     self, page_pk, profile_data, defer, omit_failures, add_invite_key, filters=None
 ):
-    return process_derivation(
-        self,
-        page_pk,
-        profile_data,
-        defer,
-        omit_failures,
-        add_invite_key,
-        filters=filters,
-    )
+    try:
+        return process_derivation(
+            self,
+            page_pk,
+            profile_data,
+            defer,
+            omit_failures,
+            add_invite_key,
+            filters=filters,
+        )
+    except MaxRetriesExceededError:
+        pass
 
 
 @celery_app.task(

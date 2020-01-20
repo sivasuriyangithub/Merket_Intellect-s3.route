@@ -44,7 +44,7 @@ ENVIRONMENT_NAME = env("ENVIRONMENT_NAME", default="")
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 DATABASES = {"default": env.db("DATABASE_URL")}
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
-
+DATABASES["default"]["OPTIONS"] = {"connect_timeout": 3}
 # URLS
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#root-urlconf
@@ -275,15 +275,17 @@ CELERY_BROKER_VHOST = env("CELERY_BROKER_VHOST", default="")
 if CELERY_BROKER_VHOST:
     CELERY_BROKER_URL = f"{CELERY_BROKER_URL}/{CELERY_BROKER_VHOST}"
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_backend
-CELERY_RESULT_BACKEND = "django-db"
+CELERY_RESULT_BACKEND = env("REDIS_URL", default="django-db")
 # https://docs.celeryproject.org/en/latest/django/first-steps-with-django.html
-CELERY_CACHE_BACKEND = "django-cache"
+CELERY_CACHE_BACKEND = "default"
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-accept_content
 CELERY_ACCEPT_CONTENT = ["json"]
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_serializer
 CELERY_TASK_SERIALIZER = "json"
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_serializer
 CELERY_RESULT_SERIALIZER = "json"
+# http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-ignore-result
+CELERY_TASK_IGNORE_RESULT = False
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-time-limit
 # TODO: set to whatever value is adequate in your circumstances
 CELERY_TASK_TIME_LIMIT = 60 * 60

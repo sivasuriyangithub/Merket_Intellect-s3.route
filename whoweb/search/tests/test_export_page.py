@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 from celery import chord
+from celery.canvas import Signature
 
 from whoweb.search.models import SearchExport, ResultProfile
 from whoweb.search.models.export import SearchExportPage
@@ -90,7 +91,7 @@ def test_page_process_no_derive(
     page: SearchExportPage = SearchExportPageFactory(export=export, data=None)
 
     assert page.data is None
-    assert page.do_page_process() is None  # data direct
+    assert page.populate_data_directly() > 0  # data direct
     page.refresh_from_db()
     assert page.data is not None
     export.refresh_from_db(fields=("progress_counter",))
@@ -102,7 +103,7 @@ def test_page_process_existing_data(query_no_contact, raw_derived):
     pages: [SearchExportPage] = SearchExportPageFactory.create_batch(
         3, export=export, data=raw_derived
     )
-    assert pages[0].do_page_process() is None
+    assert pages[0].populate_data_directly() is None
     export.refresh_from_db(fields=("progress_counter",))
     assert export.progress_counter == 0
 
@@ -118,7 +119,9 @@ def test_page_process_applies_group_derivations(
     pages: [SearchExportPage] = SearchExportPageFactory.create_batch(
         3, export=export, data=None
     )
-    assert isinstance(pages[0].do_page_process(), chord)
+    tasks = pages[0].get_derivation_tasks()
+    assert isinstance(tasks, list)
+    assert isinstance(tasks[0], Signature)
 
 
 def test_get_next_empty_page():

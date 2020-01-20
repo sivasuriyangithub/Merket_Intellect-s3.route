@@ -64,7 +64,7 @@ class SearchExportManager(QueryManagerMixin, models.Manager):
 
 
 class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
-    DERIVATION_RATIO = 4.0
+    DERIVATION_RATIO = 3
     SIMPLE_CAP = 1000
     SKIP_CODE = "MAGIC_SKIP_CODE_NO_VALIDATION_NEEDED"
 
@@ -153,37 +153,42 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
     @classmethod
     def create_from_query(cls, seat: Seat, query: dict, **kwargs):
-        with transaction.atomic():
-            export = cls(seat=seat, query=query, **kwargs)
-            if not export.should_derive_email:
-                export.charge = False
-            export = export._set_target(
-                save=True
-            )  # save here because export needs a pk to be added as evidence to transaction below
-            if export.charge:
-                plan: WKPlan = seat.billing.plan
-                if not plan:
-                    raise SubscriptionError("No plan or subscription found for user.")
-                credits_to_charge = export.target * sum(
-                    (
-                        plan.credits_per_work_email,
-                        plan.credits_per_phone,
-                        plan.credits_per_personal_email,
-                    )
-                )  # maximum possible -- credit hold
-                charged = seat.billing.consume_credits(
-                    amount=credits_to_charge, initiated_by=seat.user, evidence=(export,)
+        export = cls(seat=seat, query=query, **kwargs)
+        if not export.should_derive_email:
+            export.charge = False
+        # save here because export needs a pk to be added as evidence to transaction below
+        export = export._set_target(save=True)
+        if export.charge:
+            plan: WKPlan = seat.billing.plan
+            if not plan:
+                raise SubscriptionError("No plan or subscription found for user.")
+            credits_to_charge = export.target * sum(
+                (
+                    plan.credits_per_work_email,
+                    plan.credits_per_phone,
+                    plan.credits_per_personal_email,
                 )
-                if not charged:
-                    raise SubscriptionError(
-                        f"Not enough credits to complete this export. "
-                        f"{seat.billing.credits} available but {credits_to_charge} required"
-                    )
+            )  # maximum possible -- credit hold
+            charged = seat.billing.consume_credits(
+                amount=credits_to_charge, initiated_by=seat.user, evidence=(export,)
+            )
+            if not charged:
+                raise SubscriptionError(
+                    f"Not enough credits to complete this export. "
+                    f"{seat.billing.credits} available but {credits_to_charge} required"
+                )
         tasks = export.processing_signatures()
-        res = tasks.apply_async()
-        export.log_event(
-            evt=ENQUEUED_FROM_QUERY, signatures=str(tasks), async_result=str(res)
-        )
+
+        def on_commit():
+            """
+            ATOMIC_REQUESTS is True
+            """
+            res = tasks.apply_async()
+            export.log_event(
+                evt=ENQUEUED_FROM_QUERY, signatures=str(tasks), async_result=str(res)
+            )
+
+        transaction.on_commit(on_commit)
         return export
 
     def locked(self, **kwargs):
@@ -194,9 +199,13 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         )
 
     def is_done_processing_pages(self):
+        if not self.specified_ids and self.should_derive_email:
+            target = self.target * self.DERIVATION_RATIO
+        else:
+            target = self.target
         return (
             int(self.status) >= SearchExport.STATUS.pages_complete
-            or self.progress_counter >= self.target
+            or self.progress_counter >= target
         )
 
     is_done_processing_pages.boolean = True
@@ -252,11 +261,10 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
     @property
     def num_ids_needed(self):
-        remaining_profile_count = self.target - self.progress_counter
         if not self.specified_ids and self.should_derive_email:
-            return int(remaining_profile_count * self.DERIVATION_RATIO)
+            return int(self.target * self.DERIVATION_RATIO) - self.progress_counter
         else:
-            return remaining_profile_count
+            return self.target - self.progress_counter
 
     @property
     def start_from_count(self):
@@ -452,7 +460,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             ids = self.specified_ids[self.start_from_count :]
             if not ids:
                 return
-        elif self.num_ids_needed < self.SIMPLE_CAP:
+        elif (self.num_ids_needed + self.start_from_count) < self.SIMPLE_CAP:
             search = self.ensure_search_interface()
             ids = search.send_simple_search(
                 limit=self.num_ids_needed, skip=self.start_from_count
@@ -462,9 +470,12 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         else:
             ids = []
 
-        search = self.ensure_search_interface(force=True)
+        if already_generated_pages := self.pages.filter(
+            data__isnull=True, status=SearchExportPage.STATUS.created
+        ):
+            return already_generated_pages
 
-        pages = []
+        search = self.ensure_search_interface(force=True)
 
         if ids:
             num_ids_needed = min(self.num_ids_needed, len(ids))
@@ -483,6 +494,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         else:
             start_page = last_completed_page.page_num + 1
 
+        pages = []
         if ids:
             # Mock scroll with given ids.
             for page in range(start_page, num_pages + start_page):
@@ -494,7 +506,6 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
                 ids = ids[search.page_size :]
                 if len(ids) == 0:
                     break
-
         else:
             # Actual Scrolling
             for page in range(start_page, num_pages + start_page):
@@ -504,7 +515,6 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
                     pages.append(SearchExportPage(page_num=page, export=self))
                 else:
                     break
-
         if pages:
             # Last page
             remainder = num_ids_needed % search.page_size
@@ -516,39 +526,35 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     @transaction.atomic
     def generate_pages(self, task_context=None):
         export = self.locked()
-        if export:
-            self.log_event(GENERATING_PAGES, task=task_context)
-            export.status = SearchExport.STATUS.pages_working
-            export.save()
-            return export._generate_pages()
-        else:
-            raise ModelLockedError
+        self.log_event(GENERATING_PAGES, task=task_context)
+        export.status = SearchExport.STATUS.pages_working
+        export.save()
+        return export._generate_pages()
 
     def get_next_empty_page(self, batch=1) -> Optional["SearchExportPage"]:
-        return self.pages.filter(data__isnull=True)[:batch]
+        return self.pages.filter(
+            data__isnull=True, status=SearchExportPage.STATUS.created
+        )[:batch]
 
     @transaction.atomic
     def do_post_pages_completion(self, task_context=None):
         export = self.locked(status__lt=SearchExport.STATUS.pages_complete)
-        if export:
-            export.log_event(FINALIZING, task=task_context)
-            if export.charge and not export.defer_validation:
-                charges = export.compute_charges()
-                credits_to_refund = export.charged - charges
-                export.seat.billing.refund_credits(
-                    amount=credits_to_refund,
-                    initiated_by=export.seat.user,
-                    evidence=(export,),
-                    notes="Computed for inline-validated export at post page completion stage.",
-                )
-            export.status = SearchExport.STATUS.pages_complete
-            export.save()
+        export.log_event(FINALIZING, task=task_context)
+        if export.charge and not export.defer_validation:
+            charges = export.compute_charges()
+            credits_to_refund = export.charged - charges
+            export.seat.billing.refund_credits(
+                amount=credits_to_refund,
+                initiated_by=export.seat.user,
+                evidence=(export,),
+                notes="Computed for inline-validated export at post page completion stage.",
+            )
+        export.status = SearchExport.STATUS.pages_complete
+        export.save()
 
     @transaction.atomic
     def do_post_validation_completion(self):
         export = self.locked(status__lt=SearchExport.STATUS.validated)
-        if not export:
-            return
         if not export.defer_validation:
             return True
         results = list(export.get_validation_results(only_valid=True))
@@ -701,11 +707,9 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
                 tasks.append(fetch_mx_domain.si(mxd.pk))
         if not tasks:
             return None
-        task_group = group(tasks)
-        group_task = task_group.apply_async()
-        group_result = group_task.save()
-        self.log_event(evt=SPAWN_MX, task=group_result)
-        return group_result
+        mx_tasks = group(tasks)
+        self.log_event(evt=SPAWN_MX)
+        return mx_tasks
 
     def push_to_webhooks(self, rows):
         pass
@@ -770,18 +774,28 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
     def processing_signatures(self, on_complete=None):
         from whoweb.search.tasks import (
-            process_export,
-            check_export_has_data,
+            generate_pages,
+            check_do_more_pages,
+            do_post_pages_completion,
             validate_rows,
             fetch_validation_results,
             send_notification,
             do_post_validation_completion,
             spawn_mx_group,
-            header_check,
             alert_xperweb,
         )
 
-        sigs = process_export.si(self.pk) | check_export_has_data.si(export_id=self.pk)
+        sigs = (
+            generate_pages.si(self.pk)
+            | check_do_more_pages.s(self.pk)
+            | generate_pages.si(self.pk).on_error(generate_pages.si(self.pk))
+            | check_do_more_pages.s(self.pk)
+            | generate_pages.si(self.pk).on_error(generate_pages.si(self.pk))
+            | check_do_more_pages.s(self.pk)
+            | do_post_pages_completion.si(self.pk).on_error(
+                do_post_pages_completion.si(self.pk)
+            )
+        )
         if on_complete:
             sigs |= on_complete
         if self.defer_validation:
@@ -793,10 +807,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         if self.notify:
             sigs |= send_notification.si(self.pk)
         if self.uploadable:
-            sigs |= (
-                spawn_mx_group.si(self.pk)
-                | header_check.s()  # mutable signature to accept group_id
-            )
+            sigs |= spawn_mx_group.si(self.pk)
         sigs |= alert_xperweb.si(self.pk)
         return sigs
 
@@ -852,13 +863,15 @@ class SearchExportPage(TimeStampedModel):
     def locked(self):
         return (
             self.__class__.objects.filter(id=self.pk)
-            .select_for_update(skip_locked=True, of=("self",))
+            .select_for_update(of=("self",))
             .first()
         )
 
     def _populate_data_directly(self):
         if self.data:
             return
+        self.status = SearchExportPage.STATUS.working
+        self.save()
         scroll = self.export.scroll
         ids = scroll.get_ids_for_page(self.page_num)
         profiles = [p.to_json() for p in scroll.get_profiles_for_page(self.page_num)]
@@ -868,6 +881,7 @@ class SearchExportPage(TimeStampedModel):
         else:
             self.count = len(profiles)
             self.data = profiles
+        self.status = self.STATUS.complete
         self.save()
         # Sometimes search removes duplicate profiles which show up as different ids,
         # in which case we need to push the progress-based skip by the number of dupes.
@@ -875,28 +889,20 @@ class SearchExportPage(TimeStampedModel):
         self.export.progress_counter = F("progress_counter") + self.count + adjustment
         self.export.target = F("target") + adjustment
         self.export.save()
+        return self.count
 
     @transaction.atomic
-    def populate_data_directly(self):
-        page = self.locked()
-        if page:
-            return page._populate_data_directly()
-
-    def do_page_process(self, task_context=None):
-        from whoweb.search.tasks import (
-            process_derivation_fast,
-            process_derivation_slow,
-            finalize_page,
+    def populate_data_directly(self, task_context=None):
+        self.export.log_event(
+            evt=POPULATE_DATA, task=task_context, data={"page": self.page_num}
         )
+        page = self.locked()
+        return page._populate_data_directly()
+
+    def get_derivation_tasks(self):
+        from whoweb.search.tasks import process_derivation_fast, process_derivation_slow
 
         if self.data:
-            return None
-
-        if not self.export.should_derive_email:
-            self.export.log_event(
-                evt=POPULATE_DATA, task=task_context, data={"page": self.page_num}
-            )
-            self.populate_data_directly()
             return None
 
         profiles = self.export.scroll.get_profiles_for_page(self.page_num)
@@ -912,16 +918,13 @@ class SearchExportPage(TimeStampedModel):
             self.export.with_invites,
             self.export.query.contact_filters or [WORK, PERSONAL, SOCIAL, PROFILE],
         )
-        page_sigs = group(
+        derivation_sigs = [
             process_derivation.si(self.pk, profile.to_json(), *args)
             for profile in profiles
-        ) | finalize_page.si(self.pk).on_error(finalize_page.si(self.pk))
-        return page_sigs
+        ]
+        return derivation_sigs
 
-    def _do_post_page_process(self, task_context=None) -> [dict]:
-        self.export.log_event(
-            evt=FINALIZE_PAGE, task=task_context, data={"page": self.page_num}
-        )
+    def _do_post_derive_process(self) -> [dict]:
         if self.data:
             return []
         profiles = list(self.working_data.values()) if self.working_data else []
@@ -936,11 +939,13 @@ class SearchExportPage(TimeStampedModel):
         self.export.save()
         return profiles
 
-    def do_post_page_process(self, task_context=None):
+    def do_post_derive_process(self, task_context=None):
+        self.export.log_event(
+            evt=FINALIZE_PAGE, task=task_context, data={"page": self.page_num}
+        )
         with transaction.atomic():
             page = self.locked()
-            if page:
-                profiles = page._do_post_page_process(task_context=task_context)
+            profiles = page._do_post_derive_process()
         self.export.push_to_webhooks(profiles)
 
 

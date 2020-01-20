@@ -29,7 +29,7 @@ class Echo:
 
 
 @require_GET
-def download(request, uuid, filetype="csv"):
+def download(request, uuid, filetype="csv", *args, **kwargs):
     try:
         export = SearchExport.objects.get(uuid=uuid)
     except SearchExport.DoesNotExist:

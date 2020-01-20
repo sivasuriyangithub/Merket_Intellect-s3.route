@@ -168,7 +168,7 @@ class SearchExportSerializer(serializers.HyperlinkedModelSerializer):
 
         if not validated_data["uploadable"]:
             group_id = validated_data["group_id"]
-            group_name = validated_data.get("group_name", group_id)
+            group_name = validated_data.get("group_name") or group_id
             xperweb_id = validated_data["xperweb_id"]
             email = validated_data["email"]
             profile, _ = UserProfile.get_or_create(username=xperweb_id, email=email)
@@ -195,10 +195,10 @@ class SearchExportSerializer(serializers.HyperlinkedModelSerializer):
                 defaults=dict(plan=plan),
             )
             billing_member, _ = billing_account.get_or_add_user(
-                user=profile.user,
-                seat=seat,
-                seat_credits=validated_data["seat_credits"],
+                user=profile.user, seat=seat
             )
+            billing_member.seat_credits = validated_data["seat_credits"]
+            billing_member.save()
         else:
             seat = None
         export = SearchExport.create_from_query(

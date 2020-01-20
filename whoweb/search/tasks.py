@@ -1,11 +1,11 @@
 import logging
 
-from celery import group
-from celery.result import GroupResult
+from celery import chord, group
+from celery.exceptions import MaxRetriesExceededError
 from requests import HTTPError, Timeout, ConnectionError
+from sentry_sdk import capture_exception
 
 from config import celery_app
-from core.exceptions import ModelLockedError
 from whoweb.core.router import router
 from whoweb.search.models import SearchExport, ResultProfile
 from whoweb.search.models.export import MXDomain, SearchExportPage
@@ -16,6 +16,152 @@ logger = logging.getLogger(__name__)
 NETWORK_ERRORS = [HTTPError, Timeout, ConnectionError]
 MAX_DERIVE_RETRY = 3
 
+MAX_NUM_PAGES_TO_PROCESS_IN_SINGLE_TASK = 5
+
+
+@celery_app.task(
+    bind=True,
+    max_retries=2000,
+    retry_backoff=True,
+    track_started=True,
+    ignore_result=False,
+    autoretry_for=NETWORK_ERRORS,
+)
+def generate_pages(self, export_id):
+    export = SearchExport.objects.get(pk=export_id)
+    pages = export.generate_pages(task_context=self.request)
+    return len(pages) if pages else 0
+
+
+@celery_app.task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
+def accumulate_derivation_tasks(self, page_pk):
+    page = SearchExportPage.objects.get(pk=page_pk)
+    page.status = SearchExportPage.STATUS.working
+    page.save()
+    tasks = page.get_derivation_tasks()
+    if self.request.is_eager:
+        return self.replace(group(tasks) | noop.si().on_error(noop.si()))
+    for task in tasks:
+        self.add_to_chord(task)  # ? celery doesn't see this as in a chord in eager mode
+
+
+@celery_app.task
+def noop():
+    return True
+
+
+@celery_app.task(
+    bind=True,
+    max_retries=3000,
+    track_started=True,
+    ignore_result=False,
+    autoretry_for=NETWORK_ERRORS,
+)
+def do_process_page_chunk(self, batch_size, export_id):
+    export = SearchExport.objects.get(pk=export_id)
+    empty_pages = export.get_next_empty_page(batch_size)
+    if not empty_pages:
+        return "No empty pages remaining."
+    if not export.should_derive_email:
+        for page in empty_pages:
+            page.populate_data_directly(task_context=self.request)
+        return True
+    page_chords = []
+    for empty_page in empty_pages:
+        empty_page.status = SearchExportPage.STATUS.working
+        empty_page.save()
+        tasks = empty_page.get_derivation_tasks()
+        page_chord = chord(
+            tasks,
+            finalize_page.si(empty_page.pk).on_error(finalize_page.si(empty_page.pk)),
+        )
+        page_chords.append(page_chord)
+    if page_chords:
+        batch = chord(page_chords, noop.si().on_error(noop.si()))
+        return self.replace(batch)
+    return "No page tasks required. Pages done."
+
+
+@celery_app.task(
+    bind=True,
+    max_retries=3000,
+    track_started=True,
+    ignore_result=False,
+    autoretry_for=NETWORK_ERRORS,
+)
+def do_process_page(self, page_pk):
+    page = SearchExportPage.objects.get(pk=page_pk)
+    if not page.export.should_derive_email:
+        return page.populate_data_directly(task_context=self.request)
+
+    if tasks := page.get_derivation_tasks():
+        page_chord = chord(
+            tasks, finalize_page.si(page.pk).on_error(finalize_page.si(page.pk)),
+        )
+        page.status = SearchExportPage.STATUS.working
+        page.save()
+        return self.replace(page_chord)
+    else:
+        return "No page tasks required. Pages done."
+
+
+@celery_app.task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
+def check_do_more_pages(self, num_pages, export_id):
+    export = SearchExport.objects.get(pk=export_id)
+    if empty_pages := export.get_next_empty_page(num_pages):
+        tasks = [
+            do_process_page.signature(args=(page.pk,), immutable=True, countdown=i * 60)
+            for i, page in enumerate(empty_pages)
+        ]
+        return self.replace(group(tasks))
+    return "Done"
+
+
+@celery_app.task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
+def do_post_pages_completion(self, export_id):
+    export = SearchExport.objects.get(pk=export_id)
+    # assert export.is_done_processing_pages, f"{export} not done processing pages."
+    export.do_post_pages_completion(task_context=self.request)
+
+
+@celery_app.task(bind=True, autoretry_for=NETWORK_ERRORS)
+def validate_rows(self, export_id):
+    try:
+        export = SearchExport.objects.get(pk=export_id)
+    except SearchExport.DoesNotExist:
+        return 404
+    return export.upload_validation(task_context=self.request)
+
+
+@celery_app.task(autoretry_for=NETWORK_ERRORS, bind=True)
+def fetch_validation_results(self, export_id):
+    try:
+        export = SearchExport.objects.get(pk=export_id)
+    except SearchExport.DoesNotExist:
+        return 404
+
+    complete = export.get_validation_status(task_context=self.request)
+    if complete is False:
+        raise self.retry(cooldown=60, max_retries=24 * 60)
+
+
+@celery_app.task(autoretry_for=NETWORK_ERRORS)
+def do_post_validation_completion(export_id):
+    try:
+        export = SearchExport.objects.get(pk=export_id)
+    except SearchExport.DoesNotExist:
+        return 404
+    return export.do_post_validation_completion()
+
+
+@celery_app.task(autoretry_for=NETWORK_ERRORS)
+def send_notification(export_id):
+    try:
+        export = SearchExport.objects.get(pk=export_id)
+    except SearchExport.DoesNotExist:
+        return 404
+    return export.send_link()
+
 
 @celery_app.task(
     bind=True, max_retries=3000, track_started=True, autoretry_for=NETWORK_ERRORS
@@ -25,111 +171,13 @@ def alert_xperweb(self, export_id):
     try:
         export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
-        return
-    res = router.alert_xperweb_export_completion(
+        return 404
+    router.alert_xperweb_export_completion(
         idempotency_key=export.uuid, amount=export.charged
     )
-    if not res.ok:
-        self.retry(max_retries=50)
-    return res.content
-
-
-@celery_app.task(
-    bind=True, max_retries=3000, track_started=True, autoretry_for=NETWORK_ERRORS
-)
-def process_export(self, export_id):
-    logger.info("Processing <SearchExport %s>", export_id)
-    try:
-        export = SearchExport.objects.get(pk=export_id)
-    except SearchExport.DoesNotExist:
-        return
-
-    if export.is_done_processing_pages:
-        export.do_post_pages_completion(task_context=self.request)
-        return True
-
-    page_tasks = []
-    empty_pages = export.get_next_empty_page(3)
-    for page in empty_pages:
-        page_sigs = page.do_page_process(task_context=self.request)
-        if page_sigs:
-            page_tasks.append((page_sigs, page))
-    if page_tasks:
-        tasks = [pt[0] for pt in page_tasks]
-        pages = [pt[1] for pt in page_tasks]
-        (
-            group(*tasks)
-            | process_export.si(export.pk).on_error(process_export.si(export.pk))
-        ).delay()
-        for page in pages:
-            page.status = SearchExportPage.STATUS.working
-            page.save()
-    else:
-        try:
-            pages = export.generate_pages(task_context=self.request)
-        except (HTTPError, Timeout, ConnectionError, ModelLockedError) as exc:
-            raise self.retry(exc=exc, max_retries=2000, retry_backoff=True)
-        if pages:
-            raise self.retry(max_retries=2000, countdown=4)
-        else:
-            export.do_post_pages_completion(task_context=self.request)
-
-
-@celery_app.task(
-    bind=True, max_retries=5000, ignore_result=False, autoretry_for=NETWORK_ERRORS
-)
-def check_export_has_data(self, export_id):
-    """
-    Useful in a chain to trigger another task after the export is finished.
-    """
-    try:
-        export = SearchExport.objects.get(pk=export_id)
-    except SearchExport.DoesNotExist:
-        return
-
-    if export.is_done_processing_pages:
-        return True
-    else:
-        self.retry(countdown=600)
-
-
-@celery_app.task(bind=True, autoretry_for=NETWORK_ERRORS)
-def validate_rows(self, export_id):
-    try:
-        export = SearchExport.objects.get(pk=export_id)
-    except SearchExport.DoesNotExist:
-        return
-    return export.upload_validation(task_context=self.request)
-
-
-@celery_app.task(autoretry_for=NETWORK_ERRORS, bind=True)
-def fetch_validation_results(self, export_id):
-    try:
-        export = SearchExport.objects.get(pk=export_id)
-    except SearchExport.DoesNotExist:
-        return
-
-    complete = export.get_validation_status(task_context=self.request)
-    if complete is False:
-        raise self.retry(cooldown=60, max_retries=24 * 60)
-
-
-@celery_app.task(autoretry_for=NETWORK_ERRORS)
-def send_notification(export_id):
-    try:
-        export = SearchExport.objects.get(pk=export_id)
-    except SearchExport.DoesNotExist:
-        return
-    return export.send_link()
-
-
-@celery_app.task(autoretry_for=NETWORK_ERRORS)
-def do_post_validation_completion(export_id):
-    try:
-        export = SearchExport.objects.get(pk=export_id)
-    except SearchExport.DoesNotExist:
-        return
-    return export.do_post_validation_completion()
+    export.status = export.STATUS.complete
+    export.save()
+    return True
 
 
 @celery_app.task(ignore_result=False, autoretry_for=NETWORK_ERRORS)
@@ -137,37 +185,21 @@ def fetch_mx_domain(domain):
     try:
         mxd = MXDomain.objects.get(domain=domain)
     except MXDomain.DoesNotExist:
-        return
-    return mxd.fetch_mx()
-
-
-@celery_app.task(autoretry_for=NETWORK_ERRORS)
-def spawn_mx_group(export_id):
+        return 404
     try:
-        export = SearchExport.objects.get(pk=export_id)
-    except SearchExport.DoesNotExist:
-        return
-    group_result = export.get_mx_task_group()
-    if group_result is None:
+        return mxd.fetch_mx()
+    except:
+        capture_exception()
+        return None
+
+
+@celery_app.task(bind=True, autoretry_for=NETWORK_ERRORS)
+def spawn_mx_group(self, export_id):
+    export = SearchExport.objects.get(pk=export_id)
+    group_signature = export.get_mx_task_group()
+    if group_signature is None:
         return False
-    return group_result.id
-
-
-@celery_app.task(
-    bind=True, max_retries=90, ignore_result=False, autoretry_for=NETWORK_ERRORS
-)
-def header_check(self, group_result_id):
-    """
-    Chords are buggy; this is the chord header check as a standalone task.
-    If using this task's signature in a chain, you probably want it mutable: `.s()`
-    """
-
-    if not group_result_id:
-        return True
-
-    results = GroupResult.restore(group_result_id)
-    if any(not result.ready() for result in results) and self.request.retries < 80:
-        raise self.retry(countdown=300)
+    return self.replace(group_signature)
 
 
 def process_derivation(
@@ -217,15 +249,18 @@ def process_derivation(
 def process_derivation_slow(
     self, page_pk, profile_data, defer, omit_failures, add_invite_key, filters=None
 ):
-    return process_derivation(
-        self,
-        page_pk,
-        profile_data,
-        defer,
-        omit_failures,
-        add_invite_key,
-        filters=filters,
-    )
+    try:
+        return process_derivation(
+            self,
+            page_pk,
+            profile_data,
+            defer,
+            omit_failures,
+            add_invite_key,
+            filters=filters,
+        )
+    except MaxRetriesExceededError:
+        pass
 
 
 @celery_app.task(
@@ -240,15 +275,18 @@ def process_derivation_slow(
 def process_derivation_fast(
     self, page_pk, profile_data, defer, omit_failures, add_invite_key, filters=None
 ):
-    return process_derivation(
-        self,
-        page_pk,
-        profile_data,
-        defer,
-        omit_failures,
-        add_invite_key,
-        filters=filters,
-    )
+    try:
+        return process_derivation(
+            self,
+            page_pk,
+            profile_data,
+            defer,
+            omit_failures,
+            add_invite_key,
+            filters=filters,
+        )
+    except MaxRetriesExceededError:
+        pass
 
 
 @celery_app.task(
@@ -256,4 +294,4 @@ def process_derivation_fast(
 )
 def finalize_page(self, pk):
     export_page = SearchExportPage.objects.get(pk=pk)  # allow DoesNotExist exception
-    export_page.do_post_page_process(task_context=self.request)
+    export_page.do_post_derive_process(task_context=self.request)

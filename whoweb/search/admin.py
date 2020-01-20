@@ -132,7 +132,6 @@ class ExportAdmin(ActionsModelAdmin):
         "column_names",
     )
     readonly_fields = (
-        "validation_list_id",
         "sent",
         "sent_at",
         "status_changed",
@@ -205,12 +204,21 @@ class ExportAdmin(ActionsModelAdmin):
 
 @admin.register(ScrollSearch)
 class ScrollSearchAdmin(ActionsModelAdmin):
+
     fields = (
         "scroll_key",
         "scroll_key_modified",
         "page_size",
         "query_hash",
         "total",
-        "query",
+        "query_serialized",
     )
     readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def query_serialized(self, obj):
+        return obj.query.serialize()
+
+    query_serialized.short_description = "query"

@@ -123,7 +123,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     query = EmbeddedModelField(
         FilteredSearchQuery, blank=False, default=FilteredSearchQuery
     )
-    validation_list_id = models.CharField(max_length=50, null=True, editable=False)
+    validation_list_id = models.CharField(max_length=50, null=True, blank=True)
     status = models.IntegerField(
         _("status"), db_index=True, choices=STATUS, blank=True, default=STATUS.created
     )

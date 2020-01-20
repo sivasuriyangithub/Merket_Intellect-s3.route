@@ -114,11 +114,7 @@ def check_do_more_pages(self, num_pages, export_id):
             do_process_page.signature(args=(page.pk,), immutable=True, countdown=i * 60)
             for i, page in enumerate(empty_pages)
         ]
-        if self.request.is_eager:
-            return self.replace(group(tasks))
-        for task in tasks:
-            self.add_to_chord(task)
-        return "Enqueued pages"
+        return self.replace(group(tasks))
     return "Done"
 
 

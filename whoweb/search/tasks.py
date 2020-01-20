@@ -110,18 +110,15 @@ def do_process_page(self, page_pk):
 def check_do_more_pages(self, num_pages, export_id):
     export = SearchExport.objects.get(pk=export_id)
     if empty_pages := export.get_next_empty_page(num_pages):
-        after_pages = generate_pages.si(export_id) | check_do_more_pages.s(export_id)
-        sigs = chord(
-            [
-                do_process_page.signature(
-                    args=(page.pk,), immutable=True, countdown=i * 60
-                )
-                for i, page in enumerate(empty_pages)
-            ],
-            after_pages.on_error(after_pages),
-        )
-        print(sigs)
-        self.replace(sigs)
+        tasks = [
+            do_process_page.signature(args=(page.pk,), immutable=True, countdown=i * 60)
+            for i, page in enumerate(empty_pages)
+        ]
+        if self.request.is_eager:
+            return self.replace(group(tasks))
+        for task in tasks:
+            self.add_to_chord(task)
+        return "Enqueued pages"
     return "Done"
 
 

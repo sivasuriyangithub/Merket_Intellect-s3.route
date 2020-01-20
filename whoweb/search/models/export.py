@@ -781,12 +781,16 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             alert_xperweb,
         )
 
+        generate = generate_pages.si(self.pk)
+        post_page_complete = do_post_pages_completion.si(self.pk)
         sigs = (
-            generate_pages.si(self.pk)
+            generate
             | check_do_more_pages.s(self.pk)
-            | do_post_pages_completion.si(self.pk).on_error(
-                do_post_pages_completion.si(self.pk)
-            )
+            | generate.on_error(generate)
+            | check_do_more_pages.s(self.pk)
+            | generate.on_error(generate)
+            | check_do_more_pages.s(self.pk)
+            | post_page_complete.on_error(post_page_complete)
         )
         if on_complete:
             sigs |= on_complete

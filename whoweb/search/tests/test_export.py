@@ -103,7 +103,7 @@ def test_export_set_target_from_profile_ids(query_specified_profiles_in_filters)
             fixture_ref("query_contact_invites"),
             1000,
             5000,
-            5000 * SearchExport.DERIVATION_RATIO - 1000 * SearchExport.DERIVATION_RATIO,
+            5000 * SearchExport.DERIVATION_RATIO - 1000,
         ),
         (fixture_ref("query_no_contact"), 0, 5000, 5000),
         (fixture_ref("query_no_contact"), 1000, 5000, 4000),

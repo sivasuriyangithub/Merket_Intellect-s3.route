@@ -63,7 +63,7 @@ class SearchExportManager(QueryManagerMixin, models.Manager):
 
 
 class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
-    DERIVATION_RATIO = 4.0
+    DERIVATION_RATIO = 3
     SIMPLE_CAP = 1000
     SKIP_CODE = "MAGIC_SKIP_CODE_NO_VALIDATION_NEEDED"
 
@@ -198,9 +198,13 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         )
 
     def is_done_processing_pages(self):
+        if not self.specified_ids and self.should_derive_email:
+            target = self.target * self.DERIVATION_RATIO
+        else:
+            target = self.target
         return (
             int(self.status) >= SearchExport.STATUS.pages_complete
-            or self.progress_counter >= self.target
+            or self.progress_counter >= target
         )
 
     is_done_processing_pages.boolean = True
@@ -256,11 +260,10 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
     @property
     def num_ids_needed(self):
-        remaining_profile_count = self.target - self.progress_counter
         if not self.specified_ids and self.should_derive_email:
-            return int(remaining_profile_count * self.DERIVATION_RATIO)
+            return int(self.target * self.DERIVATION_RATIO) - self.progress_counter
         else:
-            return remaining_profile_count
+            return self.target - self.progress_counter
 
     @property
     def start_from_count(self):

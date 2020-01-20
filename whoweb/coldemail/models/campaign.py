@@ -20,7 +20,7 @@ from ..events import UPLOAD_CAMPAIGN, PUBLICATION_SIGNATURES
 logger = logging.getLogger()
 
 
-class CampaignSend(ColdemailBaseModel):
+class ColdCampaign(ColdemailBaseModel):
     api_class = api.Campaign
     EVENT_REVERSE_NAME = "campaign"
 
@@ -249,7 +249,7 @@ class CampaignEmailLookup(models.Model):
         indexes = (models.Index(fields=("campaign",)),)
 
     campaign = models.ForeignKey(
-        CampaignSend, on_delete=models.CASCADE, related_name="email_lookups"
+        ColdCampaign, on_delete=models.CASCADE, related_name="email_lookups"
     )
     email = models.EmailField()
     web_id = models.CharField(max_length=160)

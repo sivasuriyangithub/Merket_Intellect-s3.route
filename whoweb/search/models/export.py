@@ -459,7 +459,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             ids = self.specified_ids[self.start_from_count :]
             if not ids:
                 return
-        elif self.num_ids_needed < self.SIMPLE_CAP:
+        elif (self.num_ids_needed + self.start_from_count) < self.SIMPLE_CAP:
             search = self.ensure_search_interface()
             ids = search.send_simple_search(
                 limit=self.num_ids_needed, skip=self.start_from_count

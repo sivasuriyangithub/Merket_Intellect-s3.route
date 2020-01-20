@@ -783,11 +783,11 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
         sigs = (
             generate_pages.si(self.pk)
-            | check_do_more_pages.s(self.pk)
+            | group([check_do_more_pages.s(self.pk)])
             | generate_pages.si(self.pk).on_error(generate_pages.si(self.pk))
-            | check_do_more_pages.s(self.pk)
+            | group([check_do_more_pages.s(self.pk)])
             | generate_pages.si(self.pk).on_error(generate_pages.si(self.pk))
-            | check_do_more_pages.s(self.pk)
+            | group([check_do_more_pages.s(self.pk)])
             | do_post_pages_completion.si(self.pk).on_error(
                 do_post_pages_completion.si(self.pk)
             )

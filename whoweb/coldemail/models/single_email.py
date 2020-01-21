@@ -1,22 +1,15 @@
-from datetime import datetime, timedelta
-
 from celery import chain
 from django.conf import settings
 from django.db import models
-from django.forms import model_to_dict
 
-from whoweb.search.models import FilteredSearchQuery, SearchExport
-from whoweb.contrib.postgres.fields import EmbeddedModelField
-from .reply import ReplyTo
 from .base import ColdemailBaseModel
-from ..api import resource as api
-from ..api.resource import ListRecord
-from ..events import UPLOAD_CAMPAIGN_LIST_URL, UPLOAD_CAMPAIGN_MESSAGE
 from .campaign_message import CampaignMessage
+from .reply import ReplyTo
+from ..api import resource as api
+from ..events import UPLOAD_SINGLE_EMAIL
 
 
 class SingleColdEmail(ColdemailBaseModel):
-
     EVENT_REVERSE_NAME = "single_coldemail"
 
     api_class = api.SingleEmail
@@ -41,9 +34,10 @@ class SingleColdEmail(ColdemailBaseModel):
         message_sigs = self.message.publish(apply_tasks=False)
         chain(message_sigs, publish_single_email.si(self.pk)).apply_async()
 
-    def api_upload(self, is_sync=False):
+    def api_upload(self, task_context=None):
         if self.is_published:
             return
+        self.log_event(UPLOAD_SINGLE_EMAIL, task=task_context)
 
         fromaddress, self.from_name = ReplyTo.get_or_create(self)
 
@@ -59,16 +53,13 @@ class SingleColdEmail(ColdemailBaseModel):
             fromaddress=fromaddress,
             fromname=self.from_name,
         )
-        if is_sync:
-            cold_single_email = self.api_create(is_sync=True, **create_args)
-        else:
-            cold_single_email = yield self.api_create(**create_args)
+        cold_single_email = self.api_create(**create_args)
         self.coldemail_id = cold_single_email.id
         self.status = self.STATUS.published
         self.save()
-        self.save_as_inbox_message()
+        # self.save_as_inbox_message()
 
-    def save_as_inbox_message(self):
-        inbox = Inbox.find(email=self.email)
-        inbox.messages.create(id=ObjectId(), campaign_message=self.message, source=self)
-        inbox.save()
+    # def save_as_inbox_message(self):
+    #     inbox = Inbox.find(email=self.email)
+    #     inbox.messages.create(id=ObjectId(), campaign_message=self.message, source=self)
+    #     inbox.save()

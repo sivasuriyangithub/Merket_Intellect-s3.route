@@ -1,8 +1,7 @@
 import logging
 import time
-from calendar import calendar
+from calendar import calendar, timegm
 from datetime import timedelta
-from typing import Iterator, Iterable
 
 from django.conf import settings
 from django.contrib.postgres.fields import JSONField
@@ -34,13 +33,13 @@ class ColdCampaign(ColdemailBaseModel):
     send_time = models.DateTimeField(null=True)
 
     # stats
+    stats_fetched = models.DateTimeField(null=True)
     sent = models.PositiveIntegerField(default=0)
     views = models.PositiveIntegerField(default=0)
     clicks = models.PositiveIntegerField(default=0)
     unique_clicks = models.PositiveIntegerField(default=0)
     unique_views = models.PositiveIntegerField(default=0)
     optouts = models.PositiveIntegerField(default=0)
-    fetched = models.DateTimeField(null=True)
     good = models.PositiveIntegerField(default=0)
     start_time = models.CharField(max_length=255)
     end_time = models.CharField(max_length=255)
@@ -55,7 +54,7 @@ class ColdCampaign(ColdemailBaseModel):
         if self.is_published:
             return
         date = (
-            calendar.timegm(self.send_time.utctimetuple())
+            timegm(self.send_time.utctimetuple())
             if self.send_time
             else int(time.time() + 300)
         )
@@ -80,7 +79,7 @@ class ColdCampaign(ColdemailBaseModel):
         self.save()
 
     def publish(self, apply_tasks=True, on_complete=None):
-        from xperweb.cold_email.tasks import try_refund, update_validation
+        from whoweb.coldemail.tasks import try_refund, update_validation
 
         if self.is_locked:
             return
@@ -185,7 +184,7 @@ class ColdCampaign(ColdemailBaseModel):
             logger.error(campaign.error)
             return
 
-        if not self.email_lookup:
+        if not self.email_lookups.exists():
             self.populate_webprofile_id_lookup()
             self.refresh_from_db()
 
@@ -205,7 +204,7 @@ class ColdCampaign(ColdemailBaseModel):
         unique_clicks = int(click_log.uniquerecords or 0)
         unique_views = int(open_log.uniquerecords or 0)
 
-        self.fetched = now()
+        self.stats_fetched = now()
         self.sent = int(campaign.sent)
         self.clicks = int(campaign.clicks)
         self.views = int(campaign.views)
@@ -233,7 +232,7 @@ class ColdCampaign(ColdemailBaseModel):
 
     def _annotate_web_ids(self, cold_log):
         log = cold_log.log
-        lookup = {el.email: el.web_id for el in self.email_lookups}
+        lookup = {el.email: el.web_id for el in self.email_lookups.all()}
         for entry in log:
             try:
                 entry["web_id"] = lookup[entry["email"]]

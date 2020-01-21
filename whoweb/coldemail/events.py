@@ -5,3 +5,5 @@ POLL_FOR_LIST_UPLOAD = 250, "Polling for cold email list status."
 
 UPLOAD_CAMPAIGN = 300, "Uploading campaign."
 PUBLICATION_SIGNATURES = 310, "Generated signatures for publishing campaign."
+
+UPLOAD_SINGLE_EMAIL = 500, "Uploading single cold email."

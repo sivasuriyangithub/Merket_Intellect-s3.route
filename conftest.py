@@ -4,7 +4,10 @@ from django.test import RequestFactory
 
 from whoweb.users.tests.factories import UserFactory
 
-pytest_plugins = ["whoweb.search.tests.fixtures"]
+pytest_plugins = [
+    "whoweb.search.tests.fixtures",
+    "whoweb.coldemail.tests.fixtures",
+]
 
 
 @pytest.fixture(autouse=True)

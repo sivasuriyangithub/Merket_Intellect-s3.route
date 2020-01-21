@@ -6,6 +6,7 @@ from model_utils import Choices
 from model_utils.fields import MonitorField
 from model_utils.models import TimeStampedModel, SoftDeletableModel
 
+from whoweb.users.models import Seat
 from whoweb.coldemail.api.resource import (
     CreateableResource,
     ListableResource,
@@ -26,6 +27,8 @@ class ColdemailBaseModel(TimeStampedModel, EventLoggingModel, SoftDeletableModel
         (4, "published", "Published"),
         (8, "paused", "Paused"),
     )
+    seat = models.ForeignKey(Seat, on_delete=models.CASCADE, null=True, blank=True)
+
     status = models.IntegerField(
         _("status"), db_index=True, choices=STATUS, blank=True, default=STATUS.created
     )

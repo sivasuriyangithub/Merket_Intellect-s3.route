@@ -6,17 +6,16 @@ from factory import (
     Iterator,
     Factory,
     Faker,
-    Dict,
     List,
-    SelfAttribute,
 )
 from faker import Faker as NonFactoryFaker
+from faker.providers import internet
+
 from whoweb.payments.tests.factories import BillingAccountMemberFactory
 from whoweb.search.models import SearchExport, ResultProfile
 from whoweb.search.models.export import SearchExportPage
 from whoweb.search.models.profile import GradedEmail
 from whoweb.search.tests.fixtures import done
-from faker.providers import internet
 
 fake = NonFactoryFaker()
 fake.add_provider(internet)
@@ -47,7 +46,6 @@ class GradedEmailFactory(Factory):
 
 
 class ResultProfileFactory(Factory):
-
     _id = Sequence(str)
     first_name = Faker("first_name")
     last_name = Faker("last_name")

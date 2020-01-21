@@ -1,27 +1,23 @@
-from datetime import datetime, timedelta
-
 from django.db import models
 from django.forms import model_to_dict
 
-from whoweb.search.models import FilteredSearchQuery, SearchExport
 from whoweb.contrib.postgres.fields import EmbeddedModelField
+from whoweb.search.models import FilteredSearchQuery, SearchExport
 from .base import ColdemailBaseModel
 from ..api import resource as api
-from ..api.resource import ListRecord
 from ..events import UPLOAD_CAMPAIGN_LIST_URL
 
 
 class CampaignList(ColdemailBaseModel):
-
     EVENT_REVERSE_NAME = "campaign_list"
 
     api_class = api.CampaignList
 
     name = models.CharField(max_length=255)
     origin = models.PositiveSmallIntegerField(
-        choices=[(1, "USER"), (2, "SYSTEM"), (3, "INTRO")]
+        choices=[(1, "USER"), (2, "SYSTEM"), (3, "INTRO")], default=2
     )
-    results_fetched = models.DateTimeField()
+    results_fetched = models.DateTimeField(null=True)
     query: FilteredSearchQuery = EmbeddedModelField(FilteredSearchQuery, null=True)
     export = models.ForeignKey(SearchExport, on_delete=models.SET_NULL, null=True)
 
@@ -71,9 +67,9 @@ class CampaignList(ColdemailBaseModel):
             return sigs
 
     def api_upload(self, task_context=None):
-        self.log_event(UPLOAD_CAMPAIGN_LIST_URL, task=task_context)
         if self.is_published:
             return
+        self.log_event(UPLOAD_CAMPAIGN_LIST_URL, task=task_context)
         created = self.api_class.create_by_url(url=self.export.get_named_fetch_url())
         self.coldemail_id = created.id
         self.status = self.STATUS.published

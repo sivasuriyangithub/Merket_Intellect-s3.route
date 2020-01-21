@@ -1,18 +1,11 @@
-from datetime import datetime, timedelta
-
 from django.db import models
-from django.forms import model_to_dict
 
-from whoweb.search.models import FilteredSearchQuery, SearchExport
-from whoweb.contrib.postgres.fields import EmbeddedModelField
 from .base import ColdemailBaseModel
 from ..api import resource as api
-from ..api.resource import ListRecord
-from ..events import UPLOAD_CAMPAIGN_LIST_URL, UPLOAD_CAMPAIGN_MESSAGE
+from ..events import UPLOAD_CAMPAIGN_MESSAGE
 
 
 class CampaignMessage(ColdemailBaseModel):
-
     EVENT_REVERSE_NAME = "campaign_message"
 
     api_class = api.Message
@@ -37,7 +30,7 @@ class CampaignMessage(ColdemailBaseModel):
         else:
             return sig
 
-    def api_upload(self, is_sync=False, task_context=None):
+    def api_upload(self, task_context=None):
         self.log_event(UPLOAD_CAMPAIGN_MESSAGE, task=task_context)
         if self.coldemail_id:
             return

@@ -1,6 +1,7 @@
 from django.db import models
 from django.forms import model_to_dict
 
+from whoweb.core.router import external_link
 from whoweb.contrib.postgres.fields import EmbeddedModelField
 from whoweb.search.models import FilteredSearchQuery, SearchExport
 from .base import ColdemailBaseModel
@@ -35,7 +36,7 @@ class CampaignList(ColdemailBaseModel):
             query["filters"]["limit"] = len(self.profiles)
             query["filters"]["skip"] = 0
 
-        export = SearchExport.create_from_query(query=query, **kwargs)
+        export = SearchExport.create_from_query(seat=self.seat, query=query, **kwargs)
 
         self.export = export
         self.save()
@@ -58,7 +59,7 @@ class CampaignList(ColdemailBaseModel):
         self.save()
 
         sigs = upload_list.si(self.pk) | check_for_list_publication.si(self.pk)
-        if not export.complete:
+        if not export.status == export.STATUS.complete:
             sigs = export.processing_signatures(on_complete=on_complete) | sigs
 
         if apply_tasks:
@@ -70,7 +71,8 @@ class CampaignList(ColdemailBaseModel):
         if self.is_published:
             return
         self.log_event(UPLOAD_CAMPAIGN_LIST_URL, task=task_context)
-        created = self.api_class.create_by_url(url=self.export.get_named_fetch_url())
+        url = external_link(self.export.get_named_fetch_url())
+        created = self.api_class.create_by_url(url=url)
         self.coldemail_id = created.id
         self.status = self.STATUS.published
         self.save()

@@ -242,6 +242,12 @@ class ColdCampaign(ColdemailBaseModel):
         cold_log.log = log
         return cold_log
 
+    def log_reply(self, email):
+        lookup = self.email_lookups.get(email=email)
+        entry = dict(email=email, web_id=lookup.web_id)
+        self.reply_log.append(entry)
+        self.save()
+
 
 class CampaignEmailLookup(models.Model):
     class Meta:

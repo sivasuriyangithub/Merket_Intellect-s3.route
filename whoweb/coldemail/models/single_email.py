@@ -38,8 +38,8 @@ class SingleColdEmail(ColdemailBaseModel):
         if self.is_published:
             return
         self.log_event(UPLOAD_SINGLE_EMAIL, task=task_context)
-
-        fromaddress, self.from_name = ReplyTo.get_or_create(self)
+        reply_record, created = ReplyTo.get_or_create_with_api(replyable_object=self)
+        self.from_name = reply_record.from_name
 
         create_args = dict(
             email=self.email,
@@ -50,7 +50,7 @@ class SingleColdEmail(ColdemailBaseModel):
             date=self.send_date or None,
             whoisid=settings.COLD_EMAIL_WHOIS,
             profileid=settings.COLD_EMAIL_SINGLE_EMAIL_PROFILEID,
-            fromaddress=fromaddress,
+            fromaddress=reply_record.from_address,
             fromname=self.from_name,
         )
         cold_single_email = self.api_create(**create_args)
@@ -63,3 +63,6 @@ class SingleColdEmail(ColdemailBaseModel):
     #     inbox = Inbox.find(email=self.email)
     #     inbox.messages.create(id=ObjectId(), campaign_message=self.message, source=self)
     #     inbox.save()
+
+    def log_reply(self, email):
+        pass

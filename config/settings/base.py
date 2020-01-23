@@ -85,6 +85,7 @@ LOCAL_APPS = [
     "whoweb.core.apps.CoreConfig",
     "whoweb.users.apps.UsersConfig",
     "whoweb.coldemail.apps.ColdemailConfig",
+    "whoweb.campaigns.apps.CampaignsConfig",
     "whoweb.search.apps.SearchConfig",
     "whoweb.accounting.apps.AccountingConfig",
     "whoweb.payments.apps.PaymentsConfig",

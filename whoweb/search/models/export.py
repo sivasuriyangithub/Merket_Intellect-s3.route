@@ -27,7 +27,6 @@ from model_utils.models import TimeStampedModel, SoftDeletableModel
 from requests_cache import CachedSession
 from six import BytesIO
 
-from core.exceptions import ModelLockedError
 from whoweb.accounting.ledgers import wkcredits_fulfilled_ledger
 from whoweb.accounting.models import Transaction, MatchType
 from whoweb.accounting.queries import get_balances_for_object

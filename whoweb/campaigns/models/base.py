@@ -41,7 +41,7 @@ class DripTooSoonError(Exception):
 class SendingRule(models.Model):
     class Meta:
         unique_together = ("runner", "index")
-        order_by = ("runner", "index")
+        ordering = ("runner", "index")
 
     TRIGGER = Choices(
         (0, "datetime", "At a specified time"),
@@ -75,7 +75,7 @@ class SendingRule(models.Model):
 class DripRecord(models.Model):
     class Meta:
         unique_together = ("runner", "root", "order")
-        order_by = ("runner", "root", "order")
+        ordering = ("runner", "root", "order")
 
     runner = models.ForeignKey("BaseCampaignRunner", on_delete=models.CASCADE)
     root = models.ForeignKey(
@@ -356,7 +356,7 @@ class BaseCampaignRunner(
             title="{} - m{}".format(title, first_message_rule.index),
         )
         cold_campaign = ColdCampaign.objects.create(**campaign_kwargs)
-        cold_campaign = self.set_reply_fields(cold_campaign)
+        self.set_reply_fields(cold_campaign)
         self.campaigns.add(cold_campaign)
         return cold_campaign
 

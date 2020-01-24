@@ -1,23 +1,13 @@
+from datetime import datetime, timedelta
+
 from django.db import models
 
 from whoweb.coldemail.models import CampaignList
-from .base import (
-    AbstractBaseCampaignRunner,
-    AbstractBaseSendingRule,
-    AbstractBaseDripRecord,
-)
-from .metaclass import Messages, Drips
+from .base import BaseCampaignRunner
+from ..events import CAMPAIGN_SIGNATURES
 
 
-class IntervalSendingRule(AbstractBaseSendingRule):
-    manager = models.ForeignKey("IntervalCampaignRunner", on_delete=models.CASCADE)
-
-
-class IntervalDripRecord(AbstractBaseDripRecord):
-    manager = models.ForeignKey("IntervalCampaignRunner", on_delete=models.CASCADE)
-
-
-class IntervalCampaignBase(AbstractBaseCampaignRunner):
+class IntervalCampaignBase(BaseCampaignRunner):
     class Meta:
         abstract = True
 
@@ -30,14 +20,15 @@ class IntervalCampaignBase(AbstractBaseCampaignRunner):
 
     def create_cold_campaign(self, *args, **kwargs):
         if self.max_sends and len(self.campaigns) >= self.max_sends:
-            self.modify(status=CampaignStatus.COMPLETE, modified=datetime.utcnow())
+            self.status = self.STATUS.complete
+            self.save()
             return
         return super().create_cold_campaign(*args, **kwargs)
 
     def create_campaign_list(self, *args, **kwargs):
         campaign_list = super().create_campaign_list(*args, **kwargs)
-        self.query.filters.skip += self.budget
-        self.query.save()
+        self.query.filters.skip = self.query.filters.skip + self.budget
+        self.save()
         return campaign_list
 
 
@@ -45,9 +36,6 @@ class IntervalCampaignRunner(IntervalCampaignBase):
     """
     This style of campaign is will send the same message to the entire query, up to budget.
     """
-
-    messages = Messages(IntervalSendingRule)
-    drips = Drips(IntervalDripRecord)
 
     use_credits_method = models.CharField(max_length=63, blank=True, null=True)
     open_credit_budget = models.IntegerField()

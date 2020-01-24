@@ -1,29 +1,14 @@
 from django.db import models
 
 from whoweb.coldemail.models import CampaignList
-from .base import (
-    AbstractBaseCampaignRunner,
-    AbstractBaseSendingRule,
-    AbstractBaseDripRecord,
-)
-from .metaclass import Messages, Drips
+from .base import BaseCampaignRunner
 
 
-class SimpleSendingRule(AbstractBaseSendingRule):
-    manager = models.ForeignKey("SimpleDripCampaignRunner", on_delete=models.CASCADE)
-
-
-class SimpleDripRecord(AbstractBaseDripRecord):
-    manager = models.ForeignKey("SimpleDripCampaignRunner", on_delete=models.CASCADE)
-
-
-class SimpleDripCampaignRunner(AbstractBaseCampaignRunner):
+class SimpleDripCampaignRunner(BaseCampaignRunner):
     """
     This style of campaign is will send the same message to the entire query, up to budget.
     """
 
-    messages = Messages(SimpleSendingRule)
-    drips = Drips(SimpleDripRecord)
     use_credits_method = models.CharField(max_length=63, blank=True, null=True)
     open_credit_budget = models.IntegerField()
     preset_campaign_list = models.ForeignKey(

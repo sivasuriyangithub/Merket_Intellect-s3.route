@@ -31,7 +31,7 @@ class CampaignList(ColdemailBaseModel):
         return []
 
     def convert_query_to_export(self, **kwargs):
-        query = model_to_dict(self.query)
+        query = self.query.serialize()
         if self.profiles and not self.query.filters.limit:
             query["filters"]["limit"] = len(self.profiles)
             query["filters"]["skip"] = 0

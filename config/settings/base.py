@@ -79,6 +79,7 @@ THIRD_PARTY_APPS = [
     "guardian",
     "organizations",
     "prettyjson",
+    "polymorphic",
 ]
 
 LOCAL_APPS = [

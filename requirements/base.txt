@@ -28,6 +28,7 @@ django-organizations==1.1.2 # https://github.com/bennylope/django-organizations
 django-prettyjson==0.4.1 # https://github.com/kevinmickey/django-prettyjson
 django-autoslug==1.9.6 # https://github.com/justinmayer/django-autoslug
 django-admin-actions==0.1.1 # http://github.com/lukasvinclav/django-admin-actions
+django-polymorphic==2.1.2 # https://github.com/django-polymorphic/django-polymorphic
 
 # Django REST Framework
 djangorestframework==3.11.0  # https://github.com/encode/django-rest-framework

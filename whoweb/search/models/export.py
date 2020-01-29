@@ -5,10 +5,10 @@ import zipfile
 from datetime import timedelta
 from io import TextIOWrapper
 from math import ceil
-from typing import Optional, List, Iterable, Dict, Iterator
+from typing import Optional, List, Iterable, Dict, Iterator, Tuple
 
 import requests
-from celery import group
+from celery import group, chain, chord
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import JSONField, ArrayField
@@ -44,6 +44,7 @@ from whoweb.search.events import (
     POPULATE_DATA,
     FINALIZE_PAGE,
     ENQUEUED_FROM_QUERY,
+    GENERATING_PAGES_COMPLETE,
 )
 from whoweb.users.models import Seat
 from .profile import ResultProfile, WORK, PERSONAL, SOCIAL, PROFILE, VALIDATED
@@ -64,6 +65,8 @@ class SearchExportManager(QueryManagerMixin, models.Manager):
 
 class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     DERIVATION_RATIO = 3
+    PREFETCH_MULTIPLIER = 2
+    PAGE_DELAY = 60
     SIMPLE_CAP = 1000
     SKIP_CODE = "MAGIC_SKIP_CODE_NO_VALIDATION_NEEDED"
 
@@ -244,15 +247,17 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         top_level = self.query.filters.profiles
         if top_level:
             return top_level
-        plus_ids = set()
-        minus_ids = set()
-        for required in self.query.filters.required:
-            if required.field == "_id":
-                if required.truth is True:
-                    plus_ids.update(required.value or [])
-                if required.truth is False:
-                    minus_ids.update(required.value or [])
-        return list(plus_ids.difference(minus_ids))
+        if not hasattr(self, "_cached_specified_ids"):
+            plus_ids = set()
+            minus_ids = set()
+            for required in self.query.filters.required:
+                if required.field == "_id":
+                    if required.truth is True:
+                        plus_ids.update(required.value or [])
+                    if required.truth is False:
+                        minus_ids.update(required.value or [])
+            self._cached_specified_ids = list(plus_ids.difference(minus_ids))
+        return self._cached_specified_ids
 
     @specified_ids.setter
     def specified_ids(self, ids):
@@ -329,10 +334,14 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             self.save()
         return self.scroll.ensure_live(force=force)
 
-    def get_raw(self):
+    def get_raw(self) -> Iterator[ResultProfile]:
         for page in self.pages.filter(data__isnull=False).iterator(chunk_size=1):
             for row in page.data:
                 yield row
+
+    def get_raw_by_page(self) -> Iterator[Iterable[ResultProfile]]:
+        for page in self.pages.filter(data__isnull=False).iterator(chunk_size=1):
+            yield page.data
 
     def get_profiles(self, raw=None) -> Iterator[ResultProfile]:
         if raw is None:
@@ -341,8 +350,18 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             if profile:
                 yield ResultProfile.from_json(profile)
 
-    def get_ungraded_email_rows(self):
-        for profile in self.get_profiles():
+    def get_profiles_by_page(
+        self, raw_by_page=None
+    ) -> Iterator[Iterator[ResultProfile]]:
+        if raw_by_page is None:
+            raw_by_page = self.get_raw_by_page()
+        for page_of_profiles in raw_by_page:
+            yield self.get_profiles(raw=page_of_profiles)
+
+    def get_ungraded_email_rows(self, profiles=None) -> Iterator[Tuple[str, str]]:
+        if profiles is None:
+            profiles = self.get_profiles()
+        for profile in profiles:
             if profile.passing_grade:
                 continue
             profile_id = profile.web_id or profile.id
@@ -352,9 +371,10 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             for email in pending:
                 yield (email, profile_id)
 
-    def generate_email_id_pairs(self):
-
-        for profile in self.get_profiles():
+    def generate_email_id_pairs(self, profiles=None) -> Iterator[Tuple[str, str]]:
+        if profiles is None:
+            profiles = self.get_profiles()
+        for profile in profiles:
             if profile.email and profile.id:
                 yield (profile.email, profile.id)
 
@@ -449,37 +469,14 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             )
         return charges
 
-    def _generate_pages(self) -> Optional[List["SearchExportPage"]]:
-        """
-
-        :return: List of export pages for which search cache has been primed.
-        :rtype:
-        """
+    def compute_pages_remaining(self):
+        search = self.ensure_search_interface()
         if self.specified_ids:
-            ids = self.specified_ids[self.start_from_count :]
-            if not ids:
-                return
+            return 0, 0
         elif (self.num_ids_needed + self.start_from_count) < self.SIMPLE_CAP:
-            search = self.ensure_search_interface()
-            ids = search.send_simple_search(
-                limit=self.num_ids_needed, skip=self.start_from_count
-            )
-            if not ids:
-                return
-        else:
-            ids = []
-
-        if already_generated_pages := self.pages.filter(
-            data__isnull=True, status=SearchExportPage.STATUS.created
-        ):
-            return already_generated_pages
-
-        search = self.ensure_search_interface(force=True)
-
-        if ids:
-            num_ids_needed = min(self.num_ids_needed, len(ids))
+            return 0, 0
         elif self.start_from_count >= search.population():
-            return
+            return 0, 0
         elif self.num_ids_needed + self.start_from_count > search.population():
             num_ids_needed = search.population() - self.start_from_count
         else:
@@ -493,42 +490,120 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         else:
             start_page = last_completed_page.page_num + 1
 
-        pages = []
-        if ids:
-            # Mock scroll with given ids.
-            for page in range(start_page, num_pages + start_page):
-                page_ids = ids[: search.page_size]
-                search.set_web_ids(
-                    ids=page_ids, page=page
-                )  # mock the page results so we don't store ids over and over again
-                pages.append(SearchExportPage(page_num=page, export=self))
-                ids = ids[search.page_size :]
-                if len(ids) == 0:
-                    break
-        else:
-            # Actual Scrolling
-            for page in range(start_page, num_pages + start_page):
-                logger.debug("Eagerly fetching page %d of scroll", page)
-                profile_ids = search.get_ids_for_page(page=page)
-                if profile_ids:
-                    pages.append(SearchExportPage(page_num=page, export=self))
-                else:
-                    break
-        if pages:
-            # Last page
-            remainder = num_ids_needed % search.page_size
-            if remainder > 0:
-                pages[-1].limit = remainder
-                # set limit so we dont try to derive the whole page
-            return SearchExportPage.objects.bulk_create(pages, ignore_conflicts=True)
+        return start_page, num_pages, num_ids_needed
 
-    @transaction.atomic
-    def generate_pages(self, task_context=None):
-        export = self.locked()
+    def _is_scroll_search_or_fetch_ids(
+        self,
+    ) -> Tuple[bool, Optional[List["SearchExportPage"]]]:
+        if self.specified_ids:
+            return False, self.specified_ids[self.start_from_count :]
+        elif (self.num_ids_needed + self.start_from_count) < self.SIMPLE_CAP:
+            search = self.ensure_search_interface()
+            return (
+                False,
+                search.send_simple_search(
+                    limit=self.num_ids_needed, skip=self.start_from_count
+                ),
+            )
+        else:
+            return True, None
+
+    def _generate_pages_scrolling(
+        self, scroller, start_page, num_pages_needed
+    ) -> List["SearchExportPage"]:
+        pages = []
+        # Actual Scrolling
+        for page in range(start_page, num_pages_needed + start_page):
+            logger.debug("Eagerly fetching page %d of scroll", page)
+            profile_ids = scroller.get_ids_for_page(page=page)
+            if profile_ids:
+                pages.append(SearchExportPage(page_num=page, export=self))
+            else:
+                break
+        return pages
+
+    def _generate_pages_mock_scrolling(
+        self, ids, scroller, start_page, num_pages_needed
+    ) -> List["SearchExportPage"]:
+        pages = []
+        for page in range(start_page, num_pages_needed + start_page):
+            page_ids = ids[: scroller.page_size]
+            scroller.set_web_ids(
+                ids=page_ids, page=page
+            )  # mock the page results so we don't store ids over and over again
+            pages.append(SearchExportPage(page_num=page, export=self))
+            ids = ids[scroller.page_size :]
+            if len(ids) == 0:
+                break
+        return pages
+
+    def _compute_num_ids_remaining(self, force_scroller=False) -> int:
+        scroller = self.ensure_search_interface(force=force_scroller)
+        if self.start_from_count >= scroller.population():
+            return 0
+        elif self.num_ids_needed + self.start_from_count > scroller.population():
+            return scroller.population() - self.start_from_count
+        else:
+            return self.num_ids_needed
+
+    def _compute_num_pages_remaining(
+        self, ids_remaining, force_scroller=False,
+    ) -> Tuple[int, int]:
+        scroller = self.ensure_search_interface(force=force_scroller)
+
+        num_pages = int(ceil(float(ids_remaining) / scroller.page_size))
+        last_completed_page = self.pages.filter(data__isnull=False).last()
+
+        if not last_completed_page:
+            start_page = int(ceil(float(self.start_from_count) / scroller.page_size))
+        else:
+            start_page = last_completed_page.page_num + 1
+        return start_page, num_pages
+
+    def _generate_pages(self) -> List["SearchExportPage"]:
+        """
+
+        :return: List of export pages for which search cache has been primed.
+        :rtype:
+        """
+        if already_generated_pages := self.pages.filter(
+            data__isnull=True, status=SearchExportPage.STATUS.created
+        ):
+            return already_generated_pages
+
+        search = self.ensure_search_interface(force=True)
+        is_scroll, ids = self._is_scroll_search_or_fetch_ids()
+
+        if is_scroll:
+            num_ids_needed = self._compute_num_ids_remaining()
+            start_page, num_pages = self._compute_num_pages_remaining(num_ids_needed)
+            pages = self._generate_pages_scrolling(
+                scroller=search,
+                start_page=start_page,
+                num_pages_needed=num_pages * self.PREFETCH_MULTIPLIER,
+            )
+        else:
+            num_ids_needed = min(self.num_ids_needed, len(ids))
+            start_page, num_pages = self._compute_num_pages_remaining(num_ids_needed)
+            pages = self._generate_pages_mock_scrolling(
+                ids=ids,
+                scroller=search,
+                start_page=start_page,
+                num_pages_needed=num_pages,
+            )
+        if pages:
+            return SearchExportPage.objects.bulk_create(pages, ignore_conflicts=True)
+        return []
+
+    def generate_pages(self, task_context=None) -> List["SearchExportPage"]:
         self.log_event(GENERATING_PAGES, task=task_context)
-        export.status = SearchExport.STATUS.pages_working
-        export.save()
-        return export._generate_pages()
+        with transaction.atomic():
+            export = self.locked()
+            export.status = SearchExport.STATUS.pages_working
+            export.save()
+            pages = export._generate_pages()
+            self.log_event(GENERATING_PAGES_COMPLETE, task=task_context)
+            return pages
 
     def get_next_empty_page(self, batch=1) -> Optional["SearchExportPage"]:
         return self.pages.filter(
@@ -538,6 +613,8 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     @transaction.atomic
     def do_post_pages_completion(self, task_context=None):
         export = self.locked(status__lt=SearchExport.STATUS.pages_complete)
+        if not export:
+            return
         export.log_event(FINALIZING, task=task_context)
         if export.charge and not export.defer_validation:
             charges = export.compute_charges()
@@ -697,13 +774,18 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
                 return True
 
     def get_mx_task_group(self):
-        from whoweb.search.tasks import fetch_mx_domain
+        from whoweb.search.tasks import fetch_mx_domains
 
         tasks = []
-        for email, web_id in self.generate_email_id_pairs():
-            mxd = MXDomain.from_email(email)
-            if not mxd.mx_domain:
-                tasks.append(fetch_mx_domain.si(mxd.pk))
+        for page_profiles in self.get_profiles_by_page():
+            domains = []
+            emails = (
+                email
+                for email, _ in self.generate_email_id_pairs(profiles=page_profiles)
+            )
+            for mxd in MXDomain.bulk_from_email(emails):
+                domains.append(mxd.pk)
+            tasks.append(fetch_mx_domains.si(domains))
         if not tasks:
             return None
         mx_tasks = group(tasks)
@@ -774,7 +856,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     def processing_signatures(self, on_complete=None):
         from whoweb.search.tasks import (
             generate_pages,
-            check_do_more_pages,
+            spawn_do_page_process_tasks,
             do_post_pages_completion,
             validate_rows,
             fetch_validation_results,
@@ -784,30 +866,35 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             alert_xperweb,
         )
 
+        batch_ratio = 1 if self.specified_ids else self.PREFETCH_MULTIPLIER
+
         sigs = (
-            generate_pages.si(self.pk)
-            | check_do_more_pages.s(self.pk)
-            | generate_pages.si(self.pk).on_error(generate_pages.si(self.pk))
-            | check_do_more_pages.s(self.pk)
-            | generate_pages.si(self.pk).on_error(generate_pages.si(self.pk))
-            | check_do_more_pages.s(self.pk)
-            | do_post_pages_completion.si(self.pk).on_error(
-                do_post_pages_completion.si(self.pk)
+            generate_pages.si(export_id=self.pk)
+            | chain(
+                *[
+                    spawn_do_page_process_tasks.si(
+                        prefetch_multiplier=batch_ratio, export_id=self.pk
+                    )
+                    for _ in range(ceil(batch_ratio))
+                ]
             )
+            | do_post_pages_completion.si(export_id=self.pk)
         )
         if on_complete:
             sigs |= on_complete
         if self.defer_validation:
             sigs |= (
-                validate_rows.si(self.pk)
-                | fetch_validation_results.si(self.pk)
-                | do_post_validation_completion.si(self.pk)
+                validate_rows.si(export_id=self.pk)
+                | fetch_validation_results.si(export_id=self.pk)
+                | do_post_validation_completion.si(export_id=self.pk)
             )
         if self.notify:
-            sigs |= send_notification.si(self.pk)
+            sigs |= send_notification.si(export_id=self.pk)
         if self.uploadable:
-            sigs |= spawn_mx_group.si(self.pk)
-        sigs |= alert_xperweb.si(self.pk)
+            sigs |= spawn_mx_group.si(export_id=self.pk)
+        sigs |= alert_xperweb.si(export_id=self.pk).on_error(
+            alert_xperweb.si(export_id=self.pk)
+        )
         return sigs
 
     def get_validation_url(self):
@@ -958,12 +1045,15 @@ class MXDomain(models.Model):
         return {instance.domain: instance.mx_domain for instance in instances}
 
     @classmethod
-    def from_email(cls, email="@"):
-        domain = email.split("@")[1]
-        if domain:
-            return cls.objects.get_or_create(domain=domain)[0]
+    def bulk_from_email(cls, emails=()):
+        domains = [email.split("@")[1] for email in emails if email]
+        return cls.objects.bulk_create(
+            [cls(domain=domain) for domain in domains], ignore_conflicts=True
+        )
 
     def fetch_mx(self):
+        if self.mxs:
+            return
         try:
             answers = resolver.query(self.domain, "MX")
         except (resolver.NXDOMAIN, resolver.NoNameservers):

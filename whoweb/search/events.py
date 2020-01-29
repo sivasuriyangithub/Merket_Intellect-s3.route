@@ -1,6 +1,7 @@
 ENQUEUED_FROM_QUERY = 100, "Enqueued directly from query."
 ENQUEUED_FROM_ADMIN = 110, "Enqueued from Admin."
 GENERATING_PAGES = 200, "Generating pages."
+GENERATING_PAGES_COMPLETE = 220, "Finished generating pages."
 FINALIZING = 700, "Running post-page steps."
 POST_VALIDATION = 500, "Uploading post-export validation list."
 FETCH_VALIDATION = 550, "Fetching post-export validation."

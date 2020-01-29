@@ -36,7 +36,14 @@ def test_generate_pages_specified(query_specified_profiles_in_filters):
     assert export.pages.count() == 1
 
 
-@pytest.mark.parametrize("population,pages", [(100, 1), (500, 2), (601, 3)])
+@pytest.mark.parametrize(
+    "population,pages",
+    [
+        (100, 1 * SearchExport.PREFETCH_MULTIPLIER),
+        (500, 2 * SearchExport.PREFETCH_MULTIPLIER),
+        (601, 3 * SearchExport.PREFETCH_MULTIPLIER),
+    ],
+)
 @patch("whoweb.search.models.ScrollSearch.get_ids_for_page")
 @patch("whoweb.search.models.ScrollSearch.population")
 def test_generate_pages(pop_mock, get_ids, query_contact_invites, population, pages):
@@ -48,7 +55,14 @@ def test_generate_pages(pop_mock, get_ids, query_contact_invites, population, pa
     assert export.pages.count() == pages
 
 
-@pytest.mark.parametrize("population,pages", [(100, 1), (500, 2), (601, 3)])
+@pytest.mark.parametrize(
+    "population,pages",
+    [
+        (100, 1 * SearchExport.PREFETCH_MULTIPLIER),
+        (500, 2 * SearchExport.PREFETCH_MULTIPLIER),
+        (601, 3 * SearchExport.PREFETCH_MULTIPLIER),
+    ],
+)
 @patch("whoweb.search.models.ScrollSearch.get_profiles_for_page")
 @patch("whoweb.search.models.ScrollSearch.get_ids_for_page")
 @patch("whoweb.search.models.ScrollSearch.population")
@@ -60,7 +74,7 @@ def test_generate_pages_continuation(
     export._set_target()
     export._generate_pages()
     assert export.pages.count() == pages
-    export.pages.update(data={"done": True})
+    export.pages.update(data={"done": True})  # no progress counter update
     export._generate_pages()
     assert export.pages.count() == pages * 2
 

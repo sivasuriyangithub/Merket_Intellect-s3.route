@@ -288,6 +288,8 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-ignore-result
 CELERY_TASK_IGNORE_RESULT = False
+CELERY_RESULT_EXTENDED = True
+CELERY_RESULT_CHORD_JOIN_TIMEOUT = 5.0
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-time-limit
 # TODO: set to whatever value is adequate in your circumstances
 CELERY_TASK_TIME_LIMIT = 60 * 60
@@ -300,7 +302,7 @@ CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TASK_DEFAULT_QUEUE = "whoweb"
 # https://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_routes
 CELERY_ROUTES = {
-    "whoweb.search.tasks.fetch_mx_domain": {"queue": "whoweb_low"},
+    "whoweb.search.tasks.fetch_mx_domains": {"queue": "whoweb_low"},
     "whoweb.search.tasks.process_derivation_slow": {"queue": "whoweb_low"},
     "whoweb.search.tasks.process_derivation_fast": {"queue": "whoweb_low"},
 }

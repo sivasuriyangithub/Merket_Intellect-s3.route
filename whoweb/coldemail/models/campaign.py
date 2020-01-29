@@ -8,7 +8,7 @@ from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.utils.timezone import now
 
-from core.router import router
+from whoweb.core.router import router
 from .base import ColdemailBaseModel
 from .campaign_list import CampaignList
 from .campaign_message import CampaignMessage

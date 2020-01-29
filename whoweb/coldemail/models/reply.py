@@ -9,8 +9,8 @@ from django.db import models, transaction
 from django.urls import reverse
 from model_utils.models import TimeStampedModel
 
-from coldemail.api.error import ColdEmailError
-from core.router import external_link
+from whoweb.coldemail.api.error import ColdEmailError
+from whoweb.core.router import external_link
 from whoweb.coldemail.api.resource import RoutesObject
 
 

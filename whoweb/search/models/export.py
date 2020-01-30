@@ -66,7 +66,7 @@ class SearchExportManager(QueryManagerMixin, models.Manager):
 class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     DERIVATION_RATIO = 3
     PREFETCH_MULTIPLIER = 2
-    PAGE_DELAY = 60
+    PAGE_DELAY = 90
     SIMPLE_CAP = 1000
     SKIP_CODE = "MAGIC_SKIP_CODE_NO_VALIDATION_NEEDED"
 
@@ -870,18 +870,42 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             alert_xperweb,
         )
 
-        batch_ratio = 1 if self.specified_ids else self.PREFETCH_MULTIPLIER
-
-        sigs = (
-            generate_pages.si(export_id=self.pk)
-            | chain(
+        batch_ratio = self.PREFETCH_MULTIPLIER
+        if self.specified_ids or batch_ratio == 1:
+            do_pages = spawn_do_page_process_tasks.si(
+                prefetch_multiplier=1, export_id=self.pk
+            )
+        else:
+            do_pages = chain(
                 *[
                     spawn_do_page_process_tasks.si(
                         prefetch_multiplier=batch_ratio, export_id=self.pk
                     )
-                    for _ in range(ceil(batch_ratio))
-                ]
+                    for _ in range(ceil(batch_ratio - 1))
+                ],
+                spawn_do_page_process_tasks.si(
+                    prefetch_multiplier=1 / (6 * batch_ratio), export_id=self.pk
+                ),
+                spawn_do_page_process_tasks.si(
+                    prefetch_multiplier=1 / (6 * batch_ratio), export_id=self.pk
+                ),
+                spawn_do_page_process_tasks.si(
+                    prefetch_multiplier=1 / (6 * batch_ratio), export_id=self.pk
+                ),
+                spawn_do_page_process_tasks.si(
+                    prefetch_multiplier=1 / (6 * batch_ratio), export_id=self.pk
+                ),
+                spawn_do_page_process_tasks.si(
+                    prefetch_multiplier=1 / (6 * batch_ratio), export_id=self.pk
+                ),
+                spawn_do_page_process_tasks.si(
+                    prefetch_multiplier=1 / (6 * batch_ratio), export_id=self.pk
+                ),
             )
+
+        sigs = (
+            generate_pages.si(export_id=self.pk)
+            | do_pages
             | do_post_pages_completion.si(export_id=self.pk)
         )
         if on_complete:

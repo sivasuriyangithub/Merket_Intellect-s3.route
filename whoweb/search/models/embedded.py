@@ -61,6 +61,15 @@ class ExportOptions(AbstractEmbeddedModel):
         return self.format == "flat"
 
 
+def default_contact_filters():
+    return [
+        FilteredSearchQuery.CONTACT_FILTER_CHOICES.WORK,
+        FilteredSearchQuery.CONTACT_FILTER_CHOICES.PERSONAL,
+        FilteredSearchQuery.CONTACT_FILTER_CHOICES.SOCIAL,
+        FilteredSearchQuery.CONTACT_FILTER_CHOICES.PROFILE,
+    ]
+
+
 class FilteredSearchQuery(AbstractEmbeddedModel):
     class Meta:
         managed = False
@@ -108,7 +117,7 @@ class FilteredSearchQuery(AbstractEmbeddedModel):
     with_invites = models.BooleanField(default=False)
     contact_filters = ArrayField(
         base_field=models.CharField(max_length=50, choices=CONTACT_FILTER_CHOICES),
-        default=list,
+        default=default_contact_filters,
         blank=True,
     )
     export = EmbeddedModelField(ExportOptions, default=ExportOptions)

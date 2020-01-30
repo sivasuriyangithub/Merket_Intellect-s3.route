@@ -164,13 +164,17 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             plan: WKPlan = seat.billing.plan
             if not plan:
                 raise SubscriptionError("No plan or subscription found for user.")
-            credits_to_charge = export.target * sum(
-                (
-                    plan.credits_per_work_email,
-                    plan.credits_per_phone,
-                    plan.credits_per_personal_email,
-                )
-            )  # maximum possible -- credit hold
+
+            fee_per_row = 0
+            filters = export.query.contact_filters
+            assert filters, "An export with derivations must specify contact filters."
+            if FilteredSearchQuery.CONTACT_FILTER_CHOICES.WORK in filters:
+                fee_per_row += plan.credits_per_work_email
+            if FilteredSearchQuery.CONTACT_FILTER_CHOICES.PERSONAL in filters:
+                fee_per_row += plan.credits_per_personal_email
+            if FilteredSearchQuery.CONTACT_FILTER_CHOICES.PHONE in filters:
+                fee_per_row += plan.credits_per_phone
+            credits_to_charge = export.target * fee_per_row  # maximum possible
             charged = seat.billing.consume_credits(
                 amount=credits_to_charge, initiated_by=seat.user, evidence=(export,)
             )

@@ -10,8 +10,8 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from whoweb.search.models import ResultProfile
 from whoweb.contrib.rest_framework.permissions import IsSuperUser
+from whoweb.search.models import ResultProfile
 from whoweb.search.models.export import SearchExportPage
 from .events import DOWNLOAD_VALIDATION, DOWNLOAD
 from .models import SearchExport
@@ -34,7 +34,9 @@ def download(request, uuid, filetype="csv", *args, **kwargs):
         export = SearchExport.objects.get(uuid=uuid)
     except SearchExport.DoesNotExist:
         raise Http404("Export not found")
-    export.log_event(evt=DOWNLOAD, data={"request": repr(request)})
+    export.log_event(
+        evt=DOWNLOAD, data={"request": repr(request), "headers": repr(request.headers)}
+    )
 
     pseudo_buffer = Echo()
     if filetype == "csv":
@@ -83,7 +85,10 @@ def validate(request, uuid):
     except SearchExport.DoesNotExist:
         raise Http404("Export not found")
 
-    export.log_event(evt=DOWNLOAD_VALIDATION, data={"request": repr(request)})
+    export.log_event(
+        evt=DOWNLOAD_VALIDATION,
+        data={"request": repr(request), "headers": repr(request.headers)},
+    )
     pseudo_buffer = Echo()
     writer = csv.writer(pseudo_buffer)
     response = StreamingHttpResponse(

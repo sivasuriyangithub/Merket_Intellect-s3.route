@@ -1,6 +1,6 @@
 import logging
 import time
-from calendar import calendar, timegm
+from calendar import timegm
 from datetime import timedelta
 
 from django.conf import settings

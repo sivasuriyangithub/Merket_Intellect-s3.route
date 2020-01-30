@@ -4,7 +4,7 @@
 
 gunicorn==20.0.4  # https://github.com/benoitc/gunicorn
 psycopg2==2.8.4 --no-binary psycopg2  # https://github.com/psycopg/psycopg2
-sentry-sdk==0.14.0  # https://github.com/getsentry/sentry-python
+sentry-sdk==0.14.1  # https://github.com/getsentry/sentry-python
 google-cloud-logging # https://cloud.google.com/logging/docs/reference/libraries#client-libraries-install-python
 
 # Django

@@ -1,4 +1,4 @@
-six==1.13.0
+six==1.14.0
 ipython==7.11.1
 pytz==2019.3  # https://github.com/stub42/pytz
 python-slugify==4.0.0  # https://github.com/un33k/python-slugify
@@ -32,7 +32,7 @@ django-polymorphic==2.1.2 # https://github.com/django-polymorphic/django-polymor
 
 # Django REST Framework
 djangorestframework==3.11.0  # https://github.com/encode/django-rest-framework
-drf-extensions==0.5.0 # https://github.com/chibisov/drf-extensions
+drf-extensions==0.6.0 # https://github.com/chibisov/drf-extensions
 coreapi==2.3.3  # https://github.com/core-api/python-client
 django-filter==2.2.0
 markdown==3.1.1

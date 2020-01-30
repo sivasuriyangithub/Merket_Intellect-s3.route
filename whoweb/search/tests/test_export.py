@@ -205,13 +205,13 @@ def test_lifecyle_charges(
     processing_signatures,
     query_contact_invites_defer_validation,
 ):
-    seat = BillingAccountMemberFactory(seat_credits=3500000).seat
+    seat = BillingAccountMemberFactory(seat_credits=1500000).seat
     export = SearchExport.create_from_query(
         seat=seat, query=query_contact_invites_defer_validation, charge=True
     )
     export.refresh_from_db()
     assert export.target == 5000
-    assert export.charged == 3500000
+    assert export.charged == 1500000
     seat.refresh_from_db()
     assert seat.billing.credits == 0
 
@@ -223,7 +223,7 @@ def test_lifecyle_charges(
 
     assert export.charged == 10000
     seat.refresh_from_db()
-    assert seat.billing.credits == 3490000
+    assert seat.billing.credits == 1490000
 
 
 @pytest.mark.parametrize(

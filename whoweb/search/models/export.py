@@ -879,7 +879,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             do_pages = chain(
                 *[
                     spawn_do_page_process_tasks.si(
-                        prefetch_multiplier=batch_ratio, export_id=self.pk
+                        prefetch_multiplier=1 / batch_ratio, export_id=self.pk
                     )
                     for _ in range(ceil(batch_ratio - 1))
                 ],

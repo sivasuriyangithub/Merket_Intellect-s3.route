@@ -44,7 +44,7 @@ class IntervalCampaignRunner(IntervalCampaignBase):
     )
 
     def publish(self, apply_tasks=True, task_context=None, *args, **kwargs):
-        from xperweb.campaign.tasks import publish_next_interval
+        from whoweb.campaigns.tasks import publish_next_interval
 
         sigs, campaign = super().publish(
             apply_tasks=False, task_context=task_context, *args, **kwargs

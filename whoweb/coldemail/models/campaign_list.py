@@ -1,8 +1,8 @@
 from django.db import models
-from django.forms import model_to_dict
+from model_utils import Choices
 
-from whoweb.core.router import external_link
 from whoweb.contrib.postgres.fields import EmbeddedModelField
+from whoweb.core.router import external_link
 from whoweb.search.models import FilteredSearchQuery, SearchExport
 from .base import ColdemailBaseModel
 from ..api import resource as api
@@ -13,11 +13,12 @@ class CampaignList(ColdemailBaseModel):
     EVENT_REVERSE_NAME = "campaign_list"
 
     api_class = api.CampaignList
+    ORIGIN = Choices(
+        (1, "user", "USER"), (2, "system", "SYSTEM"), (3, "intro", "INTRO")
+    )
 
     name = models.CharField(max_length=255)
-    origin = models.PositiveSmallIntegerField(
-        choices=[(1, "USER"), (2, "SYSTEM"), (3, "INTRO")], default=2
-    )
+    origin = models.PositiveSmallIntegerField(choices=ORIGIN, default=2)
     results_fetched = models.DateTimeField(null=True)
     query: FilteredSearchQuery = EmbeddedModelField(FilteredSearchQuery, null=True)
     export = models.ForeignKey(SearchExport, on_delete=models.SET_NULL, null=True)

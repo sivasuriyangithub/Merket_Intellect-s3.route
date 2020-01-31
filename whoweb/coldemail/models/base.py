@@ -35,7 +35,9 @@ class ColdemailBaseModel(TimeStampedModel, EventLoggingModel, SoftDeletableModel
     status_changed = MonitorField(_("status changed"), monitor="status")
     coldemail_id = models.CharField(max_length=100)
     is_removed_changed = MonitorField("deleted at", monitor="is_removed")
-    published_at = MonitorField(monitor="status", when=["published"])
+    published_at = MonitorField(
+        monitor="status", when=["published"], null=True, default=None, blank=True
+    )
 
     class Meta:
         abstract = True

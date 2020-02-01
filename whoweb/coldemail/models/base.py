@@ -43,8 +43,8 @@ class ColdemailBaseModel(TimeStampedModel, EventLoggingModel, SoftDeletableModel
         abstract = True
 
     def __str__(self):
-        return (
-            f"status: {self.status}" + f", published at {self.published_at}"
+        return f"{self.__class__.__name__} {self.pk}" + (
+            f"(Published {self.published_at})"
             if self.status == self.STATUS.published
             else ""
         )

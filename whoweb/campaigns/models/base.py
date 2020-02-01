@@ -130,13 +130,16 @@ class BaseCampaignRunner(
 
     budget = models.PositiveIntegerField()
 
-    published = models.DateTimeField(null=True)
     status = models.IntegerField(
         "status", db_index=True, choices=STATUS, blank=True, default=STATUS.draft
     )
     status_changed = MonitorField("status changed", monitor="status")
+    is_removed_changed = MonitorField("deleted at", monitor="is_removed")
+    published_at = MonitorField(
+        monitor="status", when=["published"], null=True, default=None, blank=True
+    )
 
-    tracking_params = JSONField(null=True)
+    tracking_params = JSONField(default=dict, null=True, blank=True)
 
     # Enforce only 1 active signature chain in celery,
     # enabling republishing via .resume(), even with a pending canvas.
@@ -144,6 +147,9 @@ class BaseCampaignRunner(
 
     objects = PolymorphicSoftDeletableManager()
     all_objects = PolymorphicManager()
+
+    def __str__(self):
+        return f"{self.__class__.__name__} {self.pk} ({self.get_status_display()})"
 
     def sending_rules(self):
         return SendingRule.objects.filter(runner=self)

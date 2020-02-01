@@ -12,11 +12,15 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from whoweb.search.urls import router as search_router
 from whoweb.users.urls import router as user_router
+from whoweb.campaigns.urls import router as campaign_router
+from whoweb.coldemail.urls import router as coldemail_router
 
 router = ExtendedDefaultRouter()
 router.root_view_name = "home"
 router.registry.extend(search_router.registry)
 router.registry.extend(user_router.registry)
+router.registry.extend(campaign_router.registry)
+router.registry.extend(coldemail_router.registry)
 
 urlpatterns = [
     # Django Admin, use {% url 'admin:index' %}

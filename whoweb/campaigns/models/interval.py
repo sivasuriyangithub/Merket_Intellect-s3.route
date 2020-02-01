@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 
 from django.db import models
 
-from whoweb.coldemail.models import CampaignList
 from .base import BaseCampaignRunner
 from ..events import CAMPAIGN_SIGNATURES
 
@@ -36,12 +35,6 @@ class IntervalCampaignRunner(IntervalCampaignBase):
     """
     This style of campaign is will send the same message to the entire query, up to budget.
     """
-
-    use_credits_method = models.CharField(max_length=63, blank=True, null=True)
-    open_credit_budget = models.IntegerField()
-    preset_campaign_list = models.ForeignKey(
-        CampaignList, on_delete=models.CASCADE, null=True
-    )
 
     def publish(self, apply_tasks=True, task_context=None, *args, **kwargs):
         from whoweb.campaigns.tasks import publish_next_interval

@@ -12,7 +12,7 @@ SPAWN_MX = 600, "Generated mx-domain task group."
 ALERT_XPERWEB = 750, "Notified xperweb of export completion."
 
 POPULATE_DATA = 400, "Populating page directly from search data."
-DERIVATION_SPAWN = 250, "Generated page of derivations."
+PAGES_SPAWNED = 350, "Scheduling batch of pages to process."
 FINALIZE_PAGE = 300, "Page finalizing."
 
 COLDLIST_PENDING = 1000, "Set for upload as coldemail list."

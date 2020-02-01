@@ -7,7 +7,7 @@ from requests import HTTPError, Timeout, ConnectionError
 from sentry_sdk import capture_exception
 
 from whoweb.core.router import router
-from whoweb.search.events import ALERT_XPERWEB
+from whoweb.search.events import ALERT_XPERWEB, PAGES_SPAWNED
 from whoweb.search.models import SearchExport, ResultProfile
 from whoweb.search.models.export import MXDomain, SearchExportPage
 from whoweb.search.models.profile import VALIDATED, COMPLETE, FAILED, RETRY, WORK
@@ -43,6 +43,8 @@ def generate_pages(self, export_id):
 )
 def do_process_page(self, page_pk):
     page = SearchExportPage.objects.get(pk=page_pk)
+    if page.export.is_done_processing_pages:
+        return "Export already done"
     if not page.export.should_derive_email:
         return page.populate_data_directly(task_context=self.request)
 
@@ -62,15 +64,20 @@ def spawn_do_page_process_tasks(self, prefetch_multiplier, export_id):
     export = SearchExport.objects.get(pk=export_id)
     if export.is_done_processing_pages:
         return "Done"
-    num_pages = ceil(export.pages.count() / prefetch_multiplier)
+    num_pages = ceil(export.pages.count() * prefetch_multiplier)
     if empty_pages := export.get_next_empty_page(num_pages):
-        tasks = [
-            do_process_page.signature(
-                args=(page.pk,), immutable=True, countdown=i * SearchExport.PAGE_DELAY
-            )
-            for i, page in enumerate(empty_pages)
-        ]
-        return self.replace(group(tasks))
+        tasks = group(
+            [
+                do_process_page.signature(
+                    args=(page.pk,),
+                    immutable=True,
+                    countdown=i * SearchExport.PAGE_DELAY,
+                )
+                for i, page in enumerate(empty_pages)
+            ]
+        )
+        export.log_event(PAGES_SPAWNED, data={"signatures": repr(tasks)})
+        return self.replace(tasks)
     return "Done with no pages found."
 
 

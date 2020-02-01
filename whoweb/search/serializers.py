@@ -20,7 +20,7 @@ from whoweb.users.models import UserProfile
 class ExportOptionsSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExportOptions
-        fields = ("webhooks", "format", "title", "metadata")
+        fields = ("webhooks", "format", "title", "tags", "metadata")
 
     def to_representation(self, instance):
         return instance.serialize()

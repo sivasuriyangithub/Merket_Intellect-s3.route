@@ -133,6 +133,8 @@ class BaseCampaignRunner(
 
     tracking_params = JSONField(null=True)
 
+    tags = JSONField(null=True)
+
     # Enforce only 1 active signature chain in celery,
     # enabling republishing via .resume(), even with a pending canvas.
     run_id = models.UUIDField(null=True)

@@ -15,6 +15,7 @@ class CampaignList(ColdemailBaseModel):
     api_class = api.CampaignList
 
     name = models.CharField(max_length=255)
+    description = models.CharField(max_length=1023)
     origin = models.PositiveSmallIntegerField(
         choices=[(1, "USER"), (2, "SYSTEM"), (3, "INTRO")], default=2
     )

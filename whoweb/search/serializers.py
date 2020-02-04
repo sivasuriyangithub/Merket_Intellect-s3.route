@@ -81,7 +81,7 @@ class SearchExportSerializer(serializers.HyperlinkedModelSerializer):
     status_name = serializers.SerializerMethodField()
     xperweb_id = serializers.CharField(write_only=True, required=False)
     group_name = serializers.CharField(
-        write_only=True, allow_blank=True, required=False
+        write_only=True, allow_null=True, allow_blank=True, required=False
     )
     group_id = serializers.CharField(write_only=True, required=False)
     email = serializers.EmailField(write_only=True, required=False)

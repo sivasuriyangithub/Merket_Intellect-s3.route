@@ -904,9 +904,9 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             )
 
         sigs = (
-            generate_pages.si(export_id=self.pk)
+            generate_pages.si(export_id=self.pk).set(priority=4)
             | do_pages
-            | do_post_pages_completion.si(export_id=self.pk)
+            | do_post_pages_completion.si(export_id=self.pk).set(priority=3)
         )
         if on_complete:
             sigs |= on_complete
@@ -917,11 +917,13 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
                 | do_post_validation_completion.si(export_id=self.pk)
             )
         if self.notify:
-            sigs |= send_notification.si(export_id=self.pk)
+            sigs |= send_notification.si(export_id=self.pk).set(priority=3)
         if self.uploadable:
             sigs |= spawn_mx_group.si(export_id=self.pk)
-        sigs |= alert_xperweb.si(export_id=self.pk).on_error(
+        sigs |= (
             alert_xperweb.si(export_id=self.pk)
+            .on_error(alert_xperweb.si(export_id=self.pk))
+            .set(priority=4)
         )
         return sigs
 
@@ -1025,7 +1027,12 @@ class SearchExportPage(TimeStampedModel):
             process_derivation = process_derivation_fast
         else:
             process_derivation = process_derivation_slow
-
+        if self.export.target <= 100:
+            priority = 4
+        elif self.export.target <= 300:
+            priority = 3
+        else:
+            priority = 2
         args = (
             self.export.query.defer,
             self.export.should_remove_derivation_failures,
@@ -1033,7 +1040,9 @@ class SearchExportPage(TimeStampedModel):
             self.export.query.contact_filters or [WORK, PERSONAL, SOCIAL, PROFILE],
         )
         derivation_sigs = [
-            process_derivation.si(self.pk, profile.to_json(), *args)
+            process_derivation.si(self.pk, profile.to_json(), *args).set(
+                priority=priority
+            )
             for profile in profiles
         ]
         return derivation_sigs

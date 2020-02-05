@@ -306,6 +306,11 @@ CELERY_TASK_ROUTES = {
     "whoweb.search.tasks.process_derivation_slow": {"queue": "whoweb_low"},
     "whoweb.search.tasks.process_derivation_fast": {"queue": "whoweb_low"},
 }
+# http://docs.celeryproject.org/en/latest/userguide/routing.html#routing-options-rabbitmq-priorities
+CELERY_TASK_QUEUE_MAX_PRIORITY = 4  # starts at 0
+CELERY_TASK_DEFAULT_PRIORITY = 2
+CELERY_WORKER_PREFETCH_MULTIPLIER = 2
+
 # django-allauth
 # ------------------------------------------------------------------------------
 ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", True)

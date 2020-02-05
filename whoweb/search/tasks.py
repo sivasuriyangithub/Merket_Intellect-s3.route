@@ -203,7 +203,7 @@ def process_derivation(
     default_retry_delay=90,
     retry_backoff=90,
     ignore_result=False,
-    rate_limit="10/m",
+    rate_limit="15/m",
     autoretry_for=NETWORK_ERRORS,
 )
 def process_derivation_slow(
@@ -229,7 +229,7 @@ def process_derivation_slow(
     default_retry_delay=90,
     retry_backoff=90,
     ignore_result=False,
-    rate_limit="40/m",
+    rate_limit="60/m",
     autoretry_for=NETWORK_ERRORS,
 )
 def process_derivation_fast(

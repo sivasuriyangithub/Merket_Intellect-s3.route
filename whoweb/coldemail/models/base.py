@@ -35,14 +35,16 @@ class ColdemailBaseModel(TimeStampedModel, EventLoggingModel, SoftDeletableModel
     status_changed = MonitorField(_("status changed"), monitor="status")
     coldemail_id = models.CharField(max_length=100)
     is_removed_changed = MonitorField("deleted at", monitor="is_removed")
-    published_at = MonitorField(monitor="status", when=["published"])
+    published_at = MonitorField(
+        monitor="status", when=["published"], null=True, default=None, blank=True
+    )
 
     class Meta:
         abstract = True
 
     def __str__(self):
-        return (
-            f"status: {self.status}" + f", published at {self.published_at}"
+        return f"{self.__class__.__name__} {self.pk}" + (
+            f"(Published {self.published_at})"
             if self.status == self.STATUS.published
             else ""
         )

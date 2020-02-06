@@ -1,3 +1,5 @@
+from typing import Type, TypeVar
+
 from factory import (
     DjangoModelFactory,
     SubFactory,
@@ -51,25 +53,29 @@ class CampaignRunnerWithMessagesFactory(CampaignRunnerFactory):
     msg1 = RelatedFactory(SendingRuleFactory, "runner")
     msg2 = RelatedFactory(SendingRuleFactory, "runner")
 
+    class Meta:
+        model = BaseCampaignRunner
 
-class CampaignRunnerWithDripsFactory(CampaignRunnerWithMessagesFactory):
-    root = SubFactory(ColdCampaignFactory, message=SelfAttribute("..msg0"))
-    drip1 = RelatedFactory(
-        DripRecordFactory,
-        "runner",
-        root=SelfAttribute("..root"),
-        drip__message=SelfAttribute("..msg1"),
-    )
-    drip2 = RelatedFactory(
-        DripRecordFactory,
-        "runner",
-        root=SelfAttribute("..root"),
-        drip__message=SelfAttribute("..msg2"),
-    )
+
+class CampaignRunnerWithDripsFactory(CampaignRunnerFactory):
+    msg0 = RelatedFactory(SendingRuleFactory, "runner")
+    msg1 = RelatedFactory(SendingRuleFactory, "runner")
+    msg2 = RelatedFactory(SendingRuleFactory, "runner")
+    drip1 = RelatedFactory(DripRecordFactory, "runner")
+    drip2 = RelatedFactory(DripRecordFactory, "runner")
 
     @post_generation
     def campaigns(self, create, extracted, **kwargs):
-        if not create:
-            self.campaigns.add(self.root)
-            return
-        return super().post_generation(create, extracted, **kwargs)
+        root = ColdCampaignFactory(message=self.messages.all()[0])
+        self.campaigns.add(root)
+        d0 = self.drips.all()[0]
+        d0.message = self.messages.all()[1]
+        d0.root = root
+        d0.save()
+        d1 = self.drips.all()[1]
+        d1.message = self.messages.all()[2]
+        d1.root = root
+        d1.save()
+
+    class Meta:
+        model = BaseCampaignRunner

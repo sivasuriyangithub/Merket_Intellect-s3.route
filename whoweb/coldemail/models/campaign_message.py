@@ -14,7 +14,7 @@ class CampaignMessage(ColdemailBaseModel):
     subject = models.TextField()
     plain_content = models.TextField()
     html_content = models.TextField()
-    editor = models.CharField(max_length=255)
+    editor = models.CharField(max_length=255, blank=True)
 
     def publish(self, apply_tasks=True):
         from ..tasks import publish_message

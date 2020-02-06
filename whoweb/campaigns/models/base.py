@@ -3,7 +3,7 @@ from datetime import timedelta, datetime
 from typing import List
 
 from django.contrib.postgres.fields import JSONField
-from django.db import models
+from django.db import models, transaction
 from model_utils import Choices
 from model_utils.fields import MonitorField
 from model_utils.models import SoftDeletableModel, TimeStampedModel
@@ -71,6 +71,11 @@ class SendingRule(models.Model):
             return {"countdown": 300}
         return {}
 
+    def get_next_by_index(self):
+        return SendingRule.objects.filter(
+            runner=self.runner, index__gt=self.index
+        ).first()
+
 
 class DripRecord(models.Model):
     class Meta:
@@ -125,13 +130,16 @@ class BaseCampaignRunner(
 
     budget = models.PositiveIntegerField()
 
-    published = models.DateTimeField(null=True)
     status = models.IntegerField(
         "status", db_index=True, choices=STATUS, blank=True, default=STATUS.draft
     )
     status_changed = MonitorField("status changed", monitor="status")
+    is_removed_changed = MonitorField("deleted at", monitor="is_removed")
+    published_at = MonitorField(
+        monitor="status", when=["published"], null=True, default=None, blank=True
+    )
 
-    tracking_params = JSONField(null=True)
+    tracking_params = JSONField(default=dict, null=True, blank=True)
 
 
     # Enforce only 1 active signature chain in celery,
@@ -141,47 +149,56 @@ class BaseCampaignRunner(
     objects = PolymorphicSoftDeletableManager()
     all_objects = PolymorphicManager()
 
-    @property
+    def __str__(self):
+        return f"{self.__class__.__name__} {self.pk} ({self.get_status_display()})"
+
     def sending_rules(self):
         return SendingRule.objects.filter(runner=self)
 
-    def get_next_rule(self, last_campaign: ColdCampaign = None):
-        return self.sending_rules.filter(message=last_campaign.message).first()
+    def drip_records(self):
+        return DripRecord.objects.filter(runner=self)
 
-    # TODO: lock?
-    def create_next_drip_list(self, root_campaign, last_campaign):
-        export = last_campaign.campaign_list.export
+    def get_next_rule(self, following: ColdCampaign):
+        return (
+            self.sending_rules()
+            .filter(message=following.message)
+            .first()
+            .get_next_by_index()
+        )
+
+    def create_next_drip_list(self, root_campaign, following):
+        export = following.campaign_list.export
         export.pk = None
         export.save()
-        export = self.remove_reply_rows(export=export, root_campaign=root_campaign)
+        self.remove_reply_rows(export=export, root_campaign=root_campaign)
         return CampaignList.objects.create(export=export, origin=2, seat=self.seat)
 
     # TODO: lock
     def create_next_drip_campaign(
         self,
         root_campaign: ColdCampaign,
-        last_campaign: ColdCampaign,
+        following: ColdCampaign,
         campaign_kwargs=None,
         *args,
         **kwargs,
     ):
-        rule = self.get_next_rule(last_campaign=last_campaign)
+        rule = self.get_next_rule(following=following)
         if not rule:
             return
-        if len(self.drips.get(str(root_campaign.pk), [])) >= rule.index:
+        if self.drip_records().filter(root=root_campaign).count() >= rule.index:
             return
 
         # If intended send time is absolute,
         # and the CURRENT time is not after the last campaign send time plus a minimum buffer,
         # fail the list/export creation
         if rule.trigger == SendingRule.TRIGGER.datetime:
-            delta = datetime.utcnow() - last_campaign.send_time
+            delta = datetime.utcnow() - following.send_time
             if delta < self.MIN_DRIP_DELAY:
                 remaining = self.MIN_DRIP_DELAY - max(timedelta(0), delta)
                 raise DripTooSoonError(countdown=int(remaining.total_seconds()))
 
         campaign_list = self.create_next_drip_list(
-            root_campaign=root_campaign, last_campaign=last_campaign
+            root_campaign=root_campaign, following=following
         )
         if not campaign_list:
             return
@@ -208,35 +225,35 @@ class BaseCampaignRunner(
     def publish_drip(
         self,
         root_campaign: ColdCampaign,
-        last_campaign: ColdCampaign,
+        following: ColdCampaign,
         task_context=None,
         *args,
         **kwargs,
     ):
 
-        campaign = self.create_next_drip_campaign(
-            root_campaign=root_campaign, last_campaign=last_campaign, *args, **kwargs
+        drip_campaign = self.create_next_drip_campaign(
+            root_campaign=root_campaign, following=following, *args, **kwargs
         )
-        if campaign:
-            publish_sigs = campaign.publish(apply_tasks=False)
+        if drip_campaign:
+            publish_sigs = drip_campaign.publish(apply_tasks=False)
         else:
             publish_sigs = None
         if publish_sigs:
             drip_sigs = self.drip_tasks(
-                root_campaign=root_campaign, last_campaign=campaign
+                root_campaign=root_campaign, following=drip_campaign
             )
             if drip_sigs:
                 publish_sigs |= drip_sigs
-        if publish_sigs:
-            publish_sigs.apply_async()
         self.log_event(
             PUBLISH_DRIP_CAMPAIGN, task=task_context, data={"sigs": repr(publish_sigs)}
         )
+        if publish_sigs:
+            transaction.on_commit(publish_sigs.apply_async)
 
     def drip_tasks(
         self,
         root_campaign: ColdCampaign,
-        last_campaign: ColdCampaign,
+        following: ColdCampaign,
         campaign_kwargs=None,
         run_id=None,
         *args,
@@ -245,9 +262,9 @@ class BaseCampaignRunner(
         """
         :rtype: celery.canvas.Signature
         """
-        from xperweb.campaign.tasks import publish_drip, ensure_stats
+        from whoweb.campaigns.tasks import publish_drip, ensure_stats
 
-        rule = self.get_next_rule(last_campaign=last_campaign)
+        rule = self.get_next_rule(following=following)
         if not rule:
             return
 
@@ -255,11 +272,11 @@ class BaseCampaignRunner(
             args=(self.pk,), immutable=True, **rule.task_timing_args(),
         ) | publish_drip.si(
             self.pk,
-            *args,
-            root_campaign=root_campaign.pk,
-            last_campaign=last_campaign.pk,
+            root_pk=root_campaign.pk,
+            following_pk=following.pk,
             campaign_kwargs=campaign_kwargs,
             run_id=run_id,
+            *args,
             **kwargs,
         )
         return sigs
@@ -322,7 +339,7 @@ class BaseCampaignRunner(
             if campaign.status == ColdCampaign.STATUS.pending:
                 yield campaign.modified
             elif campaign.status == ColdCampaign.STATUS.published:
-                yield campaign.published
+                yield campaign.published_at
             continue
 
     @property
@@ -342,7 +359,7 @@ class BaseCampaignRunner(
         return CampaignList.objects.create(query=self.query, origin=2, seat=self.seat)
 
     def create_campaign(self, campaign_kwargs=None, *args, **kwargs):
-        first_message_rule = self.sending_rules.first()
+        first_message_rule = self.sending_rules().first()
 
         if campaign_kwargs is None:
             campaign_kwargs = {}
@@ -397,7 +414,7 @@ class BaseCampaignRunner(
 
             publish_sigs |= set_published.si(pk=self.pk, run_id=self.run_id,)
             if drip_sigs := self.drip_tasks(
-                root_campaign=campaign, last_campaign=campaign, run_id=self.run_id
+                root_campaign=campaign, following=campaign, run_id=self.run_id
             ):
                 publish_sigs |= drip_sigs
 
@@ -428,20 +445,20 @@ class BaseCampaignRunner(
         drips = DripRecord.objects.filter(runner=self, root=root_campaign)
         if self.run_id == PAUSE_HEX:
             return
-        if self.sending_rules.count() == 1:  # No drips required
+        if self.sending_rules().count() == 1:  # No drips required
             return
-        if len(drips) == self.sending_rules.count() - 1:  # All drips done
+        if drips.count() == self.sending_rules().count() - 1:  # All drips done
             return
-        if not drips:  # Drips haven't started
+        if drips.count() == 0:  # Drips haven't started
             return self.drip_tasks(
                 root_campaign=root_campaign,
-                last_campaign=root_campaign,
+                following=root_campaign,
                 run_id=self.run_id,
             )
         # Looks like we're in the middle of drips.
         return self.drip_tasks(
             root_campaign=root_campaign,
-            last_campaign=drips.last().drip,
+            following=drips.last().drip,
             run_id=self.run_id,
         )
 

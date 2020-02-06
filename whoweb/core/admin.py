@@ -18,3 +18,7 @@ class EventTabularInline(GenericTabularInline):
 @admin.register(ModelEvent)
 class ModelEventAdmin(admin.ModelAdmin):
     list_filter = ["content_type"]
+
+
+admin.site.site_url = "/ww/api"
+admin.site.site_header = "Whoweb Administration"

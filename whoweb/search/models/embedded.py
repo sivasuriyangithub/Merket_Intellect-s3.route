@@ -121,3 +121,8 @@ class FilteredSearchQuery(AbstractEmbeddedModel):
         blank=True,
     )
     export = EmbeddedModelField(ExportOptions, default=ExportOptions)
+
+    def __eq__(self, other):
+        if hasattr(other, "serialize"):
+            return self.serialize() == other.serialize()
+        return self.serialize() == other

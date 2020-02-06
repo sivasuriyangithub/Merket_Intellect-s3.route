@@ -230,6 +230,9 @@ sentry_sdk.init(
         CeleryIntegration(),
         RedisIntegration(),
     ],
+    environment=env("ENVIRONMENT_NAME"),
+    release="{}@{}".format(env("IMAGE"), env("REVISION")),
+    send_default_pii=True,
 )
 
 # Your stuff...

@@ -13,21 +13,39 @@ class SendingRuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = SendingRule
         depth = 1
+        fields = (
+            "message",
+            "index",
+            "trigger",
+            "send_datetime",
+            "send_delta",
+            "include_previous",
+        )
+        extra_kwargs = {
+            "message": {"lookup_field": "public_id"},
+        }
 
 
 class DripRecordSerializer(serializers.ModelSerializer):
     class Meta:
         model = DripRecord
         depth = 1
+        fields = ("root", "drip", "order")
+        extra_kwargs = {
+            "root": {"lookup_field": "public_id"},
+            "drip": {"lookup_field": "public_id"},
+        }
 
 
 class BaseRunnerSerializer(serializers.HyperlinkedModelSerializer):
     query = FilteredSearchQuerySerializer()
+    messages = SendingRuleSerializer(many=True)
     status_name = serializers.CharField(source="get_status_display", read_only=True)
     FIELDS = [
         "url",
         "query",
         "seat",
+        "budget",
         "messages",
         "drips",
         "campaigns",
@@ -46,11 +64,28 @@ class BaseRunnerSerializer(serializers.HyperlinkedModelSerializer):
         "published_at",
     ]
 
+    def create(self, validated_data):
+        rules = validated_data.pop("messages")
+        runner = self.Meta.model.objects.create(**validated_data)
+        for rule in rules:
+            idx = rule.pop("index")
+            msg = rule.pop("message")
+            SendingRule.objects.update_or_create(
+                runner=runner, index=idx, defaults=rule,
+            )
+        runner.refresh_from_db(fields=("messages",))
+        return runner
+
 
 class SimpleDripCampaignRunnerSerializer(BaseRunnerSerializer):
     class Meta:
         model = SimpleDripCampaignRunner
-        # depth = 1
+        extra_kwargs = {
+            "seat": {"lookup_field": "public_id"},
+            "campaigns": {"lookup_field": "public_id"},
+            "drips": {"lookup_field": "public_id"},
+            "messages": {"lookup_field": "public_id"},
+        }
         fields = BaseRunnerSerializer.FIELDS + [
             "use_credits_method",
             "open_credit_budget",
@@ -62,7 +97,12 @@ class SimpleDripCampaignRunnerSerializer(BaseRunnerSerializer):
 class IntervalCampaignRunnerSerializer(BaseRunnerSerializer):
     class Meta:
         model = IntervalCampaignRunner
-        depth = 1
+        extra_kwargs = {
+            "seat": {"lookup_field": "public_id"},
+            "campaigns": {"lookup_field": "public_id"},
+            "drips": {"lookup_field": "public_id"},
+            "messages": {"lookup_field": "public_id"},
+        }
         fields = BaseRunnerSerializer.FIELDS + [
             "interval_hours",
             "max_sends",

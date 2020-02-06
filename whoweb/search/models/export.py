@@ -30,7 +30,7 @@ from six import BytesIO
 from whoweb.accounting.ledgers import wkcredits_fulfilled_ledger
 from whoweb.accounting.models import Transaction, MatchType
 from whoweb.accounting.queries import get_balances_for_object
-from whoweb.contrib.fields import CompressedBinaryJSONField
+from whoweb.contrib.fields import CompressedBinaryJSONField, ObscureIdMixin
 from whoweb.contrib.postgres.fields import EmbeddedModelField
 from whoweb.core.models import EventLoggingModel
 from whoweb.core.router import router, external_link
@@ -45,6 +45,8 @@ from whoweb.search.events import (
     FINALIZE_PAGE,
     ENQUEUED_FROM_QUERY,
     GENERATING_PAGES_COMPLETE,
+    FINALIZING_LOCKED,
+    VALIDATION_COMPLETE_LOCKED,
 )
 from whoweb.users.models import Seat
 from .profile import ResultProfile, WORK, PERSONAL, SOCIAL, PROFILE, VALIDATED
@@ -616,9 +618,10 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
     @transaction.atomic
     def do_post_pages_completion(self, task_context=None):
-        export = self.locked(status__lt=SearchExport.STATUS.pages_complete)
-        if not export:
-            return
+        export = self.locked()
+        if not export.status <= SearchExport.STATUS.pages_complete:
+            self.log_event(FINALIZING_LOCKED, task=task_context)
+            return False
         export.log_event(FINALIZING, task=task_context)
         if export.charge and not export.defer_validation:
             charges = export.compute_charges()
@@ -631,12 +634,16 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             )
         export.status = SearchExport.STATUS.pages_complete
         export.save()
+        return True
 
     @transaction.atomic
-    def do_post_validation_completion(self):
-        export = self.locked(status__lt=SearchExport.STATUS.validated)
+    def do_post_validation_completion(self, task_context=None):
+        export = self.locked()
         if not export.defer_validation:
             return True
+        if not export.status <= SearchExport.STATUS.validated:
+            self.log_event(VALIDATION_COMPLETE_LOCKED, task=task_context)
+            return False
         results = list(export.get_validation_results(only_valid=True))
         export.apply_validation_to_profiles_in_pages(validation=results)
         export.status = SearchExport.STATUS.validated

@@ -11,12 +11,14 @@ from whoweb.users.serializers import (
     DeveloperKeySerializer,
     NetworkSerializer,
     UserSerializer,
+    AdminBillingAdjustingSeatSerializer,
 )
 
 User = get_user_model()
 
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
+    lookup_field = "public_id"
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsSuperUser | ObjectPermissions]
@@ -24,6 +26,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class NetworkViewSet(viewsets.ReadOnlyModelViewSet):
+    lookup_field = "public_id"
     queryset = Group.objects.all()
     serializer_class = NetworkSerializer
     permission_classes = [IsSuperUser | ObjectPermissions]
@@ -31,10 +34,18 @@ class NetworkViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class SeatViewSet(viewsets.ModelViewSet):
+    lookup_field = "public_id"
     queryset = Seat.objects.all()
     serializer_class = SeatSerializer
     permission_classes = [IsSuperUser | ObjectPermissions]
     filter_backends = [DjangoFilterBackend, ObjectPermissionsFilter]
+
+
+class AdminBillingSeatViewSet(viewsets.ModelViewSet):
+    lookup_field = "public_id"
+    queryset = Seat.objects.all()
+    serializer_class = AdminBillingAdjustingSeatSerializer
+    permission_classes = [IsSuperUser]
 
 
 class DeveloperKeyViewSet(
@@ -44,6 +55,7 @@ class DeveloperKeyViewSet(
     mixins.DestroyModelMixin,
     GenericViewSet,
 ):
+    lookup_field = "public_id"
     queryset = DeveloperKey.objects.all()
     serializer_class = DeveloperKeySerializer
     permission_classes = [IsSuperUser | ObjectPermissions]

@@ -38,6 +38,7 @@ def replyto_webhook_view(request, match_id):
 class CampaignListViewSet(ModelViewSet):
     serializer_class = CampaignListSerializer
     queryset = CampaignList.objects.all()
+    lookup_field = "public_id"
 
     def get_permissions(self):
         if self.action == "create":
@@ -49,6 +50,7 @@ class CampaignListViewSet(ModelViewSet):
 class CampaignMessageViewSet(ModelViewSet):
     serializer_class = CampaignMessageSerializer
     queryset = CampaignMessage.objects.all()
+    lookup_field = "public_id"
 
     def get_permissions(self):
         if self.action == "create":
@@ -60,6 +62,7 @@ class CampaignMessageViewSet(ModelViewSet):
 class CampaignViewSet(ModelViewSet):
     serializer_class = CampaignSerializer
     queryset = ColdCampaign.objects.all()
+    lookup_field = "public_id"
 
     def get_permissions(self):
         if self.action == "create":

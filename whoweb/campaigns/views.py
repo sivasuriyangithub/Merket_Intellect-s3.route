@@ -15,6 +15,7 @@ from whoweb.contrib.rest_framework.permissions import IsSuperUser
 class SimpleCampaignRunnerViewSet(ModelViewSet):
     queryset = SimpleDripCampaignRunner.objects.all()
     serializer_class = SimpleDripCampaignRunnerSerializer
+    lookup_field = "public_id"
 
     def get_permissions(self):
         if self.action == "create":
@@ -25,7 +26,7 @@ class SimpleCampaignRunnerViewSet(ModelViewSet):
 
 class IntervalCampaignRunnerSerializerViewSet(ModelViewSet):
     queryset = IntervalCampaignRunner.objects.all()
-
+    lookup_field = "public_id"
     serializer_class = IntervalCampaignRunnerSerializer
 
     def get_permissions(self):

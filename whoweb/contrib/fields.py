@@ -5,6 +5,7 @@ import zlib
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
+from django.utils.crypto import get_random_string
 from django.utils.functional import Promise
 from django.utils.translation import ugettext_lazy as _
 
@@ -130,3 +131,20 @@ class ObscuredAutoField(models.AutoField):
     def value_to_string(self, obj):
         value = self.value_from_object(obj)
         return self.get_prep_value(value)
+
+
+def random_public_id():
+    return get_random_string(length=16)
+
+
+class ObscureIdMixin(models.Model):
+    class Meta:
+        abstract = True
+
+    public_id = models.CharField(
+        max_length=16,
+        verbose_name="ID",
+        default=random_public_id,
+        editable=False,
+        unique=True,
+    )

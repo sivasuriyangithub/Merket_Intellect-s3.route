@@ -11,12 +11,10 @@ from organizations.abstract import AbstractOrganization, AbstractOrganizationOwn
 from organizations.abstract import AbstractOrganizationUser
 from organizations.signals import user_added
 
-from whoweb.contrib.fields import ObscuredAutoField
+from whoweb.contrib.fields import ObscureIdMixin
 
 
-class Group(AbstractOrganization):
-    id = ObscuredAutoField(prefix="ntw", verbose_name="ID", primary_key=True)
-
+class Group(ObscureIdMixin, AbstractOrganization):
     class Meta:
         verbose_name = _("network")
         verbose_name_plural = _("networks")
@@ -134,8 +132,7 @@ class Group(AbstractOrganization):
         to_user.groups.add(*admin_groups)
 
 
-class Seat(AbstractOrganizationUser):
-    id = ObscuredAutoField(prefix="seat", verbose_name="ID", primary_key=True)
+class Seat(ObscureIdMixin, AbstractOrganizationUser):
     display_name = models.CharField(
         _("Name"),
         db_column="name",
@@ -176,8 +173,7 @@ def make_secret():
     return token_hex(32)
 
 
-class DeveloperKey(TimeStampedModel):
-    id = ObscuredAutoField(prefix="dk", verbose_name="ID", primary_key=True)
+class DeveloperKey(ObscureIdMixin, TimeStampedModel):
     key = models.CharField(default=make_key, unique=True, max_length=64)
     secret = encrypt(models.CharField(default=make_secret, max_length=64))
     test_key = models.BooleanField(default=False)

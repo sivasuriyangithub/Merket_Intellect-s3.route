@@ -5,7 +5,7 @@ from django.utils.translation import ugettext_lazy as _
 from guardian.mixins import GuardianUserMixin
 from model_utils.models import TimeStampedModel
 
-from whoweb.contrib.fields import ObscuredAutoField
+from whoweb.contrib.fields import ObscureIdMixin
 
 
 class UserProfile(TimeStampedModel):
@@ -31,13 +31,12 @@ class UserProfile(TimeStampedModel):
 
 
 # WARN: See docstring.
-class User(GuardianUserMixin, AbstractUser):
+class User(GuardianUserMixin, ObscureIdMixin, AbstractUser):
     """
     Generally, only auth or permissions related fields should exist on this model.
     See UserProfile for custom fields that should be one-to-one with a user.
     """
 
-    id = ObscuredAutoField(prefix="usr", verbose_name="ID", primary_key=True)
     email = models.EmailField(
         _("email address"),
         unique=True,

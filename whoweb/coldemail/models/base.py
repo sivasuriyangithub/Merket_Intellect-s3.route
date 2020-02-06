@@ -6,6 +6,7 @@ from model_utils import Choices
 from model_utils.fields import MonitorField
 from model_utils.models import TimeStampedModel, SoftDeletableModel
 
+from contrib.fields import ObscureIdMixin
 from whoweb.users.models import Seat
 from whoweb.coldemail.api.resource import (
     CreateableResource,
@@ -16,7 +17,9 @@ from whoweb.coldemail.api.resource import (
 from whoweb.core.models import EventLoggingModel
 
 
-class ColdemailBaseModel(TimeStampedModel, EventLoggingModel, SoftDeletableModel):
+class ColdemailBaseModel(
+    ObscureIdMixin, TimeStampedModel, EventLoggingModel, SoftDeletableModel
+):
     api_class: Union[
         CreateableResource, ListableResource, UpdateableResource, DeleteableResource
     ] = None

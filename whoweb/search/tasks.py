@@ -84,7 +84,8 @@ def spawn_do_page_process_tasks(self, prefetch_multiplier, export_id):
 @shared_task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
 def do_post_pages_completion(self, export_id):
     export = SearchExport.objects.get(pk=export_id)
-    export.do_post_pages_completion(task_context=self.request)
+    if not export.do_post_pages_completion(task_context=self.request):
+        self.retry(countdown=60)
 
 
 @shared_task(bind=True, autoretry_for=NETWORK_ERRORS)
@@ -108,13 +109,13 @@ def fetch_validation_results(self, export_id):
         raise self.retry(cooldown=60, max_retries=24 * 60)
 
 
-@shared_task(autoretry_for=NETWORK_ERRORS)
-def do_post_validation_completion(export_id):
+@shared_task(bind=True, autoretry_for=NETWORK_ERRORS)
+def do_post_validation_completion(self, export_id):
     try:
         export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
         return 404
-    return export.do_post_validation_completion()
+    return export.do_post_validation_completion(task_context=self.request)
 
 
 @shared_task(autoretry_for=NETWORK_ERRORS)

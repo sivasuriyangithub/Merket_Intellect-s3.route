@@ -5,6 +5,7 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 
+from contrib.fields import ObscuredInt
 from whoweb.core.admin import EventTabularInline
 from whoweb.search.events import ENQUEUED_FROM_ADMIN
 from whoweb.search.models import SearchExport, ScrollSearch
@@ -111,7 +112,10 @@ class ExportAdmin(ActionsModelAdmin):
         "progress_counter",
         "should_derive_email",
     )
-    list_display_links = ("pk", "uuid")
+    list_display_links = (
+        "pk",
+        "uuid",
+    )
     list_filter = ("status", "charge")
     search_fields = ("seat__user__email", "seat__user__username", "pk", "uuid")
     fields = (

@@ -9,6 +9,10 @@ class CampaignMessageSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = CampaignMessage
+        extra_kwargs = {
+            "url": {"lookup_field": "public_id"},
+            "seat": {"lookup_field": "public_id"},
+        }
         fields = (
             "url",
             "seat",
@@ -31,6 +35,10 @@ class CampaignListSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = CampaignList
+        extra_kwargs = {
+            "url": {"lookup_field": "public_id"},
+            "seat": {"lookup_field": "public_id"},
+        }
         fields = (
             "url",
             "seat",
@@ -50,6 +58,12 @@ class CampaignSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = ColdCampaign
+        extra_kwargs = {
+            "url": {"lookup_field": "public_id"},
+            "seat": {"lookup_field": "public_id"},
+            "message": {"lookup_field": "public_id"},
+            "campaign_list": {"lookup_field": "public_id"},
+        }
         fields = (
             "url",
             "message",

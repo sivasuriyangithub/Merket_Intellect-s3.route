@@ -10,6 +10,7 @@ from model_utils.models import SoftDeletableModel, TimeStampedModel
 from polymorphic.managers import PolymorphicManager
 from polymorphic.models import PolymorphicModel
 
+from whoweb.contrib.fields import ObscureIdMixin
 from whoweb.campaigns.events import (
     PUBLISH_DRIP_CAMPAIGN,
     PUBLISH_CAMPAIGN,
@@ -58,9 +59,9 @@ class SendingRule(models.Model):
     )  # index 0 must be DELAY or DATETIME, see method `send_time_for_rule`
     trigger = models.PositiveSmallIntegerField(choices=TRIGGER, default=TRIGGER.delay)
 
-    send_datetime = models.DateTimeField(null=True)
-    send_delta = models.PositiveIntegerField(null=True)
-    include_previous = models.BooleanField(default=False)
+    send_datetime = models.DateTimeField(null=True, blank=True)
+    send_delta = models.PositiveIntegerField(null=True, blank=True)
+    include_previous = models.BooleanField(default=False, blank=True)
 
     def task_timing_args(self):
         if self.trigger == SendingRule.TRIGGER.datetime:
@@ -97,7 +98,11 @@ class DripRecord(models.Model):
 
 
 class BaseCampaignRunner(
-    EventLoggingModel, TimeStampedModel, SoftDeletableModel, PolymorphicModel
+    ObscureIdMixin,
+    EventLoggingModel,
+    TimeStampedModel,
+    SoftDeletableModel,
+    PolymorphicModel,
 ):
     MIN_DRIP_DELAY = timedelta(days=1)
     STATUS = Choices(

@@ -4,43 +4,46 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 from slugify import slugify
 
+from whoweb.contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
+from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
 from whoweb.contrib.graphene_django.fields import NodeRelatedField
 from .models import Seat, DeveloperKey, Group, UserProfile
 
 User = get_user_model()
 
 
-class UserSerializer(serializers.HyperlinkedModelSerializer):
+class UserSerializer(IdOrHyperlinkedModelSerializer):
     graph_id = NodeRelatedField("UserNode", source="public_id")
+    id = serializers.CharField(source="public_id")
 
     class Meta:
         model = User
         extra_kwargs = {"url": {"lookup_field": "public_id"}}
-        fields = ("username", "url", "graph_id", "email")
+        fields = ("username", "url", "id", "graph_id", "email")
         read_only_fields = fields
 
 
-class NetworkSerializer(serializers.HyperlinkedModelSerializer):
+class NetworkSerializer(IdOrHyperlinkedModelSerializer):
     graph_id = NodeRelatedField("NetworkNode", source="public_id")
+    id = serializers.CharField(source="public_id")
 
     class Meta:
         model = Group
         extra_kwargs = {"url": {"lookup_field": "public_id"}}
-        fields = ("name", "slug", "url", "public_id", "graph_id")
+        fields = ("name", "slug", "url", "id", "graph_id")
         read_only_fields = fields
 
 
-class SeatSerializer(
-    ObjectPermissionsAssignmentMixin, serializers.HyperlinkedModelSerializer
-):
+class SeatSerializer(ObjectPermissionsAssignmentMixin, IdOrHyperlinkedModelSerializer):
     created_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    network = serializers.HyperlinkedRelatedField(
+    network = IdOrHyperlinkedRelatedField(
         source="organization",
         view_name="group-detail",
         lookup_field="public_id",
         queryset=Group.objects.all(),
     )
     graph_id = NodeRelatedField("SeatNode", source="public_id")
+    id = serializers.CharField(source="public_id")
 
     class Meta:
         model = Seat
@@ -53,7 +56,7 @@ class SeatSerializer(
             "network",
             "created_by",
             "url",
-            "public_id",
+            "id",
             "graph_id",
             "user",
         )
@@ -108,7 +111,7 @@ class AdminBillingAdjustingSeatSerializer(SeatSerializer):
             "network",
             "created_by",
             "url",
-            "public_id",
+            "id",
             "graph_id",
             "user",
             "xperweb_id",
@@ -163,12 +166,12 @@ class AdminBillingAdjustingSeatSerializer(SeatSerializer):
 
 
 class DeveloperKeySerializer(
-    ObjectPermissionsAssignmentMixin, serializers.HyperlinkedModelSerializer
+    ObjectPermissionsAssignmentMixin, IdOrHyperlinkedModelSerializer
 ):
     created_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
     id = serializers.CharField(source="pk", read_only=True)
     graph_id = NodeRelatedField("DeveloperKeyNode", source="pk")
-    network = serializers.HyperlinkedRelatedField(
+    network = IdOrHyperlinkedRelatedField(
         source="group",
         view_name="group-detail",
         lookup_field="public_id",

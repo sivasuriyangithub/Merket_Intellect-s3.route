@@ -1,10 +1,9 @@
 import pytest
-from django.conf import settings
 from django.test import RequestFactory
-
-from whoweb.users.tests.factories import UserFactory
+from rest_framework.test import APIClient, APIRequestFactory, RequestsClient
 
 pytest_plugins = [
+    "whoweb.users.tests.fixtures",
     "whoweb.search.tests.fixtures",
     "whoweb.coldemail.tests.fixtures",
 ]
@@ -41,10 +40,21 @@ def media_storage(settings, tmpdir):
 
 
 @pytest.fixture
-def user() -> settings.AUTH_USER_MODEL:
-    return UserFactory()
+def request_factory() -> RequestFactory:
+    return RequestFactory()
 
 
 @pytest.fixture
-def request_factory() -> RequestFactory:
-    return RequestFactory()
+def api_factory() -> APIRequestFactory:
+    return APIRequestFactory()
+
+
+@pytest.fixture
+def api_client() -> APIClient:
+    return APIClient()
+
+
+@pytest.fixture
+def su_client(su, api_client) -> APIClient:
+    api_client.force_authenticate(user=su)
+    return api_client

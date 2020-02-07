@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
 from whoweb.search.serializers import FilteredSearchQuerySerializer
 from .models import (
     SendingRule,
@@ -37,12 +38,14 @@ class DripRecordSerializer(serializers.ModelSerializer):
         }
 
 
-class BaseRunnerSerializer(serializers.HyperlinkedModelSerializer):
+class BaseRunnerSerializer(IdOrHyperlinkedModelSerializer):
+    id = serializers.CharField(source="public_id")
     query = FilteredSearchQuerySerializer()
     messages = SendingRuleSerializer(many=True)
     status_name = serializers.CharField(source="get_status_display", read_only=True)
     FIELDS = [
         "url",
+        "id",
         "query",
         "seat",
         "budget",

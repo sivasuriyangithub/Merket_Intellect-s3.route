@@ -17,6 +17,7 @@ from django.db import models, transaction
 from django.db.models import F
 from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from django_celery_results.models import TaskResult
 from dns import resolver
@@ -227,27 +228,29 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
     should_derive_email.boolean = True
     should_derive_email.short_description = "Derive Emails"
-    should_derive_email = property(should_derive_email)
+    should_derive_email = cached_property(should_derive_email)
 
     def should_remove_derivation_failures(self):
         return len(self.specified_ids) == 0 or self.uploadable
 
     should_remove_derivation_failures.boolean = True
-    should_remove_derivation_failures = property(should_remove_derivation_failures)
+    should_remove_derivation_failures = cached_property(
+        should_remove_derivation_failures
+    )
 
     def defer_validation(self):
         return FilteredSearchQuery.DEFER_CHOICES.VALIDATION in self.query.defer
 
     defer_validation.boolean = True
-    defer_validation = property(defer_validation)
+    defer_validation = cached_property(defer_validation)
 
     def with_invites(self):
         return bool(self.should_derive_email and self.query.with_invites)
 
     with_invites.boolean = True
-    with_invites = property(with_invites)
+    with_invites = cached_property(with_invites)
 
-    @property
+    @cached_property
     def skip(self):
         return self.query.filters.skip
 
@@ -287,7 +290,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         else:
             return progress_plus_skip
 
-    @property
+    @cached_property
     def columns(self):
         if self.with_invites:
             columns = self.INTRO_COLS + self.BASE_COLS + self.DERIVATION_COLS
@@ -343,11 +346,13 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             self.save()
         return self.scroll.ensure_live(force=force)
 
+    @transaction.atomic
     def get_raw(self) -> Iterator[ResultProfile]:
         for page in self.pages.filter(data__isnull=False).iterator(chunk_size=1):
             for row in page.data:
                 yield row
 
+    @transaction.atomic
     def get_raw_by_page(self) -> Iterator[Iterable[ResultProfile]]:
         for page in self.pages.filter(data__isnull=False).iterator(chunk_size=1):
             yield page.data
@@ -757,12 +762,14 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
     def apply_validation_to_profiles_in_pages(self, validation):
         registry = self.make_validation_registry(validation_generator=validation)
-        for page in self.pages.filter(data__isnull=False).iterator(chunk_size=1):
-            profiles = self.get_profiles(raw=page.data)
-            page.data = [
-                profile.update_validation(registry).to_json() for profile in profiles
-            ]
-            page.save()
+        with transaction.atomic():
+            for page in self.pages.filter(data__isnull=False).iterator(chunk_size=1):
+                profiles = self.get_profiles(raw=page.data)
+                page.data = [
+                    profile.update_validation(registry).to_json()
+                    for profile in profiles
+                ]
+                page.save()
 
     def return_validation_results_to_cache(self):
         upload_limit = 250

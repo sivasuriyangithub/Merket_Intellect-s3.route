@@ -19,17 +19,17 @@ deployment:
   replicas: 1
   cpuRequest: "2"
   memoryRequest: "1Gi"
-  cpuLimit: "12"
-  memoryLimit: "16Gi"
+  cpuLimit: "4"
+  memoryLimit: "3Gi"
   postgresqlInNamespace: false
   envConfigMapRef:
     - "whoweb-config"
   envSecretRef: "whoweb-secrets"
   settingsModule: "config.settings.production"
 celery:
-  cpuRequest: "500m"
+  cpuRequest: "2"
   memoryRequest: "1Gi"
-  cpuLimit: "4"
+  cpuLimit: "6"
   memoryLimit: "8Gi"
   hpa:
     minReplicas: 1
@@ -51,8 +51,8 @@ flower:
       targetPort: 5555
 hpa:
   minReplicas: 1
-  maxReplicas: 5
-  cpu: 70
+  maxReplicas: 4
+  cpu: 80
 global:
   tlsSecretName: tls-star-whoknows-com
 preview:

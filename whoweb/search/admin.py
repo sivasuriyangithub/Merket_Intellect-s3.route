@@ -1,16 +1,14 @@
 from admin_actions.admin import ActionsModelAdmin
 from django.contrib import admin, messages
 from django.contrib.admin import TabularInline
-from django.db.models import Count
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 
-from contrib.fields import ObscuredInt
 from whoweb.core.admin import EventTabularInline
 from whoweb.search.events import ENQUEUED_FROM_ADMIN
 from whoweb.search.models import SearchExport, ScrollSearch
-from whoweb.search.models.export import SearchExportPage, WorkingExportRow
+from whoweb.search.models.export import SearchExportPage
 
 
 class SearchExportPageInline(TabularInline):
@@ -212,7 +210,6 @@ class ExportAdmin(ActionsModelAdmin):
 
 @admin.register(ScrollSearch)
 class ScrollSearchAdmin(ActionsModelAdmin):
-
     fields = (
         "scroll_key",
         "scroll_key_modified",

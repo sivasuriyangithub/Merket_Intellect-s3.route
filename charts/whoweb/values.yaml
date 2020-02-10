@@ -2,8 +2,8 @@
 # Declare variables to be passed into your templates.
 image:
   pullPolicy: IfNotPresent
-  repository:
-  tag:
+  repository: gcr.io/wkinfra-171623/wkpython/whoweb
+  tag: 7.3.0
 basedomain: whoknows.com
 service:
   name: whoweb

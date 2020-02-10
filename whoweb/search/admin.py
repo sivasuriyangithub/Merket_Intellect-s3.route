@@ -104,9 +104,11 @@ class ExportAdmin(ActionsModelAdmin):
         (
             "Status Fields",
             {
+                "classes": (),
                 "fields": (
                     ("status", "status_changed",),
                     ("progress_counter", "target",),
+                    "queue_priority",
                     "rows_enqueued",
                     "working_count",
                     "latest_page_modified",
@@ -119,7 +121,7 @@ class ExportAdmin(ActionsModelAdmin):
             "Behavior Fields",
             {
                 "classes": ("collapse",),
-                "fields": (("charge", "notify", "on_trial"), "column_names"),
+                "fields": (("charge", "notify", "on_trial"), "column_names",),
             },
         ),
     )
@@ -128,6 +130,7 @@ class ExportAdmin(ActionsModelAdmin):
         "sent_at",
         "working_count",
         "rows_enqueued",
+        "queue_priority",
         "latest_page_modified",
         "status_changed",
         "scroller",

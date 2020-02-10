@@ -868,6 +868,15 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         self.status = self.STATUS.complete
         self.save()
 
+    @property
+    def queue_priority(self):
+        if self.target <= 100:
+            return 4
+        elif self.target <= 300:
+            return 3
+        else:
+            return 2
+
     def processing_signatures(self, on_complete=None):
         from whoweb.search.tasks import (
             generate_pages,
@@ -1047,18 +1056,14 @@ class SearchExportPage(TimeStampedModel):
             process_derivation = process_derivation_fast
         else:
             process_derivation = process_derivation_slow
-        if self.export.target <= 100:
-            priority = 4
-        elif self.export.target <= 300:
-            priority = 3
-        else:
-            priority = 2
+
         args = (
             self.export.query.defer,
             self.export.should_remove_derivation_failures,
             self.export.with_invites,
             self.export.query.contact_filters or [WORK, PERSONAL, SOCIAL, PROFILE],
         )
+        priority = self.export.queue_priority
         derivation_sigs = [
             process_derivation.si(self.pk, profile.to_json(), *args).set(
                 priority=priority

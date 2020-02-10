@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
             model_name="campaignlist",
             name="public_id",
             field=models.CharField(
-                default=whoweb.whoweb.contrib.fields.random_public_id,
+                default=whoweb.contrib.fields.random_public_id,
                 editable=False,
                 max_length=16,
                 unique=True,

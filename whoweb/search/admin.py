@@ -1,14 +1,25 @@
+import datetime
+
 from admin_actions.admin import ActionsModelAdmin
 from django.contrib import admin, messages
 from django.contrib.admin import TabularInline
+from django.contrib.admin.options import IncorrectLookupParameters
+from django.contrib.humanize.templatetags.humanize import naturaltime
+from django.core.exceptions import ValidationError
+from django.db.models import Sum, Max, Case, When, DateTimeField, Value
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.safestring import mark_safe
+from django.utils.timezone import localtime
+from django.utils.translation import gettext_lazy as _
 
 from whoweb.core.admin import EventTabularInline
 from whoweb.search.events import ENQUEUED_FROM_ADMIN
 from whoweb.search.models import SearchExport, ScrollSearch
 from whoweb.search.models.export import SearchExportPage
+
+epoch = datetime.datetime(1970, 1, 1, 0, 0, 0, tzinfo=timezone.get_default_timezone())
 
 
 class SearchExportPageInline(TabularInline):
@@ -36,9 +47,7 @@ class SearchExportPageInline(TabularInline):
 
     @mark_safe
     def export_link(self, obj: SearchExportPage):
-        link = reverse(
-            "admin:search_searchexportpage_change", args=[obj.pk]
-        )  # model name has to be lowercase
+        link = reverse("admin:search_searchexportpage_change", args=[obj.pk])
         return '<a href="%s">Page %s</a>' % (link, obj.page_num)
 
     export_link.short_description = "Page num"
@@ -75,12 +84,93 @@ class SearchExportPageAdmin(ActionsModelAdmin):
 
     @mark_safe
     def export_link(self, obj: SearchExportPage):
-        link = reverse(
-            "admin:search_searchexport_change", args=[obj.export_id]
-        )  # model name has to be lowercase
+        link = reverse("admin:search_searchexport_change", args=[obj.export_id])
         return '<a href="%s">%s</a>' % (link, obj.export)
 
     export_link.short_description = "Export"
+
+
+class LatestPageModificationFilter(admin.SimpleListFilter):
+    title = "Latest Page Update Time"
+    parameter_name = "_latest_page_modified"
+
+    def __init__(self, request, params, model, model_admin):
+        self.field_generic = "%s__" % self.parameter_name
+
+        self.date_params = {
+            k: v for k, v in params.items() if k.startswith(self.field_generic)
+        }
+
+        now = timezone.now()
+        # When time zone support is enabled, convert "now" to the user's time
+        # zone so Django's definition of "Today" matches what the user expects.
+        if timezone.is_aware(now):
+            now = timezone.localtime(now)
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        self.lookup_kwarg_since = "%s__gte" % self.parameter_name
+        self.lookup_kwarg_until = "%s__lt" % self.parameter_name
+        self.links = (
+            (_("Any date"), {}),
+            (
+                _("Today"),
+                {
+                    self.lookup_kwarg_since: str(today),
+                    self.lookup_kwarg_until: str(today + datetime.timedelta(days=1)),
+                },
+            ),
+            (
+                _("Yesterday"),
+                {
+                    self.lookup_kwarg_since: str(today - datetime.timedelta(days=1)),
+                    self.lookup_kwarg_until: str(today),
+                },
+            ),
+            (
+                _("1-2 days ago"),
+                {
+                    self.lookup_kwarg_since: str(today - datetime.timedelta(days=2)),
+                    self.lookup_kwarg_until: str(today - datetime.timedelta(days=1)),
+                },
+            ),
+            (
+                _("2-3 days ago"),
+                {
+                    self.lookup_kwarg_since: str(today - datetime.timedelta(days=3)),
+                    self.lookup_kwarg_until: str(today - datetime.timedelta(days=2)),
+                },
+            ),
+            (
+                _("More than 7 days ago"),
+                {self.lookup_kwarg_until: str(today - datetime.timedelta(days=7)),},
+            ),
+        )
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.links
+
+    def choices(self, changelist):
+        for title, param_dict in self.links:
+            yield {
+                "selected": self.date_params == param_dict,
+                "query_string": changelist.get_query_string(
+                    param_dict, [self.field_generic]
+                ),
+                "display": title,
+            }
+
+    def expected_parameters(self):
+        params = [self.lookup_kwarg_since, self.lookup_kwarg_until]
+        return params
+
+    def queryset(self, request, queryset):
+        try:
+            return queryset.filter(**self.used_parameters)
+        except (ValueError, ValidationError) as e:
+            # Fields may raise a ValueError or ValidationError when converting
+            # the parameters to the correct type.
+            raise IncorrectLookupParameters(e)
 
 
 @admin.register(SearchExport)
@@ -88,8 +178,10 @@ class ExportAdmin(ActionsModelAdmin):
     list_display = (
         "pk",
         "uuid",
-        "seat",
         "status",
+        "rows_enqueued",
+        "latest_page_modified",
+        "progress_counter",
         "target",
         "should_derive_email",
     )
@@ -97,8 +189,15 @@ class ExportAdmin(ActionsModelAdmin):
         "pk",
         "uuid",
     )
-    list_filter = ("status", "charge")
-    search_fields = ("seat__user__email", "seat__user__username", "pk", "uuid")
+    list_per_page = 10
+    list_filter = (
+        "status",
+        "charge",
+        "created",
+        "modified",
+        LatestPageModificationFilter,
+    )
+    search_fields = ("seat__user__email", "seat__user__username", "pk", "uuid__exact")
     fieldsets = (
         (None, {"fields": ("uuid", "seat", "query", "scroller",)}),
         (
@@ -111,7 +210,7 @@ class ExportAdmin(ActionsModelAdmin):
                     "queue_priority",
                     "rows_enqueued",
                     "working_count",
-                    "latest_page_modified",
+                    ("latest_page_modified_precise", "latest_page_modified"),
                     ("sent", "sent_at",),
                     "validation_list_id",
                 ),
@@ -132,6 +231,7 @@ class ExportAdmin(ActionsModelAdmin):
         "rows_enqueued",
         "queue_priority",
         "latest_page_modified",
+        "latest_page_modified_precise",
         "status_changed",
         "scroller",
         "column_names",
@@ -141,16 +241,47 @@ class ExportAdmin(ActionsModelAdmin):
     actions_detail = ("run_publication_tasks", "download", "download_json")
     actions = ("store_validation_results",)
 
-    def working_count(self, obj: SearchExport):
-        return sum(page.progress_counter for page in obj.pages.all())
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(
+                _working_count=Sum("pages__progress_counter"),
+                _rows_enqueued=Sum("pages__pending_count"),
+                _page_modified=Max("pages__modified"),
+            )
+            .annotate(
+                _latest_page_modified=Case(
+                    When(_page_modified__isnull=False, then="_page_modified"),
+                    default=Value(epoch),  # sorts null to bottom
+                    output_field=DateTimeField(),
+                )
+            )
+        )
 
-    working_count.short_description = "Working progress count"
+    def working_count(self, obj):
+        return obj._working_count
 
-    def rows_enqueued(self, obj: SearchExport):
-        return sum(page.pending_count for page in obj.pages.all())
+    working_count.short_description = "Working Rows"
 
-    def latest_page_modified(self, obj: SearchExport):
-        return obj.pages.order_by("-modified").first().modified
+    def rows_enqueued(self, obj):
+        return obj._rows_enqueued
+
+    rows_enqueued.admin_order_field = "_rows_enqueued"
+
+    def latest_page_modified(self, obj):
+        return (
+            "n/a"
+            if obj._latest_page_modified == epoch
+            else naturaltime(obj._latest_page_modified)
+        )
+
+    latest_page_modified.admin_order_field = "_latest_page_modified"
+
+    def latest_page_modified_precise(self, obj):
+        return localtime(obj._latest_page_modified).strftime("%Y-%m-%d %H:%M:%S %Z")
+
+    latest_page_modified_precise.short_description = "latest page modified"
 
     def column_names(self, obj):
         return ", ".join(obj.get_column_names())

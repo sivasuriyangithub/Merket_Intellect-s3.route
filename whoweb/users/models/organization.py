@@ -146,6 +146,11 @@ class Seat(ObscureIdMixin, AbstractOrganizationUser):
         verbose_name = _("seat")
         verbose_name_plural = _("seats")
 
+    def __unicode__(self):
+        return "{0} ({1})".format(
+            self.name or ("User: " + self.user_id), self.organization.name
+        )
+
     @property
     def name(self):
         return self.display_name

@@ -47,6 +47,7 @@ from whoweb.search.events import (
     GENERATING_PAGES_COMPLETE,
     FINALIZING_LOCKED,
     VALIDATION_COMPLETE_LOCKED,
+    COMPRESSING_PAGES,
 )
 from whoweb.users.models import Seat
 from .profile import ResultProfile, WORK, PERSONAL, SOCIAL, PROFILE, VALIDATED
@@ -136,7 +137,9 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     sent_at = MonitorField(
         _("sent at"), monitor="sent", editable=False, null=True, default=None
     )
-    progress_counter = models.IntegerField(default=0)
+    progress_counter = models.IntegerField(
+        default=0, help_text="Number of profiles stored in completed pages."
+    )
     target = models.IntegerField(default=0)
 
     notify = models.BooleanField(default=False)
@@ -572,10 +575,6 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         :return: List of export pages for which search cache has been primed.
         :rtype:
         """
-        if already_generated_pages := self.pages.filter(
-            data__isnull=True, status=SearchExportPage.STATUS.created
-        ):
-            return already_generated_pages
 
         search = self.ensure_search_interface(force=True)
         is_scroll, ids = self._is_scroll_search_or_fetch_ids()
@@ -615,6 +614,11 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         return self.pages.filter(
             data__isnull=True, status=SearchExportPage.STATUS.created
         )[:batch]
+
+    def compress_working_pages(self, page_ids, task_context=None):
+        self.log_event(COMPRESSING_PAGES, task=task_context, data={"pages": page_ids})
+        for page in self.pages.filter(pk__in=page_ids):
+            page.do_post_derive_process(task_context=task_context)
 
     @transaction.atomic
     def do_post_pages_completion(self, task_context=None):
@@ -961,8 +965,13 @@ class SearchExportPage(TimeStampedModel):
     data = CompressedBinaryJSONField(null=True, editable=False)
     page_num = models.PositiveIntegerField()
     working_data = JSONField(editable=False, null=True, default=dict)
+    pending_count = models.IntegerField(
+        default=0, help_text="Number of tasks enqueued."
+    )
+    progress_counter = models.IntegerField(
+        default=0, help_text="Number of profiles completed and saved."
+    )
     count = models.IntegerField(default=0)
-    limit = models.IntegerField(null=True)
     derivation_group: TaskResult = models.ForeignKey(
         TaskResult, on_delete=models.SET_NULL, null=True, blank=True
     )
@@ -978,8 +987,16 @@ class SearchExportPage(TimeStampedModel):
     @classmethod
     def save_profile(cls, page_pk: int, profile: ResultProfile) -> "SearchExportPage":
         page = cls.objects.get(pk=page_pk)
+        if profile.id:
+            _, created = WorkingExportRow.objects.update_or_create(
+                page=page, profile_id=profile.id, defaults={"data": profile.to_json()},
+            )
+        else:
+            WorkingExportRow.objects.create(page=page, data=profile.to_json())
+            created = True
         if page:
-            page.working_data[profile.id] = profile.to_json()
+            page.pending_count = F("pending_count") - int(created)
+            page.progress_counter = F("progress_counter") + int(created)
             page.save()
         return page
 
@@ -998,12 +1015,8 @@ class SearchExportPage(TimeStampedModel):
         scroll = self.export.scroll
         ids = scroll.get_ids_for_page(self.page_num)
         profiles = [p.to_json() for p in scroll.get_profiles_for_page(self.page_num)]
-        if self.limit:
-            self.count = min(self.limit, len(profiles))
-            self.data = profiles[: self.limit]
-        else:
-            self.count = len(profiles)
-            self.data = profiles
+        self.count = len(profiles)
+        self.data = profiles
         self.status = self.STATUS.complete
         self.save()
         # Sometimes search removes duplicate profiles which show up as different ids,
@@ -1057,12 +1070,16 @@ class SearchExportPage(TimeStampedModel):
     def _do_post_derive_process(self) -> [dict]:
         if self.data:
             return []
-        profiles = list(self.working_data.values()) if self.working_data else []
-        quota = min((self.limit, len(profiles))) if self.limit else len(profiles)
-        profiles = profiles[:quota]
+        profiles = (
+            list(self.working_data.values())
+            if self.working_data
+            else [row.data for row in self.working_rows.all()]
+        )
         self.count = len(profiles)
         self.data = profiles
         self.working_data = None
+        self.working_rows.delete()
+        self.pending_count = 0
         self.status = self.STATUS.complete
         self.save()
         self.export.progress_counter = F("progress_counter") + self.count
@@ -1115,3 +1132,11 @@ class MXDomain(models.Model):
             return self.mxs[0]
         except IndexError:
             return None
+
+
+class WorkingExportRow(models.Model):
+    page = models.ForeignKey(
+        SearchExportPage, on_delete=models.CASCADE, related_name="working_rows"
+    )
+    profile_id = models.CharField(max_length=255, blank=True, null=True, default="")
+    data = JSONField(default=dict)

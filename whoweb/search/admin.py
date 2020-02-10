@@ -1,6 +1,7 @@
 from admin_actions.admin import ActionsModelAdmin
 from django.contrib import admin, messages
 from django.contrib.admin import TabularInline
+from django.db.models import Count
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.safestring import mark_safe
@@ -9,7 +10,7 @@ from contrib.fields import ObscuredInt
 from whoweb.core.admin import EventTabularInline
 from whoweb.search.events import ENQUEUED_FROM_ADMIN
 from whoweb.search.models import SearchExport, ScrollSearch
-from whoweb.search.models.export import SearchExportPage
+from whoweb.search.models.export import SearchExportPage, WorkingExportRow
 
 
 class SearchExportPageInline(TabularInline):
@@ -17,7 +18,8 @@ class SearchExportPageInline(TabularInline):
     fields = (
         "export_link",
         "status",
-        "working_count",
+        "pending_count",
+        "progress_counter",
         "final_count",
         "created",
         "modified",
@@ -26,16 +28,13 @@ class SearchExportPageInline(TabularInline):
     extra = 0
 
     def get_queryset(self, request):
-        return super().get_queryset(request).defer("data", "working_data")
+        return super().get_queryset(request).defer("data")
 
     def has_add_permission(self, request, obj=None):
         return False
 
     def final_count(self, obj):
         return obj.count
-
-    def working_count(self, obj):
-        return len(obj.working_data) if obj.working_data else None
 
     @mark_safe
     def export_link(self, obj: SearchExportPage):
@@ -68,14 +67,10 @@ class SearchExportPageAdmin(ActionsModelAdmin):
         "modified",
         "status",
         "count",
-        "limit",
-        "working_count",
-        "derivation_group_link",
+        "pending_count",
+        "progress_counter",
     )
     readonly_fields = fields
-
-    def working_count(self, obj):
-        return len(obj.working_data) if obj.working_data else None
 
     def get_queryset(self, request):
         return super().get_queryset(request).defer("data")
@@ -89,18 +84,6 @@ class SearchExportPageAdmin(ActionsModelAdmin):
 
     export_link.short_description = "Export"
 
-    @mark_safe
-    def derivation_group_link(self, obj: SearchExportPage):
-        if obj.derivation_group:
-            link = reverse(
-                "admin:django_celery_results_taskresult_change",
-                args=[obj.derivation_group.id],
-            )  # model name has to be lowercase
-            return '<a href="%s">%s</a>' % (link, obj.derivation_group.task_name)
-        return "None"
-
-    derivation_group_link.short_description = "Derivation Task Group"
-
 
 @admin.register(SearchExport)
 class ExportAdmin(ActionsModelAdmin):
@@ -109,7 +92,7 @@ class ExportAdmin(ActionsModelAdmin):
         "uuid",
         "seat",
         "status",
-        "progress_counter",
+        "target",
         "should_derive_email",
     )
     list_display_links = (
@@ -118,26 +101,36 @@ class ExportAdmin(ActionsModelAdmin):
     )
     list_filter = ("status", "charge")
     search_fields = ("seat__user__email", "seat__user__username", "pk", "uuid")
-    fields = (
-        "seat",
-        "uuid",
-        "query",
-        "status",
-        "status_changed",
-        "scroller",
-        "charge",
-        "notify",
-        "on_trial",
-        "progress_counter",
-        "target",
-        "sent",
-        "sent_at",
-        "validation_list_id",
-        "column_names",
+    fieldsets = (
+        (None, {"fields": ("uuid", "seat", "query", "scroller",)}),
+        (
+            "Status Fields",
+            {
+                "fields": (
+                    ("status", "status_changed",),
+                    ("progress_counter", "target",),
+                    "rows_enqueued",
+                    "working_count",
+                    "latest_page_modified",
+                    ("sent", "sent_at",),
+                    "validation_list_id",
+                ),
+            },
+        ),
+        (
+            "Behavior Fields",
+            {
+                "classes": ("collapse",),
+                "fields": (("charge", "notify", "on_trial"), "column_names"),
+            },
+        ),
     )
     readonly_fields = (
         "sent",
         "sent_at",
+        "working_count",
+        "rows_enqueued",
+        "latest_page_modified",
         "status_changed",
         "scroller",
         "column_names",
@@ -146,6 +139,17 @@ class ExportAdmin(ActionsModelAdmin):
     actions_row = ("download", "download_json")
     actions_detail = ("run_publication_tasks", "download", "download_json")
     actions = ("store_validation_results",)
+
+    def working_count(self, obj: SearchExport):
+        return sum(page.progress_counter for page in obj.pages.all())
+
+    working_count.short_description = "Working progress count"
+
+    def rows_enqueued(self, obj: SearchExport):
+        return sum(page.pending_count for page in obj.pages.all())
+
+    def latest_page_modified(self, obj: SearchExport):
+        return obj.pages.order_by("-modified").first().modified
 
     def column_names(self, obj):
         return ", ".join(obj.get_column_names())

@@ -39,7 +39,7 @@ class DripRecordSerializer(serializers.ModelSerializer):
 
 
 class BaseRunnerSerializer(IdOrHyperlinkedModelSerializer):
-    id = serializers.CharField(source="public_id")
+    id = serializers.CharField(source="public_id", read_only=True)
     query = FilteredSearchQuerySerializer()
     messages = SendingRuleSerializer(many=True)
     status_name = serializers.CharField(source="get_status_display", read_only=True)

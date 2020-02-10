@@ -15,6 +15,7 @@ ALERT_XPERWEB = 750, "Notified xperweb of export completion."
 
 POPULATE_DATA = 400, "Populating page directly from search data."
 PAGES_SPAWNED = 350, "Scheduling batch of pages to process."
+COMPRESSING_PAGES = 320, "Compressing working data into export pages."
 FINALIZE_PAGE = 300, "Page finalizing."
 
 COLDLIST_PENDING = 1000, "Set for upload as coldemail list."

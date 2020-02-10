@@ -7,7 +7,7 @@ from whoweb.search.serializers import FilteredSearchQuerySerializer
 
 class CampaignMessageSerializer(IdOrHyperlinkedModelSerializer):
     status_name = serializers.CharField(source="get_status_display", read_only=True)
-    id = serializers.CharField(source="public_id")
+    id = serializers.CharField(source="public_id", read_only=True)
 
     class Meta:
         model = CampaignMessage
@@ -33,7 +33,7 @@ class CampaignMessageSerializer(IdOrHyperlinkedModelSerializer):
 
 
 class CampaignMessageTemplateSerializer(IdOrHyperlinkedModelSerializer):
-    id = serializers.CharField(source="public_id")
+    id = serializers.CharField(source="public_id", read_only=True)
 
     class Meta:
         model = CampaignMessageTemplate
@@ -56,7 +56,7 @@ class CampaignMessageTemplateSerializer(IdOrHyperlinkedModelSerializer):
 class CampaignListSerializer(IdOrHyperlinkedModelSerializer):
     query = FilteredSearchQuerySerializer()
     status_name = serializers.CharField(source="get_status_display", read_only=True)
-    id = serializers.CharField(source="public_id")
+    id = serializers.CharField(source="public_id", read_only=True)
 
     class Meta:
         model = CampaignList
@@ -81,7 +81,7 @@ class CampaignListSerializer(IdOrHyperlinkedModelSerializer):
 
 class CampaignSerializer(IdOrHyperlinkedModelSerializer):
     status_name = serializers.CharField(source="get_status_display", read_only=True)
-    id = serializers.CharField(source="public_id")
+    id = serializers.CharField(source="public_id", read_only=True)
 
     class Meta:
         model = ColdCampaign

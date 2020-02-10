@@ -49,14 +49,12 @@ def do_process_page(self, page_pk):
         return page.populate_data_directly(task_context=self.request)
 
     if tasks := page.get_derivation_tasks():
-        page_chord = chord(
-            tasks, finalize_page.si(page.pk).on_error(finalize_page.si(page.pk)),
-        )
         page.status = SearchExportPage.STATUS.working
+        page.pending_count = len(tasks)
         page.save()
-        return self.replace(page_chord)
+        return self.replace(group(tasks))
     else:
-        return "No page tasks required. Pages done."
+        return "No page tasks required. Page done."
 
 
 @shared_task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
@@ -66,15 +64,21 @@ def spawn_do_page_process_tasks(self, prefetch_multiplier, export_id):
         return "Done"
     num_pages = ceil(export.pages.count() * prefetch_multiplier)
     if empty_pages := export.get_next_empty_page(num_pages):
-        tasks = group(
+        empty_page_ids = [page.pk for page in empty_pages]
+        tasks = chord(
             [
                 do_process_page.signature(
-                    args=(page.pk,),
+                    args=(page_id,),
                     immutable=True,
                     countdown=i * SearchExport.PAGE_DELAY,
                 )
-                for i, page in enumerate(empty_pages)
-            ]
+                for i, page_id in enumerate(empty_page_ids)
+            ],
+            compress_working_pages.si(
+                export_id=export_id, page_ids=empty_page_ids
+            ).on_error(
+                compress_working_pages.si(export_id=export_id, page_ids=empty_page_ids)
+            ),
         )
         export.log_event(PAGES_SPAWNED, data={"signatures": repr(tasks)})
         return self.replace(tasks)
@@ -256,3 +260,11 @@ def process_derivation_fast(
 def finalize_page(self, pk):
     export_page = SearchExportPage.objects.get(pk=pk)  # allow DoesNotExist exception
     export_page.do_post_derive_process(task_context=self.request)
+
+
+@shared_task(
+    bind=True, max_retries=250, ignore_result=False, autoretry_for=NETWORK_ERRORS
+)
+def compress_working_pages(self, export_id, page_ids):
+    export = SearchExport.objects.get(pk=export_id)  # allow DoesNotExist exception
+    export.compress_working_pages(page_ids=page_ids, task_context=self.request)

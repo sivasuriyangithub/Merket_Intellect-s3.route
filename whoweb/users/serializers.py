@@ -14,7 +14,7 @@ User = get_user_model()
 
 class UserSerializer(IdOrHyperlinkedModelSerializer):
     graph_id = NodeRelatedField("UserNode", source="public_id")
-    id = serializers.CharField(source="public_id")
+    id = serializers.CharField(source="public_id", read_only=True)
 
     class Meta:
         model = User
@@ -25,7 +25,7 @@ class UserSerializer(IdOrHyperlinkedModelSerializer):
 
 class NetworkSerializer(IdOrHyperlinkedModelSerializer):
     graph_id = NodeRelatedField("NetworkNode", source="public_id")
-    id = serializers.CharField(source="public_id")
+    id = serializers.CharField(source="public_id", read_only=True)
 
     class Meta:
         model = Group
@@ -43,7 +43,7 @@ class SeatSerializer(ObjectPermissionsAssignmentMixin, IdOrHyperlinkedModelSeria
         queryset=Group.objects.all(),
     )
     graph_id = NodeRelatedField("SeatNode", source="public_id")
-    id = serializers.CharField(source="public_id")
+    id = serializers.CharField(source="public_id", read_only=True)
 
     class Meta:
         model = Seat

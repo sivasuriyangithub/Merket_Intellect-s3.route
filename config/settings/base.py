@@ -314,6 +314,8 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 2
 CELERY_REDIS_RETRY_ON_TIMEOUT = True
 CELERY_WORKER_SEND_TASK_EVENTS = True
 CELERY_TASK_SEND_SENT_EVENT = True
+# https://docs.celeryproject.org/en/stable/userguide/configuration.html#task-remote-tracebacks
+CELERY_TASK_REMOTE_TRACEBACKS = True
 # django-allauth
 # ------------------------------------------------------------------------------
 ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", True)

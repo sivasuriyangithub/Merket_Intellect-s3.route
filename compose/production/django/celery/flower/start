@@ -3,7 +3,7 @@
 set -o errexit
 set -o nounset
 
-
+export CONN_MAX_AGE=0
 celery flower \
     --app=config.celery_app \
     --url_prefix=flower \

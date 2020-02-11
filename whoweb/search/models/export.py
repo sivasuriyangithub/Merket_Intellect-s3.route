@@ -8,7 +8,7 @@ from math import ceil
 from typing import Optional, List, Iterable, Dict, Iterator, Tuple
 
 import requests
-from celery import group, chain, chord
+from celery import group, chain
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import JSONField, ArrayField
@@ -31,7 +31,7 @@ from six import BytesIO
 from whoweb.accounting.ledgers import wkcredits_fulfilled_ledger
 from whoweb.accounting.models import Transaction, MatchType
 from whoweb.accounting.queries import get_balances_for_object
-from whoweb.contrib.fields import CompressedBinaryJSONField, ObscureIdMixin
+from whoweb.contrib.fields import CompressedBinaryJSONField
 from whoweb.contrib.postgres.fields import EmbeddedModelField
 from whoweb.core.models import EventLoggingModel
 from whoweb.core.router import router, external_link

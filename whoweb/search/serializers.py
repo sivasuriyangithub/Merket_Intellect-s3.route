@@ -79,7 +79,20 @@ class SearchExportSerializer(IdOrHyperlinkedModelSerializer):
         view_name="exportresult-detail", read_only=True, source="uuid",
     )
     status_name = serializers.SerializerMethodField()
+    xperweb_id = serializers.CharField(write_only=True, required=False)
+    group_name = serializers.CharField(
+        write_only=True, allow_null=True, allow_blank=True, required=False
+    )
+    group_id = serializers.CharField(write_only=True, required=False)
+    email = serializers.EmailField(write_only=True, required=False)
+    seat_credits = serializers.IntegerField(write_only=True, required=False)
     for_campaign = serializers.BooleanField(source="uploadable", required=False)
+    credits_per_enrich = serializers.IntegerField(write_only=True, required=False)
+    credits_per_work_email = serializers.IntegerField(write_only=True, required=False)
+    credits_per_personal_email = serializers.IntegerField(
+        write_only=True, required=False
+    )
+    credits_per_phone = serializers.IntegerField(write_only=True, required=False)
     transactions = TransactionSerializer(many=True, read_only=True)
     seat = IdOrHyperlinkedRelatedField(
         view_name="seat-detail",
@@ -91,9 +104,7 @@ class SearchExportSerializer(IdOrHyperlinkedModelSerializer):
 
     class Meta:
         model = SearchExport
-        extra_kwargs = {
-            "url": {"lookup_field": "uuid"},
-        }
+        extra_kwargs = {"url": {"lookup_field": "uuid"}}
         depth = 1
         read_only_fields = [
             "status",
@@ -124,12 +135,40 @@ class SearchExportSerializer(IdOrHyperlinkedModelSerializer):
             "charge",
             "for_campaign",
             "on_trial",
+            "xperweb_id",
+            "group_name",
+            "group_id",
+            "email",
+            "seat_credits",
             "charged",
+            "credits_per_enrich",
+            "credits_per_work_email",
+            "credits_per_personal_email",
+            "credits_per_phone",
             "transactions",
         ]
 
     def get_status_name(self, obj):
         return SearchExport.STATUS[int(obj.status)]
+
+    def validate(self, attrs):
+        if attrs["uploadable"] is False:
+            for field in [
+                "xperweb_id",
+                "group_name",
+                "group_id",
+                "email",
+                "seat_credits",
+                "credits_per_enrich",
+                "credits_per_work_email",
+                "credits_per_personal_email",
+                "credits_per_phone",
+            ]:
+                if field not in attrs:
+                    raise serializers.ValidationError(
+                        "All user fields are required for this export."
+                    )
+        return attrs
 
     def create(self, validated_data):
         from whoweb.users.models import Group
@@ -170,7 +209,7 @@ class SearchExportSerializer(IdOrHyperlinkedModelSerializer):
         else:
             seat = None
         export = SearchExport.create_from_query(
-            seat=validated_data["seat"],
+            seat=seat,
             query=validated_data["query"],
             uploadable=validated_data["uploadable"],
             notify=not validated_data["uploadable"],

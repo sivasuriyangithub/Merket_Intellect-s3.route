@@ -7,12 +7,17 @@ from rest_framework.viewsets import ModelViewSet
 
 from whoweb.coldemail.models.reply import ReplyTo
 from whoweb.contrib.rest_framework.permissions import IsSuperUser
-from .models import CampaignList, CampaignMessage, ColdCampaign, CampaignMessageTemplate
+from .models import (
+    CampaignList,
+    CampaignMessage,
+    CampaignMessageTemplate,
+    SingleColdEmail,
+)
 from .serializers import (
-    CampaignSerializer,
     CampaignListSerializer,
     CampaignMessageSerializer,
     CampaignMessageTemplateSerializer,
+    SingleColdEmailSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -54,8 +59,8 @@ class CampaignMessageTemplateViewSet(ModelViewSet):
     permission_classes = [IsSuperUser]
 
 
-class CampaignViewSet(ModelViewSet):
-    serializer_class = CampaignSerializer
-    queryset = ColdCampaign.objects.all()
+class SingleEmailViewSet(ModelViewSet):
+    serializer_class = SingleColdEmailSerializer
+    queryset = SingleColdEmail.objects.all()
     lookup_field = "public_id"
     permission_classes = [IsSuperUser]

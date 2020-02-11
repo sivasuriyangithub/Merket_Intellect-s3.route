@@ -3,7 +3,9 @@ from math import ceil
 
 from celery import chord, group, shared_task
 from celery.exceptions import MaxRetriesExceededError
+from django.db.models import F
 from requests import HTTPError, Timeout, ConnectionError
+from redis.exceptions import ConnectionError as RedisConnectionError
 from sentry_sdk import capture_exception
 
 from whoweb.core.router import router
@@ -11,10 +13,17 @@ from whoweb.search.events import ALERT_XPERWEB, PAGES_SPAWNED
 from whoweb.search.models import SearchExport, ResultProfile
 from whoweb.search.models.export import MXDomain, SearchExportPage
 from whoweb.search.models.profile import VALIDATED, COMPLETE, FAILED, RETRY, WORK
+from kombu.exceptions import OperationalError
 
 logger = logging.getLogger(__name__)
 
-NETWORK_ERRORS = [HTTPError, Timeout, ConnectionError]
+NETWORK_ERRORS = [
+    HTTPError,
+    Timeout,
+    ConnectionError,
+    OperationalError,
+    RedisConnectionError,
+]
 MAX_DERIVE_RETRY = 3
 
 MAX_NUM_PAGES_TO_PROCESS_IN_SINGLE_TASK = 5
@@ -52,7 +61,10 @@ def do_process_page(self, page_pk):
         page.status = SearchExportPage.STATUS.working
         page.pending_count = len(tasks)
         page.save()
-        return self.replace(group(tasks))
+        chrd = group(tasks) | finalize_page.si(pk=page.pk).on_error(
+            finalize_page.si(pk=page.pk)
+        )
+        return self.replace(chrd)
     else:
         return "No page tasks required. Page done."
 
@@ -65,7 +77,7 @@ def spawn_do_page_process_tasks(self, prefetch_multiplier, export_id):
     num_pages = ceil(export.pages.count() * prefetch_multiplier)
     if empty_pages := export.get_next_empty_page(num_pages):
         empty_page_ids = [page.pk for page in empty_pages]
-        tasks = chord(
+        tasks = group(
             [
                 do_process_page.signature(
                     args=(page_id,),
@@ -73,12 +85,7 @@ def spawn_do_page_process_tasks(self, prefetch_multiplier, export_id):
                     countdown=i * SearchExport.PAGE_DELAY,
                 )
                 for i, page_id in enumerate(empty_page_ids)
-            ],
-            compress_working_pages.si(
-                export_id=export_id, page_ids=empty_page_ids
-            ).on_error(
-                compress_working_pages.si(export_id=export_id, page_ids=empty_page_ids)
-            ),
+            ]
         )
         export.log_event(PAGES_SPAWNED, data={"signatures": repr(tasks)})
         return self.replace(tasks)
@@ -194,6 +201,9 @@ def process_derivation(
     if status == RETRY:
         raise task.retry()
     elif status == FAILED and omit_failures:
+        SearchExportPage.objects.filter(pk=page_pk).update(
+            pending_count=F("pending_count") - 1
+        )
         return False
     else:
         if add_invite_key:
@@ -225,7 +235,12 @@ def process_derivation_slow(
             filters=filters,
         )
     except MaxRetriesExceededError:
-        pass
+        try:
+            SearchExportPage.objects.filter(pk=page_pk).update(
+                pending_count=F("pending_count") - 1
+            )
+        except:
+            pass
 
 
 @shared_task(
@@ -251,7 +266,12 @@ def process_derivation_fast(
             filters=filters,
         )
     except MaxRetriesExceededError:
-        pass
+        try:
+            SearchExportPage.objects.filter(pk=page_pk).update(
+                pending_count=F("pending_count") - 1
+            )
+        except:
+            pass
 
 
 @shared_task(

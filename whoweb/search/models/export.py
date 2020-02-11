@@ -70,7 +70,7 @@ class SearchExportManager(QueryManagerMixin, models.Manager):
 class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     DERIVATION_RATIO = 3
     PREFETCH_MULTIPLIER = 2
-    PAGE_DELAY = 90
+    PAGE_DELAY = 180
     SIMPLE_CAP = 1000
     SKIP_CODE = "MAGIC_SKIP_CODE_NO_VALIDATION_NEEDED"
 
@@ -906,28 +906,10 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             do_pages = chain(
                 *[
                     spawn_do_page_process_tasks.si(
-                        prefetch_multiplier=1 / batch_ratio, export_id=self.pk
+                        prefetch_multiplier=1 / 6, export_id=self.pk
                     )
-                    for _ in range(ceil(batch_ratio - 1))
+                    for _ in range(6)
                 ],
-                spawn_do_page_process_tasks.si(
-                    prefetch_multiplier=1 / (6 * batch_ratio), export_id=self.pk
-                ),
-                spawn_do_page_process_tasks.si(
-                    prefetch_multiplier=1 / (6 * batch_ratio), export_id=self.pk
-                ),
-                spawn_do_page_process_tasks.si(
-                    prefetch_multiplier=1 / (6 * batch_ratio), export_id=self.pk
-                ),
-                spawn_do_page_process_tasks.si(
-                    prefetch_multiplier=1 / (6 * batch_ratio), export_id=self.pk
-                ),
-                spawn_do_page_process_tasks.si(
-                    prefetch_multiplier=1 / (6 * batch_ratio), export_id=self.pk
-                ),
-                spawn_do_page_process_tasks.si(
-                    prefetch_multiplier=1 / (6 * batch_ratio), export_id=self.pk
-                ),
             )
 
         sigs = (
@@ -1090,7 +1072,7 @@ class SearchExportPage(TimeStampedModel):
         self.count = len(profiles)
         self.data = profiles
         self.working_data = None
-        self.working_rows.delete()
+        self.working_rows.all().delete()
         self.pending_count = 0
         self.status = self.STATUS.complete
         self.save()

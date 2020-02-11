@@ -1,7 +1,14 @@
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
 from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
-from .models import CampaignMessage, ColdCampaign, CampaignList, CampaignMessageTemplate
+from .models import (
+    CampaignMessage,
+    ColdCampaign,
+    CampaignList,
+    CampaignMessageTemplate,
+    SingleColdEmail,
+)
 from whoweb.search.serializers import FilteredSearchQuerySerializer
 
 
@@ -138,3 +145,32 @@ class CampaignSerializer(IdOrHyperlinkedModelSerializer):
             "status_changed",
             "published_at",
         )
+
+
+class SingleColdEmailSerializer(IdOrHyperlinkedModelSerializer):
+    class Meta:
+        model = SingleColdEmail
+        fields = (
+            "url",
+            "public_id",
+            "message",
+            "email",
+            "send_date",
+            "test",
+            "use_credits_method",
+            "seat",
+            "views",
+            "clicks",
+            "optouts",
+        )
+        extra_kwargs = {
+            "url": {"lookup_field": "public_id"},
+            "seat": {"lookup_field": "public_id"},
+            "message": {"lookup_field": "public_id"},
+        }
+
+    def validate(self, attrs):
+        seat = attrs.get("seat")
+        if seat and seat != attrs["message"].seat:
+            raise PermissionDenied
+        return attrs

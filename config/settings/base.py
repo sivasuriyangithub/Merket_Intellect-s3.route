@@ -289,7 +289,8 @@ CELERY_RESULT_SERIALIZER = "json"
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-ignore-result
 CELERY_TASK_IGNORE_RESULT = False
 CELERY_RESULT_EXTENDED = True
-CELERY_RESULT_CHORD_JOIN_TIMEOUT = 5.0
+CELERY_RESULT_EXPIRES = timedelta(days=5)
+CELERY_RESULT_CHORD_JOIN_TIMEOUT = 20.0
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-time-limit
 # TODO: set to whatever value is adequate in your circumstances
 CELERY_TASK_TIME_LIMIT = 60 * 60
@@ -310,7 +311,9 @@ CELERY_TASK_ROUTES = {
 CELERY_TASK_QUEUE_MAX_PRIORITY = 4  # starts at 0
 CELERY_TASK_DEFAULT_PRIORITY = 2
 CELERY_WORKER_PREFETCH_MULTIPLIER = 2
-
+CELERY_REDIS_RETRY_ON_TIMEOUT = True
+CELERY_WORKER_SEND_TASK_EVENTS = True
+CELERY_TASK_SEND_SENT_EVENT = True
 # django-allauth
 # ------------------------------------------------------------------------------
 ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", True)

@@ -45,6 +45,10 @@ ENVIRONMENT_NAME = env("ENVIRONMENT_NAME", default="")
 DATABASES = {"default": env.db("DATABASE_URL")}
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
 DATABASES["default"]["OPTIONS"] = {"connect_timeout": 3}
+
+# https://docs.djangoproject.com/en/dev/ref/settings/#disable-server-side-cursors
+DISABLE_SERVER_SIDE_CURSORS = True  # using pgbouncer
+
 # URLS
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#root-urlconf

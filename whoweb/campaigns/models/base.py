@@ -287,18 +287,17 @@ class BaseCampaignRunner(
 
     def remove_reply_rows(self, export, root_campaign: ColdCampaign):
         responders = self.get_responders(root_campaign=root_campaign)
-        with transaction.atomic():
-            for page in export.pages.filter(data__isnull=False).iterator(chunk_size=1):
-                profiles = self.get_profiles(raw=page.data)
-                page.data = [
-                    profile.to_json()
-                    for profile in profiles
-                    if profile.id not in responders
-                ]
-                page.count = len(page.data)
-                page.id = None
-                page.export = export
-                page.save()
+        for page in export.pages.filter(data__isnull=False).iterator(chunk_size=1):
+            profiles = self.get_profiles(raw=page.data)
+            page.data = [
+                profile.to_json()
+                for profile in profiles
+                if profile.id not in responders
+            ]
+            page.count = len(page.data)
+            page.id = None
+            page.export = export
+            page.save()
         return export
 
     def get_responders(self, root_campaign: ColdCampaign):

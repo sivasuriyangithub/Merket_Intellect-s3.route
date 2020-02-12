@@ -346,13 +346,11 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             self.save()
         return self.scroll.ensure_live(force=force)
 
-    @transaction.atomic
     def get_raw(self) -> Iterator[ResultProfile]:
         for page in self.pages.filter(data__isnull=False).iterator(chunk_size=1):
             for row in page.data:
                 yield row
 
-    @transaction.atomic
     def get_raw_by_page(self) -> Iterator[Iterable[ResultProfile]]:
         for page in self.pages.filter(data__isnull=False).iterator(chunk_size=1):
             yield page.data
@@ -762,14 +760,12 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
     def apply_validation_to_profiles_in_pages(self, validation):
         registry = self.make_validation_registry(validation_generator=validation)
-        with transaction.atomic():
-            for page in self.pages.filter(data__isnull=False).iterator(chunk_size=1):
-                profiles = self.get_profiles(raw=page.data)
-                page.data = [
-                    profile.update_validation(registry).to_json()
-                    for profile in profiles
-                ]
-                page.save()
+        for page in self.pages.filter(data__isnull=False).iterator(chunk_size=1):
+            profiles = self.get_profiles(raw=page.data)
+            page.data = [
+                profile.update_validation(registry).to_json() for profile in profiles
+            ]
+            page.save()
 
     def return_validation_results_to_cache(self):
         upload_limit = 250

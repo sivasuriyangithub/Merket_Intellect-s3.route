@@ -27,14 +27,26 @@ deployment:
   envSecretRef: "whoweb-secrets"
   settingsModule: "config.settings.production"
 celery:
+  gracePeriod: 150
   cpuRequest: "2"
-  memoryRequest: "1Gi"
-  cpuLimit: "6"
+  memoryRequest: "512Mi"
+  cpuLimit: "8"
   memoryLimit: "8Gi"
   hpa:
     minReplicas: 1
-    maxReplicas: 10
-    cpu: 90
+    maxReplicas: 6
+    cpu: 75
+    memory: 85
+celeryLow:
+  gracePeriod: 90
+  cpuRequest: "2"
+  memoryRequest: "1Gi"
+  cpuLimit: "4"
+  memoryLimit: "6Gi"
+  hpa:
+    minReplicas: 2
+    maxReplicas: 6
+    cpu: 60
     memory: 80
 beat:
   cpuRequest: "100m"

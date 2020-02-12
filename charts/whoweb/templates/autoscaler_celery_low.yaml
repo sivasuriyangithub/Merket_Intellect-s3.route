@@ -1,0 +1,22 @@
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ template "jx.fullname" . }}-celery-low
+  annotations:
+    chart: {{ template "jx.chart" . }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ template "jx.fullname" . }}-celery-low
+  minReplicas: {{ default 1 .Values.celeryLow.hpa.minReplicas }}
+  maxReplicas: {{ default 1 .Values.celeryLow.hpa.maxReplicas }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      targetAverageUtilization: {{ default 100 .Values.celeryLow.hpa.cpu }}
+  - type: Resource
+    resource:
+      name: memory
+      targetAverageUtilization: {{ default 100 .Values.celeryLow.hpa.memory }}

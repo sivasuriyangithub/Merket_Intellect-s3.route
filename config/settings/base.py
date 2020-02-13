@@ -47,7 +47,8 @@ DATABASES["default"]["ATOMIC_REQUESTS"] = True
 DATABASES["default"]["OPTIONS"] = {"connect_timeout": 3}
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#disable-server-side-cursors
-DISABLE_SERVER_SIDE_CURSORS = True  # using pgbouncer
+DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True  # using pgbouncer
+
 
 # URLS
 # ------------------------------------------------------------------------------

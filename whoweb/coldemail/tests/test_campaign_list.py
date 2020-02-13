@@ -1,5 +1,4 @@
 from unittest.mock import patch, MagicMock, Mock
-from uuid import uuid4
 
 import pytest
 from celery.task import Task

@@ -21,9 +21,9 @@ class SingleColdEmail(ColdemailBaseModel):
     test = models.BooleanField(default=False)
     use_credits_method = models.CharField(max_length=90)
 
-    views = models.PositiveIntegerField()
-    clicks = models.PositiveIntegerField()
-    optouts = models.PositiveIntegerField()
+    views = models.PositiveIntegerField(editable=False, default=0)
+    clicks = models.PositiveIntegerField(editable=False, default=0)
+    optouts = models.PositiveIntegerField(editable=False, default=0)
 
     def publish(self):
         from ..tasks import publish_single_email

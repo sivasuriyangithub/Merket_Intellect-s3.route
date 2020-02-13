@@ -28,7 +28,7 @@ spec:
         chart: {{ template "jx.chart" . }}
         app: {{ template "jx.name" . }}-celery-low
     spec:
-      terminationGracePeriodSeconds: {{ default 30 .Values.celery.gracePeriod }}
+      terminationGracePeriodSeconds: {{ default 30 .Values.celeryLow.gracePeriod }}
       {{- if .Values.preemptible }}
       tolerations:
         - key: "key"
@@ -63,8 +63,8 @@ spec:
               name: {{ .Values.deployment.envSecretRef }}
           resources:
             requests:
-              cpu: {{ .Values.celery.cpuRequest }}
-              memory: {{ .Values.celery.memoryRequest }}
+              cpu: {{ .Values.celeryLow.cpuRequest }}
+              memory: {{ .Values.celeryLow.memoryRequest }}
             limits:
-              cpu: {{ .Values.celery.cpuLimit }}
-              memory: {{ .Values.celery.memoryLimit }}
+              cpu: {{ .Values.celeryLow.cpuLimit }}
+              memory: {{ .Values.celeryLow.memoryLimit }}

@@ -3,7 +3,9 @@ from math import ceil
 
 from celery import chord, group, shared_task
 from celery.exceptions import MaxRetriesExceededError
+from django.db.models import F
 from requests import HTTPError, Timeout, ConnectionError
+from redis.exceptions import ConnectionError as RedisConnectionError
 from sentry_sdk import capture_exception
 
 from whoweb.core.router import router
@@ -11,10 +13,17 @@ from whoweb.search.events import ALERT_XPERWEB, PAGES_SPAWNED
 from whoweb.search.models import SearchExport, ResultProfile
 from whoweb.search.models.export import MXDomain, SearchExportPage
 from whoweb.search.models.profile import VALIDATED, COMPLETE, FAILED, RETRY, WORK
+from kombu.exceptions import OperationalError
 
 logger = logging.getLogger(__name__)
 
-NETWORK_ERRORS = [HTTPError, Timeout, ConnectionError]
+NETWORK_ERRORS = [
+    HTTPError,
+    Timeout,
+    ConnectionError,
+    OperationalError,
+    RedisConnectionError,
+]
 MAX_DERIVE_RETRY = 3
 
 MAX_NUM_PAGES_TO_PROCESS_IN_SINGLE_TASK = 5
@@ -49,14 +58,15 @@ def do_process_page(self, page_pk):
         return page.populate_data_directly(task_context=self.request)
 
     if tasks := page.get_derivation_tasks():
-        page_chord = chord(
-            tasks, finalize_page.si(page.pk).on_error(finalize_page.si(page.pk)),
-        )
         page.status = SearchExportPage.STATUS.working
+        page.pending_count = len(tasks)
         page.save()
-        return self.replace(page_chord)
+        chrd = group(tasks) | finalize_page.si(pk=page.pk).on_error(
+            finalize_page.si(pk=page.pk)
+        )
+        return self.replace(chrd)
     else:
-        return "No page tasks required. Pages done."
+        return "No page tasks required. Page done."
 
 
 @shared_task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
@@ -66,14 +76,15 @@ def spawn_do_page_process_tasks(self, prefetch_multiplier, export_id):
         return "Done"
     num_pages = ceil(export.pages.count() * prefetch_multiplier)
     if empty_pages := export.get_next_empty_page(num_pages):
+        empty_page_ids = [page.pk for page in empty_pages]
         tasks = group(
             [
                 do_process_page.signature(
-                    args=(page.pk,),
+                    args=(page_id,),
                     immutable=True,
                     countdown=i * SearchExport.PAGE_DELAY,
                 )
-                for i, page in enumerate(empty_pages)
+                for i, page_id in enumerate(empty_page_ids)
             ]
         )
         export.log_event(PAGES_SPAWNED, data={"signatures": repr(tasks)})
@@ -84,7 +95,8 @@ def spawn_do_page_process_tasks(self, prefetch_multiplier, export_id):
 @shared_task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
 def do_post_pages_completion(self, export_id):
     export = SearchExport.objects.get(pk=export_id)
-    export.do_post_pages_completion(task_context=self.request)
+    if not export.do_post_pages_completion(task_context=self.request):
+        self.retry(countdown=60)
 
 
 @shared_task(bind=True, autoretry_for=NETWORK_ERRORS)
@@ -108,13 +120,13 @@ def fetch_validation_results(self, export_id):
         raise self.retry(cooldown=60, max_retries=24 * 60)
 
 
-@shared_task(autoretry_for=NETWORK_ERRORS)
-def do_post_validation_completion(export_id):
+@shared_task(bind=True, autoretry_for=NETWORK_ERRORS)
+def do_post_validation_completion(self, export_id):
     try:
         export = SearchExport.objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
         return 404
-    return export.do_post_validation_completion()
+    return export.do_post_validation_completion(task_context=self.request)
 
 
 @shared_task(autoretry_for=NETWORK_ERRORS)
@@ -189,6 +201,9 @@ def process_derivation(
     if status == RETRY:
         raise task.retry()
     elif status == FAILED and omit_failures:
+        SearchExportPage.objects.filter(pk=page_pk).update(
+            pending_count=F("pending_count") - 1
+        )
         return False
     else:
         if add_invite_key:
@@ -203,7 +218,7 @@ def process_derivation(
     default_retry_delay=90,
     retry_backoff=90,
     ignore_result=False,
-    rate_limit="10/m",
+    rate_limit="15/m",
     autoretry_for=NETWORK_ERRORS,
 )
 def process_derivation_slow(
@@ -220,7 +235,12 @@ def process_derivation_slow(
             filters=filters,
         )
     except MaxRetriesExceededError:
-        pass
+        try:
+            SearchExportPage.objects.filter(pk=page_pk).update(
+                pending_count=F("pending_count") - 1
+            )
+        except:
+            pass
 
 
 @shared_task(
@@ -229,7 +249,7 @@ def process_derivation_slow(
     default_retry_delay=90,
     retry_backoff=90,
     ignore_result=False,
-    rate_limit="40/m",
+    rate_limit="60/m",
     autoretry_for=NETWORK_ERRORS,
 )
 def process_derivation_fast(
@@ -246,7 +266,12 @@ def process_derivation_fast(
             filters=filters,
         )
     except MaxRetriesExceededError:
-        pass
+        try:
+            SearchExportPage.objects.filter(pk=page_pk).update(
+                pending_count=F("pending_count") - 1
+            )
+        except:
+            pass
 
 
 @shared_task(
@@ -255,3 +280,11 @@ def process_derivation_fast(
 def finalize_page(self, pk):
     export_page = SearchExportPage.objects.get(pk=pk)  # allow DoesNotExist exception
     export_page.do_post_derive_process(task_context=self.request)
+
+
+@shared_task(
+    bind=True, max_retries=250, ignore_result=False, autoretry_for=NETWORK_ERRORS
+)
+def compress_working_pages(self, export_id, page_ids):
+    export = SearchExport.objects.get(pk=export_id)  # allow DoesNotExist exception
+    export.compress_working_pages(page_ids=page_ids, task_context=self.request)

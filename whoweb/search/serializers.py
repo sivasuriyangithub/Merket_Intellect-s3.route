@@ -1,10 +1,13 @@
 from rest_framework import serializers
 from slugify import slugify
 
+from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
+from whoweb.users.models import Seat
 from whoweb.accounting.serializers import TransactionSerializer
 from whoweb.contrib.rest_framework.fields import (
     MultipleChoiceListField,
     PublicPrivateMultipleChoiceListField,
+    IdOrHyperlinkedRelatedField,
 )
 from whoweb.payments.models import BillingAccount, WKPlan
 from whoweb.search.models import (
@@ -70,13 +73,10 @@ class FilteredSearchQuerySerializer(serializers.ModelSerializer):
         return instance.serialize()
 
 
-class SearchExportSerializer(serializers.HyperlinkedModelSerializer):
+class SearchExportSerializer(IdOrHyperlinkedModelSerializer):
     query = FilteredSearchQuerySerializer()
     results_url = serializers.HyperlinkedRelatedField(
-        view_name="exportresult-detail",
-        read_only=True,
-        # lookup_field="uuid",
-        source="uuid",
+        view_name="exportresult-detail", read_only=True, source="uuid",
     )
     status_name = serializers.SerializerMethodField()
     xperweb_id = serializers.CharField(write_only=True, required=False)
@@ -94,6 +94,13 @@ class SearchExportSerializer(serializers.HyperlinkedModelSerializer):
     )
     credits_per_phone = serializers.IntegerField(write_only=True, required=False)
     transactions = TransactionSerializer(many=True, read_only=True)
+    seat = IdOrHyperlinkedRelatedField(
+        view_name="seat-detail",
+        lookup_field="public_id",
+        queryset=Seat.objects.all(),
+        required=False,
+        allow_null=True,
+    )
 
     class Meta:
         model = SearchExport

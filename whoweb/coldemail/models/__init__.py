@@ -5,10 +5,10 @@ from .campaign_list import CampaignList
 from .single_email import SingleColdEmail
 
 __all__ = [
-    ReplyTo,
-    ColdCampaign,
-    CampaignMessage,
-    CampaignMessageTemplate,
-    CampaignList,
-    SingleColdEmail,
+    "ReplyTo",
+    "ColdCampaign",
+    "CampaignMessage",
+    "CampaignMessageTemplate",
+    "CampaignList",
+    "SingleColdEmail",
 ]

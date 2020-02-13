@@ -267,10 +267,8 @@ def test_generate_csv_rows(get_profiles_mock, key_mock, query_contact_invites):
 def test_save_profile(result_profile_derived):
     page: SearchExportPage = SearchExportPageFactory()
     SearchExportPage.save_profile(page.pk, result_profile_derived)
-    page.refresh_from_db()
-    assert page.working_data == {
-        result_profile_derived.id: result_profile_derived.to_json()
-    }
+    assert page.working_rows.count() == 1
+    assert page.working_rows.first().data == result_profile_derived.to_json()
 
 
 def test_save_profile_idempotent(result_profile_derived):
@@ -278,18 +276,11 @@ def test_save_profile_idempotent(result_profile_derived):
     SearchExportPage.save_profile(page.pk, result_profile_derived)
     SearchExportPage.save_profile(page.pk, result_profile_derived)
     SearchExportPage.save_profile(page.pk, result_profile_derived)
-    page.refresh_from_db()
-    assert page.working_data == {
-        result_profile_derived.id: result_profile_derived.to_json()
-    }
+    assert page.working_rows.count() == 1
 
 
 def test_save_profiles(result_profile_derived, result_profile_derived_another):
     page: SearchExportPage = SearchExportPageFactory()
     SearchExportPage.save_profile(page.pk, result_profile_derived)
     SearchExportPage.save_profile(page.pk, result_profile_derived_another)
-    page.refresh_from_db()
-    assert page.working_data == {
-        result_profile_derived.id: result_profile_derived.to_json(),
-        result_profile_derived_another.id: result_profile_derived_another.to_json(),
-    }
+    assert page.working_rows.count() == 2

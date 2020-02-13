@@ -5,11 +5,18 @@ from factory import (
 )
 from faker import Faker as NonFactoryFaker
 
-from whoweb.coldemail.models import CampaignMessage, CampaignList, ColdCampaign
+from whoweb.coldemail.models import (
+    CampaignMessage,
+    CampaignMessageTemplate,
+    CampaignList,
+    ColdCampaign,
+    SingleColdEmail,
+)
 from whoweb.payments.tests.factories import BillingAccountMemberFactory
 from whoweb.search.tests.factories import SearchExportFactory
 
 fake = NonFactoryFaker()
+fake.add_provider("date_time")
 
 
 class CampaignListFactory(DjangoModelFactory):
@@ -27,6 +34,13 @@ class CampaignMessageFactory(DjangoModelFactory):
         model = CampaignMessage
 
 
+class CampaignMessageTemplateFactory(DjangoModelFactory):
+    seat = LazyAttribute(lambda o: BillingAccountMemberFactory().seat)
+
+    class Meta:
+        model = CampaignMessageTemplate
+
+
 class ColdCampaignFactory(DjangoModelFactory):
     seat = LazyAttribute(lambda o: BillingAccountMemberFactory().seat)
     campaign_list = SubFactory(CampaignListFactory)
@@ -34,3 +48,12 @@ class ColdCampaignFactory(DjangoModelFactory):
 
     class Meta:
         model = ColdCampaign
+
+
+class SingleColdEmailFactory(DjangoModelFactory):
+    seat = LazyAttribute(lambda o: BillingAccountMemberFactory().seat)
+    message = SubFactory(CampaignMessageFactory)
+    send_date = fake.future_date(end_date="+30d", tzinfo=None)
+
+    class Meta:
+        model = SingleColdEmail

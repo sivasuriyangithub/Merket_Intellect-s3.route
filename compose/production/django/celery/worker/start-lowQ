@@ -4,5 +4,5 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-
-celery -A config.celery_app worker -l INFO -Q whoweb_low -P gevent -c 250
+export CONN_MAX_AGE=0
+celery -A config.celery_app worker -l INFO -Q whoweb_low -P gevent --autoscale=100,30

@@ -23,7 +23,7 @@ DEBUG = env.bool("DJANGO_DEBUG", False)
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
 # though not all of them may be available with every OS.
 # In Windows, this must be set to your system time zone.
-TIME_ZONE = "UTC"
+TIME_ZONE = "America/Los_Angeles"
 # https://docs.djangoproject.com/en/dev/ref/settings/#language-code
 LANGUAGE_CODE = "en-us"
 # https://docs.djangoproject.com/en/dev/ref/settings/#site-id
@@ -45,6 +45,11 @@ ENVIRONMENT_NAME = env("ENVIRONMENT_NAME", default="")
 DATABASES = {"default": env.db("DATABASE_URL")}
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
 DATABASES["default"]["OPTIONS"] = {"connect_timeout": 3}
+
+# https://docs.djangoproject.com/en/dev/ref/settings/#disable-server-side-cursors
+DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True  # using pgbouncer
+
+
 # URLS
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#root-urlconf
@@ -289,7 +294,8 @@ CELERY_RESULT_SERIALIZER = "json"
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-ignore-result
 CELERY_TASK_IGNORE_RESULT = False
 CELERY_RESULT_EXTENDED = True
-CELERY_RESULT_CHORD_JOIN_TIMEOUT = 5.0
+CELERY_RESULT_EXPIRES = timedelta(days=5)
+CELERY_RESULT_CHORD_JOIN_TIMEOUT = 20.0
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-time-limit
 # TODO: set to whatever value is adequate in your circumstances
 CELERY_TASK_TIME_LIMIT = 60 * 60
@@ -306,6 +312,17 @@ CELERY_TASK_ROUTES = {
     "whoweb.search.tasks.process_derivation_slow": {"queue": "whoweb_low"},
     "whoweb.search.tasks.process_derivation_fast": {"queue": "whoweb_low"},
 }
+# http://docs.celeryproject.org/en/latest/userguide/routing.html#routing-options-rabbitmq-priorities
+CELERY_TASK_QUEUE_MAX_PRIORITY = 4  # starts at 0
+CELERY_TASK_DEFAULT_PRIORITY = 2
+CELERY_WORKER_PREFETCH_MULTIPLIER = 2
+CELERY_REDIS_RETRY_ON_TIMEOUT = True
+CELERY_WORKER_SEND_TASK_EVENTS = True
+CELERY_TASK_SEND_SENT_EVENT = True
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+# https://docs.celeryproject.org/en/stable/userguide/configuration.html#task-remote-tracebacks
+CELERY_TASK_REMOTE_TRACEBACKS = True
 # django-allauth
 # ------------------------------------------------------------------------------
 ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", True)

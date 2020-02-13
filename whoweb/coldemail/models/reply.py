@@ -1,5 +1,4 @@
 import re
-from typing import Union
 
 import bson as bson
 from django.conf import settings

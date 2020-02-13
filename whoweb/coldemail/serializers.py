@@ -1,16 +1,30 @@
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
-from .models import CampaignMessage, ColdCampaign, CampaignList
+from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
+from .models import (
+    CampaignMessage,
+    ColdCampaign,
+    CampaignList,
+    CampaignMessageTemplate,
+    SingleColdEmail,
+)
 from whoweb.search.serializers import FilteredSearchQuerySerializer
 
 
-class CampaignMessageSerializer(serializers.HyperlinkedModelSerializer):
+class CampaignMessageSerializer(IdOrHyperlinkedModelSerializer):
     status_name = serializers.CharField(source="get_status_display", read_only=True)
+    id = serializers.CharField(source="public_id", read_only=True)
 
     class Meta:
         model = CampaignMessage
+        extra_kwargs = {
+            "url": {"lookup_field": "public_id"},
+            "seat": {"lookup_field": "public_id"},
+        }
         fields = (
             "url",
+            "id",
             "seat",
             "title",
             "subject",
@@ -25,14 +39,41 @@ class CampaignMessageSerializer(serializers.HyperlinkedModelSerializer):
         read_only_fields = ("status", "status_changed", "status_name", "published_at")
 
 
-class CampaignListSerializer(serializers.HyperlinkedModelSerializer):
+class CampaignMessageTemplateSerializer(IdOrHyperlinkedModelSerializer):
+    id = serializers.CharField(source="public_id", read_only=True)
+
+    class Meta:
+        model = CampaignMessageTemplate
+        extra_kwargs = {
+            "url": {"lookup_field": "public_id"},
+            "seat": {"lookup_field": "public_id"},
+        }
+        fields = (
+            "url",
+            "id",
+            "seat",
+            "title",
+            "subject",
+            "plain_content",
+            "html_content",
+            "editor",
+        )
+
+
+class CampaignListSerializer(IdOrHyperlinkedModelSerializer):
     query = FilteredSearchQuerySerializer()
     status_name = serializers.CharField(source="get_status_display", read_only=True)
+    id = serializers.CharField(source="public_id", read_only=True)
 
     class Meta:
         model = CampaignList
+        extra_kwargs = {
+            "url": {"lookup_field": "public_id"},
+            "seat": {"lookup_field": "public_id"},
+        }
         fields = (
             "url",
+            "id",
             "seat",
             "name",
             "origin",
@@ -45,13 +86,21 @@ class CampaignListSerializer(serializers.HyperlinkedModelSerializer):
         read_only_fields = ("status", "status_changed", "status_name", "published_at")
 
 
-class CampaignSerializer(serializers.HyperlinkedModelSerializer):
+class CampaignSerializer(IdOrHyperlinkedModelSerializer):
     status_name = serializers.CharField(source="get_status_display", read_only=True)
+    id = serializers.CharField(source="public_id", read_only=True)
 
     class Meta:
         model = ColdCampaign
+        extra_kwargs = {
+            "url": {"lookup_field": "public_id"},
+            "seat": {"lookup_field": "public_id"},
+            "message": {"lookup_field": "public_id"},
+            "campaign_list": {"lookup_field": "public_id"},
+        }
         fields = (
             "url",
+            "id",
             "message",
             "campaign_list",
             "seat",
@@ -96,3 +145,32 @@ class CampaignSerializer(serializers.HyperlinkedModelSerializer):
             "status_changed",
             "published_at",
         )
+
+
+class SingleColdEmailSerializer(IdOrHyperlinkedModelSerializer):
+    class Meta:
+        model = SingleColdEmail
+        fields = (
+            "url",
+            "public_id",
+            "message",
+            "email",
+            "send_date",
+            "test",
+            "use_credits_method",
+            "seat",
+            "views",
+            "clicks",
+            "optouts",
+        )
+        extra_kwargs = {
+            "url": {"lookup_field": "public_id"},
+            "seat": {"lookup_field": "public_id"},
+            "message": {"lookup_field": "public_id"},
+        }
+
+    def validate(self, attrs):
+        seat = attrs.get("seat")
+        if seat and seat != attrs["message"].seat:
+            raise PermissionDenied
+        return attrs

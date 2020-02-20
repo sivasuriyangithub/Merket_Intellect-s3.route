@@ -41,7 +41,7 @@ class DripRecordSerializer(serializers.ModelSerializer):
 class BaseRunnerSerializer(IdOrHyperlinkedModelSerializer):
     id = serializers.CharField(source="public_id", read_only=True)
     query = FilteredSearchQuerySerializer()
-    messages = SendingRuleSerializer(many=True)
+    sending_rules = SendingRuleSerializer(many=True)
     status_name = serializers.CharField(source="get_status_display", read_only=True)
     FIELDS = [
         "url",
@@ -49,7 +49,7 @@ class BaseRunnerSerializer(IdOrHyperlinkedModelSerializer):
         "query",
         "seat",
         "budget",
-        "messages",
+        "sending_rules",
         "drips",
         "campaigns",
         "status",
@@ -68,7 +68,7 @@ class BaseRunnerSerializer(IdOrHyperlinkedModelSerializer):
     ]
 
     def create(self, validated_data):
-        rules = validated_data.pop("messages")
+        rules = validated_data.pop("sending_rules")
         runner = self.Meta.model.objects.create(**validated_data)
         for rule in rules:
             idx = rule.pop("index")
@@ -84,6 +84,7 @@ class SimpleDripCampaignRunnerSerializer(BaseRunnerSerializer):
     class Meta:
         model = SimpleDripCampaignRunner
         extra_kwargs = {
+            "url": {"lookup_field": "public_id"},
             "seat": {"lookup_field": "public_id"},
             "campaigns": {"lookup_field": "public_id"},
             "drips": {"lookup_field": "public_id"},
@@ -101,6 +102,7 @@ class IntervalCampaignRunnerSerializer(BaseRunnerSerializer):
     class Meta:
         model = IntervalCampaignRunner
         extra_kwargs = {
+            "url": {"lookup_field": "public_id"},
             "seat": {"lookup_field": "public_id"},
             "campaigns": {"lookup_field": "public_id"},
             "drips": {"lookup_field": "public_id"},

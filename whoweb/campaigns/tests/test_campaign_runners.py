@@ -1,6 +1,8 @@
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import pytest
+from django.utils.timezone import utc
 
 from whoweb.search.models import SearchExport
 from whoweb.coldemail.models import CampaignList
@@ -11,9 +13,25 @@ from .factories import (
     SendingRuleFactory,
     DripRecordFactory,
 )
-from ..models.base import BaseCampaignRunner
+from ..models.base import BaseCampaignRunner, SendingRule
 
 pytestmark = pytest.mark.django_db
+
+
+def test_task_timing_args():
+    send = datetime(2020, 3, 1, hour=9, minute=15, second=0, tzinfo=utc)
+    rule: SendingRule = SendingRuleFactory(
+        trigger=SendingRule.TRIGGER.datetime, send_datetime=send
+    )
+    assert rule.task_timing_args() == {"eta": send - timedelta(seconds=600)}
+
+    rule: SendingRule = SendingRuleFactory(
+        trigger=SendingRule.TRIGGER.timedelta, send_delta=180000
+    )
+    assert rule.task_timing_args() == {"countdown": 180000 - 600}
+
+    rule: SendingRule = SendingRuleFactory(trigger=SendingRule.TRIGGER.delay)
+    assert rule.task_timing_args() == {"countdown": 300}
 
 
 def test_create_campaignlist_from_runner(query_contact_invites_defer_validation):
@@ -109,3 +127,16 @@ def test_get_next_sending_rule(create_campaign_mock):
     campaign1 = runner.create_campaign()
     assert campaign1.message == rules[1].message
     assert runner.get_next_rule(following=campaign1) == rules[2]
+
+
+@patch("whoweb.campaigns.models.base.BaseCampaignRunner.set_reply_fields")
+@patch("whoweb.campaigns.models.base.BaseCampaignRunner.create_campaign_list")
+def test_publish(list_mock, reply_fields):
+    campaign_list = CampaignListFactory()
+    list_mock.return_value = campaign_list
+    SendingRuleFactory.reset_sequence()
+    runner: "BaseCampaignRunner" = CampaignRunnerWithMessagesFactory()
+    sigs, campaign = runner.publish(apply_tasks=False)
+    assert sigs
+    assert campaign
+    assert runner.status == runner.STATUS.pending

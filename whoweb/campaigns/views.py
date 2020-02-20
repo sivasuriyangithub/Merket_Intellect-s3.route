@@ -1,36 +1,49 @@
-from django.shortcuts import render
-
 # Create your views here.
-from rest_framework.permissions import IsAdminUser
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
+from whoweb.coldemail.serializers import CampaignSerializer
+from whoweb.contrib.rest_framework.permissions import IsSuperUser
 from .models import SimpleDripCampaignRunner, IntervalCampaignRunner
 from .serializers import (
     SimpleDripCampaignRunnerSerializer,
     IntervalCampaignRunnerSerializer,
 )
-from whoweb.contrib.rest_framework.permissions import IsSuperUser
 
 
-class SimpleCampaignViewSet(ModelViewSet):
+class RunnerViewSet(object):
+    @action(detail=True, methods=["post"])
+    def publish(self, request, public_id=None):
+        runner = self.get_object()
+        runner.publish()
+        runner.refresh_from_db()
+        return Response(self.get_serializer(runner).data)
+
+    @action(detail=True, methods=["post"])
+    def pause(self, request, public_id=None):
+        runner = self.get_object()
+        runner.pause()
+        runner.refresh_from_db()
+        return Response(self.get_serializer(runner).data)
+
+    @action(detail=True, methods=["post"])
+    def resume(self, request, public_id=None):
+        runner = self.get_object()
+        runner.resume()
+        runner.refresh_from_db()
+        return Response(self.get_serializer(runner).data)
+
+
+class SimpleCampaignViewSet(RunnerViewSet, ModelViewSet):
     queryset = SimpleDripCampaignRunner.objects.all()
     serializer_class = SimpleDripCampaignRunnerSerializer
     lookup_field = "public_id"
-
-    def get_permissions(self):
-        if self.action == "create":
-            return [IsSuperUser()]
-        else:
-            return [IsAdminUser()]
+    permission_classes = [IsSuperUser]
 
 
-class IntervalCampaignSerializerViewSet(ModelViewSet):
+class IntervalCampaignSerializerViewSet(RunnerViewSet, ModelViewSet):
     queryset = IntervalCampaignRunner.objects.all()
     lookup_field = "public_id"
     serializer_class = IntervalCampaignRunnerSerializer
-
-    def get_permissions(self):
-        if self.action == "create":
-            return [IsSuperUser()]
-        else:
-            return [IsAdminUser()]
+    permission_classes = [IsSuperUser]

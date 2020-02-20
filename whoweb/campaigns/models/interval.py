@@ -14,7 +14,7 @@ class IntervalCampaignBase(BaseCampaignRunner):
         default=24, help_text="Interval between each campaign."
     )
     max_sends = models.PositiveIntegerField(
-        null=True, help_text="Total campaigns allowed for this manager."
+        blank=True, null=True, help_text="Total campaigns allowed for this manager."
     )
 
     def create_cold_campaign(self, *args, **kwargs):

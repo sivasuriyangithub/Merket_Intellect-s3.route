@@ -10,7 +10,7 @@ class SimpleDripCampaignRunner(BaseCampaignRunner):
     """
 
     use_credits_method = models.CharField(max_length=63, blank=True, null=True)
-    open_credit_budget = models.IntegerField()
+    open_credit_budget = models.IntegerField(blank=True, null=True)
     preset_campaign_list = models.ForeignKey(
         CampaignList, on_delete=models.CASCADE, null=True
     )

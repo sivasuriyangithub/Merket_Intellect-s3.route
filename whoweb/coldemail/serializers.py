@@ -99,7 +99,6 @@ class CampaignSerializer(IdOrHyperlinkedModelSerializer):
             "campaign_list": {"lookup_field": "public_id"},
         }
         fields = (
-            "url",
             "id",
             "message",
             "campaign_list",

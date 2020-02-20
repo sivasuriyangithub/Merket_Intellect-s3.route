@@ -146,7 +146,6 @@ class BaseCampaignRunner(
 
     tracking_params = JSONField(default=dict, null=True, blank=True)
 
-
     # Enforce only 1 active signature chain in celery,
     # enabling republishing via .resume(), even with a pending canvas.
     run_id = models.UUIDField(null=True)
@@ -403,21 +402,15 @@ class BaseCampaignRunner(
         from whoweb.campaigns.tasks import set_published
 
         self.log_event(PUBLISH_CAMPAIGN, task=task_context)
-        hold = None
-        if self.user and self.should_charge:
-            hold, target = self.user.fetch().credit_hold(self.budget)
-            assert target > 0, "Not enough credits to complete this export."
-
         campaign = self.create_campaign()
         if not campaign:
             return None, None
         if publish_sigs := campaign.publish(apply_tasks=False, on_complete=on_complete):
-
             if self.run_id is None:
                 self.run_id = uuid.uuid4()
-                self.status = (ColdCampaign.STATUS.pending,)
+                self.status = self.STATUS.pending
 
-            publish_sigs |= set_published.si(pk=self.pk, run_id=self.run_id,)
+            publish_sigs |= set_published.si(pk=self.pk, run_id=self.run_id)
             if drip_sigs := self.drip_tasks(
                 root_campaign=campaign, following=campaign, run_id=self.run_id
             ):

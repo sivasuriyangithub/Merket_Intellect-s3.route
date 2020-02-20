@@ -1,7 +1,6 @@
 import logging
 import time
 from calendar import timegm
-from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.postgres.fields import JSONField
@@ -79,7 +78,7 @@ class ColdCampaign(ColdemailBaseModel):
         self.save()
 
     def publish(self, apply_tasks=True, on_complete=None):
-        from whoweb.coldemail.tasks import try_refund, update_validation
+        from whoweb.coldemail.tasks import update_validation
 
         if self.is_locked:
             return
@@ -93,13 +92,7 @@ class ColdCampaign(ColdemailBaseModel):
             apply_tasks=False, on_complete=on_complete
         )
 
-        post_send_sigs = try_refund.si(
-            self.pk,
-            should_orphan=True,
-            orphan_kwargs=dict(
-                eta=self.send_time + timedelta(hours=25), immutable=True
-            ),
-        ) | update_validation.si(self.pk, should_orphan=True)
+        post_send_sigs = update_validation.si(self.pk, should_orphan=True)
 
         if message_sig and list_sigs:
             publish_sigs = message_sig | list_sigs | post_send_sigs

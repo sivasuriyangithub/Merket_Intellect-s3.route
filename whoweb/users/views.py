@@ -5,7 +5,7 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework_guardian.filters import ObjectPermissionsFilter
 
 from whoweb.contrib.rest_framework.permissions import ObjectPermissions, IsSuperUser
-from whoweb.users.models import Seat, DeveloperKey, Group
+from whoweb.users.models import Seat, DeveloperKey, Group, UserProfile
 from whoweb.users.serializers import (
     SeatSerializer,
     DeveloperKeySerializer,
@@ -18,7 +18,7 @@ User = get_user_model()
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
     lookup_field = "public_id"
-    queryset = User.objects.all()
+    queryset = UserProfile.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsSuperUser | ObjectPermissions]
     filter_backends = [DjangoFilterBackend, ObjectPermissionsFilter]

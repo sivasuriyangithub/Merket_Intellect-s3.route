@@ -6,18 +6,20 @@ from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 from whoweb.contrib.graphene_django.fields import NodeRelatedField
 from whoweb.contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
 from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
-from .models import Seat, DeveloperKey, Group
-
-User = get_user_model()
+from .models import Seat, DeveloperKey, Group, UserProfile
 
 
 class UserSerializer(IdOrHyperlinkedModelSerializer):
     graph_id = NodeRelatedField("UserNode", source="public_id")
     id = serializers.CharField(source="public_id", read_only=True)
+    username = serializers.CharField(source="user.username", read_only=True)
+    email = serializers.CharField(source="user.email", read_only=True)
 
     class Meta:
-        model = User
-        extra_kwargs = {"url": {"lookup_field": "public_id"}}
+        model = UserProfile
+        extra_kwargs = {
+            "url": {"lookup_field": "public_id"},
+        }
         fields = ("username", "url", "id", "graph_id", "email")
         read_only_fields = fields
 
@@ -43,12 +45,17 @@ class SeatSerializer(ObjectPermissionsAssignmentMixin, IdOrHyperlinkedModelSeria
     )
     graph_id = NodeRelatedField("SeatNode", source="public_id")
     id = serializers.CharField(source="public_id", read_only=True)
+    user = IdOrHyperlinkedRelatedField(
+        source="user.profile",
+        view_name="userprofile-detail",
+        lookup_field="public_id",
+        queryset=UserProfile.objects.all(),
+    )
 
     class Meta:
         model = Seat
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
-            "user": {"lookup_field": "public_id"},
         }
         fields = (
             "display_name",
@@ -76,6 +83,18 @@ class SeatSerializer(ObjectPermissionsAssignmentMixin, IdOrHyperlinkedModelSeria
             "users.change_seat": [seat_admin, user],
             "users.delete_seat": [seat_admin],
         }
+
+    def create(self, validated_data):
+        profile = validated_data.pop("user", None)
+        if profile is not None:
+            validated_data["user"] = profile.user
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        profile = validated_data.pop("user", None)
+        if profile is not None:
+            validated_data["user"] = profile.user
+        return super().update(instance, validated_data)
 
 
 class DeveloperKeySerializer(

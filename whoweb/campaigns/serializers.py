@@ -36,16 +36,17 @@ class DripRecordSerializer(serializers.ModelSerializer):
             "drip": {"lookup_field": "public_id"},
         }
 
-    def create(self, validated_data):
-        rules = validated_data.pop("sending_rules")
-        runner = self.Meta.model.objects.create(**validated_data)
-        for rule in rules:
-            idx = rule.pop("index")
-            SendingRule.objects.update_or_create(
-                runner=runner, index=idx, defaults=rule,
-            )
-        runner.refresh_from_db(fields=("messages",))
-        return runner
+
+def create(self, validated_data):
+    rules = validated_data.pop("sending_rules")
+    runner = self.Meta.model.objects.create(**validated_data)
+    for rule in rules:
+        idx = rule.pop("index")
+        SendingRule.objects.update_or_create(
+            runner=runner, index=idx, defaults=rule,
+        )
+    runner.refresh_from_db(fields=("messages",))
+    return runner
 
 
 class SimpleDripCampaignRunnerSerializer(IdOrHyperlinkedModelSerializer):
@@ -66,7 +67,7 @@ class SimpleDripCampaignRunnerSerializer(IdOrHyperlinkedModelSerializer):
             "url",
             "id",
             "query",
-            # "seat",
+            "seat",
             "budget",
             "sending_rules",
             "drips",
@@ -86,6 +87,9 @@ class SimpleDripCampaignRunnerSerializer(IdOrHyperlinkedModelSerializer):
             "status_name",
             "published_at",
         ]
+
+    def create(self, validated_data):
+        return create(self, validated_data)
 
 
 class IntervalCampaignRunnerSerializer(IdOrHyperlinkedModelSerializer):
@@ -127,3 +131,6 @@ class IntervalCampaignRunnerSerializer(IdOrHyperlinkedModelSerializer):
             "status_name",
             "published_at",
         ]
+
+    def create(self, validated_data):
+        return create(self, validated_data)

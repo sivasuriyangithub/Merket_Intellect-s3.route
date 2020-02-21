@@ -8,8 +8,10 @@ from model_utils.models import TimeStampedModel
 from whoweb.contrib.fields import ObscureIdMixin
 
 
-class UserProfile(TimeStampedModel):
-    user = models.ForeignKey("User", on_delete=models.CASCADE, related_name="profile")
+class UserProfile(ObscureIdMixin, TimeStampedModel):
+    user = models.OneToOneField(
+        "User", on_delete=models.CASCADE, related_name="profile"
+    )
 
     @classmethod
     def get_or_create(cls, email, username=None, password=None, **extra_fields):
@@ -31,7 +33,7 @@ class UserProfile(TimeStampedModel):
 
 
 # WARN: See docstring.
-class User(GuardianUserMixin, ObscureIdMixin, AbstractUser):
+class User(GuardianUserMixin, AbstractUser):
     """
     Generally, only auth or permissions related fields should exist on this model.
     See UserProfile for custom fields that should be one-to-one with a user.

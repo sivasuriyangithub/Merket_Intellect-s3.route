@@ -1,9 +1,7 @@
-# Create your views here.
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from whoweb.coldemail.serializers import CampaignSerializer
 from whoweb.contrib.rest_framework.permissions import IsSuperUser
 from .models import SimpleDripCampaignRunner, IntervalCampaignRunner
 from .serializers import (
@@ -40,6 +38,9 @@ class SimpleCampaignViewSet(RunnerViewSet, ModelViewSet):
     serializer_class = SimpleDripCampaignRunnerSerializer
     lookup_field = "public_id"
     permission_classes = [IsSuperUser]
+
+    def retrieve(self, *args, **kwargs):
+        return super().retrieve(*args, **kwargs)
 
 
 class IntervalCampaignSerializerViewSet(RunnerViewSet, ModelViewSet):

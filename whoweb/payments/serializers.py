@@ -26,14 +26,20 @@ class PlanSerializer(IdOrHyperlinkedModelSerializer):
 
 class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
     created_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    graph_id = NodeRelatedField("SeatNode", source="public_id")
+    id = serializers.CharField(source="public_id", read_only=True)
     network = IdOrHyperlinkedRelatedField(
         source="organization",
         view_name="group-detail",
         lookup_field="public_id",
         read_only=True,
     )
-    graph_id = NodeRelatedField("SeatNode", source="public_id")
-    id = serializers.CharField(source="public_id", read_only=True)
+    user = IdOrHyperlinkedRelatedField(
+        source="user_profile",
+        view_name="userprofile-detail",
+        lookup_field="public_id",
+        read_only=True,
+    )
     xperweb_id = serializers.CharField(write_only=True, required=False)
     group_name = serializers.CharField(
         write_only=True, allow_null=True, allow_blank=True, required=False
@@ -52,7 +58,6 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
         model = Seat
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
-            "user": {"lookup_field": "public_id", "read_only": True},
         }
         fields = [
             "display_name",

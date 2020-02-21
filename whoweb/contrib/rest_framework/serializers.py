@@ -32,6 +32,9 @@ class IdOrHyperlinkedModelSerializer(HyperlinkedModelSerializer):
                 depth = nested_depth - 1
                 fields = "__all__"
 
+            def __init__(self, *args, lookup_field=None, **kwargs):
+                super().__init__(*args, **kwargs)
+
         field_class = PublicPKNestedSerializer
         field_kwargs = get_nested_relation_kwargs(relation_info)
 

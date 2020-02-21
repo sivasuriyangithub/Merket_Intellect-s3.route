@@ -126,7 +126,7 @@ class BaseCampaignRunner(
         through_fields=("runner", "drip"),
     )
 
-    campaigns = models.ManyToManyField(ColdCampaign, related_name="+")
+    campaigns = models.ManyToManyField(ColdCampaign)
     title = models.CharField(max_length=255)
     query = EmbeddedModelField(
         FilteredSearchQuery, blank=False, default=FilteredSearchQuery

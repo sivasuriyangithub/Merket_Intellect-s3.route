@@ -68,9 +68,9 @@ class SeatSerializer(ObjectPermissionsAssignmentMixin, IdOrHyperlinkedModelSeria
         )
 
     def validate(self, attrs):
-        user = attrs.pop("created_by")
-        if not user.has_perm("add_seat", attrs["organization"]):
-            raise PermissionDenied
+        if user := attrs.pop("created_by", None):
+            if not user.has_perm("add_seat", attrs["organization"]):
+                raise PermissionDenied
         return attrs
 
     def get_permissions_map(self, created):

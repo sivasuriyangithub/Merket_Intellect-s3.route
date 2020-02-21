@@ -1,5 +1,5 @@
 from rest_framework import serializers
-
+from whoweb.coldemail.serializers import CampaignSerializer
 from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
 from whoweb.search.serializers import FilteredSearchQuerySerializer
 from .models import (
@@ -36,36 +36,6 @@ class DripRecordSerializer(serializers.ModelSerializer):
             "drip": {"lookup_field": "public_id"},
         }
 
-
-class BaseRunnerSerializer(IdOrHyperlinkedModelSerializer):
-    id = serializers.CharField(source="public_id", read_only=True)
-    query = FilteredSearchQuerySerializer()
-    sending_rules = SendingRuleSerializer(many=True)
-    status_name = serializers.CharField(source="get_status_display", read_only=True)
-    FIELDS = [
-        "url",
-        "id",
-        "query",
-        "seat",
-        "budget",
-        "sending_rules",
-        "drips",
-        "campaigns",
-        "status",
-        "status_name",
-        "status_changed",
-        "published_at",
-        "tracking_params",
-    ]
-    READ_ONLY_FIELDS = [
-        "drips",
-        "campaigns",
-        "status",
-        "status_changed",
-        "status_name",
-        "published_at",
-    ]
-
     def create(self, validated_data):
         rules = validated_data.pop("sending_rules")
         runner = self.Meta.model.objects.create(**validated_data)
@@ -78,36 +48,82 @@ class BaseRunnerSerializer(IdOrHyperlinkedModelSerializer):
         return runner
 
 
-class SimpleDripCampaignRunnerSerializer(BaseRunnerSerializer):
+class SimpleDripCampaignRunnerSerializer(IdOrHyperlinkedModelSerializer):
+    id = serializers.CharField(source="public_id", read_only=True)
+    query = FilteredSearchQuerySerializer()
+    campaigns = CampaignSerializer(many=True, read_only=True)
+    sending_rules = SendingRuleSerializer(many=True)
+    status_name = serializers.CharField(source="get_status_display", read_only=True)
+
     class Meta:
         model = SimpleDripCampaignRunner
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
             "seat": {"lookup_field": "public_id"},
-            "campaigns": {"lookup_field": "public_id"},
-            "drips": {"lookup_field": "public_id"},
-            "messages": {"lookup_field": "public_id"},
         }
-        fields = BaseRunnerSerializer.FIELDS + [
+        depth = 1
+        fields = [
+            "url",
+            "id",
+            "query",
+            # "seat",
+            "budget",
+            "sending_rules",
+            "drips",
+            "campaigns",
+            "status",
+            "status_name",
+            "status_changed",
+            "published_at",
+            "tracking_params",
             "use_credits_method",
             "open_credit_budget",
-            "preset_campaign_list",
         ]
-        read_only_fields = BaseRunnerSerializer.READ_ONLY_FIELDS
+        read_only_fields = [
+            "drips",
+            "status",
+            "status_changed",
+            "status_name",
+            "published_at",
+        ]
 
 
-class IntervalCampaignRunnerSerializer(BaseRunnerSerializer):
+class IntervalCampaignRunnerSerializer(IdOrHyperlinkedModelSerializer):
+    id = serializers.CharField(source="public_id", read_only=True)
+    query = FilteredSearchQuerySerializer()
+    campaigns = CampaignSerializer(many=True, read_only=True)
+    sending_rules = SendingRuleSerializer(many=True)
+    status_name = serializers.CharField(source="get_status_display", read_only=True)
+
     class Meta:
         model = IntervalCampaignRunner
+        depth = 2
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
             "seat": {"lookup_field": "public_id"},
-            "campaigns": {"lookup_field": "public_id"},
-            "drips": {"lookup_field": "public_id"},
-            "messages": {"lookup_field": "public_id"},
         }
-        fields = BaseRunnerSerializer.FIELDS + [
+        fields = [
+            "url",
+            "id",
+            "query",
+            "seat",
+            "budget",
+            "sending_rules",
+            "drips",
+            "campaigns",
+            "status",
+            "status_name",
+            "status_changed",
+            "published_at",
+            "tracking_params",
             "interval_hours",
             "max_sends",
         ]
-        read_only_fields = BaseRunnerSerializer.READ_ONLY_FIELDS
+        read_only_fields = [
+            "drips",
+            "campaigns",
+            "status",
+            "status_changed",
+            "status_name",
+            "published_at",
+        ]

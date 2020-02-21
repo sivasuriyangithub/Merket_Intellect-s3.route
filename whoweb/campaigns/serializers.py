@@ -10,10 +10,9 @@ from .models import (
 )
 
 
-class SendingRuleSerializer(serializers.ModelSerializer):
+class SendingRuleSerializer(IdOrHyperlinkedModelSerializer):
     class Meta:
         model = SendingRule
-        depth = 1
         fields = (
             "message",
             "index",
@@ -72,7 +71,6 @@ class BaseRunnerSerializer(IdOrHyperlinkedModelSerializer):
         runner = self.Meta.model.objects.create(**validated_data)
         for rule in rules:
             idx = rule.pop("index")
-            msg = rule.pop("message")
             SendingRule.objects.update_or_create(
                 runner=runner, index=idx, defaults=rule,
             )

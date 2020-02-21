@@ -14,6 +14,7 @@ from organizations.abstract import (
 )
 from organizations.signals import user_added
 
+from whoweb.contrib.fields import ObscureIdMixin
 from whoweb.accounting.actions import create_transaction, Debit, Credit
 from whoweb.accounting.models import Ledger, LedgerEntry
 from whoweb.accounting.ledgers import (
@@ -26,7 +27,7 @@ if TYPE_CHECKING:
     from whoweb.search.models import ResultProfile
 
 
-class WKPlan(models.Model):
+class WKPlan(ObscureIdMixin, models.Model):
     credits_per_enrich = models.IntegerField(
         default=5,
         verbose_name="Credits per Enrich",

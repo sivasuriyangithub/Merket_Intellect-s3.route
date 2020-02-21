@@ -26,13 +26,13 @@ class IdOrHyperlinkedModelSerializer(HyperlinkedModelSerializer):
         Create nested fields for forward and reverse relationships.
         """
 
-        class NestedSerializer(IdOrHyperlinkedModelSerializer):
+        class PublicPKNestedSerializer(IdOrHyperlinkedModelSerializer):
             class Meta:
                 model = relation_info.related_model
                 depth = nested_depth - 1
                 fields = "__all__"
 
-        field_class = NestedSerializer
+        field_class = PublicPKNestedSerializer
         field_kwargs = get_nested_relation_kwargs(relation_info)
 
         return field_class, field_kwargs

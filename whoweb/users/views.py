@@ -11,7 +11,6 @@ from whoweb.users.serializers import (
     DeveloperKeySerializer,
     NetworkSerializer,
     UserSerializer,
-    AdminBillingAdjustingSeatSerializer,
 )
 
 User = get_user_model()
@@ -39,13 +38,6 @@ class SeatViewSet(viewsets.ModelViewSet):
     serializer_class = SeatSerializer
     permission_classes = [IsSuperUser | ObjectPermissions]
     filter_backends = [DjangoFilterBackend, ObjectPermissionsFilter]
-
-
-class AdminBillingSeatViewSet(viewsets.ModelViewSet):
-    lookup_field = "public_id"
-    queryset = Seat.objects.all()
-    serializer_class = AdminBillingAdjustingSeatSerializer
-    permission_classes = [IsSuperUser]
 
 
 class DeveloperKeyViewSet(

@@ -28,26 +28,35 @@ class ReplyTo(TimeStampedModel):
     def __str__(self):
         return f"{self.pk} ({self.from_name} in {self.replyable_object})"
 
-    @transaction.atomic
     @classmethod
     def get_or_create_with_api(cls, replyable_object):
-        instance, created = cls.objects.get_or_create(
-            replyable_object=replyable_object, coldemail_route_id__isnull=True,
-        )
-        if created:
-            instance = instance.publish()
+        with transaction.atomic():
+            replyable_type = ContentType.objects.get_for_model(
+                replyable_object.__class__
+            )
+            try:
+                instance = cls.objects.get(
+                    content_type=replyable_type,
+                    object_id=replyable_object.pk,
+                    coldemail_route_id__isnull=True,
+                )
+                created = False
+            except cls.DoesNotExist:
+                instance = cls.objects.create(replyable_object=replyable_object)
+                instance = instance.publish()
+                created = True
         return instance, created
 
     def publish(self):
         assert hasattr(self.replyable_object, "log_reply")
-        sender = self.replyable_object.owner
+        seat = self.replyable_object.seat
         route = RoutesObject.create_reply_route(
             match=self.pk,
-            forwarding_address=sender.email,
+            forwarding_address=seat.email,
             forwarding_webhook=self.get_reply_webhook(),
         )
         if route_id := route.get("id"):
-            from_name = sender.get_from_name() or settings.FROM_NAME
+            from_name = seat.user.get_full_name() or settings.FROM_NAME
             self.from_name = from_name
             self.coldemail_route_id = str(route_id)
             self.save()

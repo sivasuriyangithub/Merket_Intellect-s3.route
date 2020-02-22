@@ -1,4 +1,7 @@
 from rest_framework import serializers
+
+from whoweb.contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
+from whoweb.users.models import Seat
 from whoweb.coldemail.serializers import CampaignSerializer
 from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
 from whoweb.search.serializers import FilteredSearchQuerySerializer
@@ -52,6 +55,13 @@ def create(self, validated_data):
 class SimpleDripCampaignRunnerSerializer(IdOrHyperlinkedModelSerializer):
     id = serializers.CharField(source="public_id", read_only=True)
     query = FilteredSearchQuerySerializer()
+    seat = IdOrHyperlinkedRelatedField(
+        view_name="seat-detail",
+        lookup_field="public_id",
+        queryset=Seat.objects.all(),
+        required=True,
+        allow_null=False,
+    )
     campaigns = CampaignSerializer(many=True, read_only=True)
     sending_rules = SendingRuleSerializer(many=True)
     status_name = serializers.CharField(source="get_status_display", read_only=True)
@@ -60,7 +70,6 @@ class SimpleDripCampaignRunnerSerializer(IdOrHyperlinkedModelSerializer):
         model = SimpleDripCampaignRunner
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
-            "seat": {"lookup_field": "public_id"},
         }
         depth = 1
         fields = [
@@ -98,13 +107,19 @@ class IntervalCampaignRunnerSerializer(IdOrHyperlinkedModelSerializer):
     campaigns = CampaignSerializer(many=True, read_only=True)
     sending_rules = SendingRuleSerializer(many=True)
     status_name = serializers.CharField(source="get_status_display", read_only=True)
+    seat = IdOrHyperlinkedRelatedField(
+        view_name="seat-detail",
+        lookup_field="public_id",
+        queryset=Seat.objects.all(),
+        required=False,
+        allow_null=True,
+    )
 
     class Meta:
         model = IntervalCampaignRunner
-        depth = 2
+        depth = 1
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
-            "seat": {"lookup_field": "public_id"},
         }
         fields = [
             "url",

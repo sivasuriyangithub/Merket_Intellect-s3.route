@@ -45,6 +45,10 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
         write_only=True, allow_null=True, allow_blank=True, required=False
     )
     group_id = serializers.CharField(write_only=True, required=False)
+    first_name = serializers.CharField(
+        write_only=True, required=False, allow_blank=True
+    )
+    last_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
     email = serializers.EmailField(write_only=True, required=False)
     seat_credits = serializers.IntegerField(required=False)
     credits_per_enrich = serializers.IntegerField(write_only=True, required=False)
@@ -70,6 +74,8 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
             "xperweb_id",
             "group_name",
             "group_id",
+            "first_name",
+            "last_name",
             "email",
             "seat_credits",
             "credits_per_enrich",
@@ -85,7 +91,11 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
         group_name = validated_data.get("group_name") or group_id
         xperweb_id = validated_data["xperweb_id"]
         email = validated_data["email"]
-        profile, _ = UserProfile.get_or_create(username=xperweb_id, email=email)
+        first_name = validated_data["first_name"]
+        last_name = validated_data["last_name"]
+        profile, _ = UserProfile.get_or_create(
+            username=xperweb_id, email=email, first_name=first_name, last_name=last_name
+        )
         group, _ = Group.objects.get_or_create(name=group_name, slug=slugify(group_id))
         seat, _ = group.get_or_add_user(
             user=profile.user, display_name=profile.user.get_full_name()
@@ -118,4 +128,20 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
         if seat_credits is not None:
             instance.billing.seat_credits = seat_credits
             instance.billing.save()
-        return super().update(instance, validated_data)
+        if all(
+            [
+                "credits_per_enrich" in validated_data,
+                "credits_per_work_email" in validated_data,
+                "credits_per_personal_email" in validated_data,
+                "credits_per_phone" in validated_data,
+            ]
+        ):
+            plan, _ = WKPlan.objects.get_or_create(
+                credits_per_enrich=validated_data["credits_per_enrich"],
+                credits_per_work_email=validated_data["credits_per_work_email"],
+                credits_per_personal_email=validated_data["credits_per_personal_email"],
+                credits_per_phone=validated_data["credits_per_phone"],
+            )
+            instance.billing.organization.plan = plan
+            instance.billing.organization.save()
+        return instance

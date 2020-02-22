@@ -11,6 +11,8 @@ def test_create_billing_seat_for_passthrough(su_client):
         "/ww/api/admin/seats/",
         {
             "display_name": "test user",
+            "first_name": "A",
+            "last_name": "B",
             "xperweb_id": str(bson.ObjectId()),
             "group_name": None,
             "group_id": "public",
@@ -45,6 +47,5 @@ def test_passthrough_updates_credits(su_client):
     )
     print(resp.content)
     assert resp.status_code == 200
-    assert resp.json()["seat_credits"] == 100001
     seat.billing.refresh_from_db(fields=("seat_credits",))
     assert seat.billing.seat_credits == 100001

@@ -22,6 +22,7 @@ class CampaignList(ColdemailBaseModel):
     results_fetched = models.DateTimeField(null=True)
     query: FilteredSearchQuery = EmbeddedModelField(FilteredSearchQuery, null=True)
     export = models.ForeignKey(SearchExport, on_delete=models.SET_NULL, null=True)
+    description = models.TextField(blank=True, default="")
 
     @property
     def profiles(self):

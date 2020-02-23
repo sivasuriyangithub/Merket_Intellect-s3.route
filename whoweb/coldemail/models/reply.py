@@ -56,8 +56,7 @@ class ReplyTo(TimeStampedModel):
             forwarding_webhook=self.get_reply_webhook(),
         )
         if route_id := route.get("id"):
-            from_name = seat.user.get_full_name() or settings.FROM_NAME
-            self.from_name = from_name
+            self.from_name = self.from_name or seat.user.get_full_name() or settings.FROM_NAME
             self.coldemail_route_id = str(route_id)
             self.save()
             return self

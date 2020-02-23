@@ -130,6 +130,7 @@ class SingleColdEmailSerializer(IdOrHyperlinkedModelSerializer):
             "views",
             "clicks",
             "optouts",
+            "from_name",
         )
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},

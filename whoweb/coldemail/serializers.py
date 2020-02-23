@@ -77,6 +77,7 @@ class CampaignListSerializer(IdOrHyperlinkedModelSerializer):
             "seat",
             "name",
             "origin",
+            "description",
             "query",
             "status",
             "status_name",

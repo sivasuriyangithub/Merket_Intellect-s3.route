@@ -79,20 +79,7 @@ class SearchExportSerializer(IdOrHyperlinkedModelSerializer):
         view_name="exportresult-detail", read_only=True, source="uuid",
     )
     status_name = serializers.SerializerMethodField()
-    xperweb_id = serializers.CharField(write_only=True, required=False)
-    group_name = serializers.CharField(
-        write_only=True, allow_null=True, allow_blank=True, required=False
-    )
-    group_id = serializers.CharField(write_only=True, required=False)
-    email = serializers.EmailField(write_only=True, required=False)
-    seat_credits = serializers.IntegerField(write_only=True, required=False)
     for_campaign = serializers.BooleanField(source="uploadable", required=False)
-    credits_per_enrich = serializers.IntegerField(write_only=True, required=False)
-    credits_per_work_email = serializers.IntegerField(write_only=True, required=False)
-    credits_per_personal_email = serializers.IntegerField(
-        write_only=True, required=False
-    )
-    credits_per_phone = serializers.IntegerField(write_only=True, required=False)
     transactions = TransactionSerializer(many=True, read_only=True)
     seat = IdOrHyperlinkedRelatedField(
         view_name="seat-detail",
@@ -135,81 +122,16 @@ class SearchExportSerializer(IdOrHyperlinkedModelSerializer):
             "charge",
             "for_campaign",
             "on_trial",
-            "xperweb_id",
-            "group_name",
-            "group_id",
-            "email",
-            "seat_credits",
             "charged",
-            "credits_per_enrich",
-            "credits_per_work_email",
-            "credits_per_personal_email",
-            "credits_per_phone",
             "transactions",
         ]
 
     def get_status_name(self, obj):
         return SearchExport.STATUS[int(obj.status)]
 
-    def validate(self, attrs):
-        if attrs["uploadable"] is False:
-            for field in [
-                "xperweb_id",
-                "group_name",
-                "group_id",
-                "email",
-                "seat_credits",
-                "credits_per_enrich",
-                "credits_per_work_email",
-                "credits_per_personal_email",
-                "credits_per_phone",
-            ]:
-                if field not in attrs:
-                    raise serializers.ValidationError(
-                        "All user fields are required for this export."
-                    )
-        return attrs
-
     def create(self, validated_data):
-        from whoweb.users.models import Group
-
-        if not validated_data["uploadable"]:
-            group_id = validated_data["group_id"]
-            group_name = validated_data.get("group_name") or group_id
-            xperweb_id = validated_data["xperweb_id"]
-            email = validated_data["email"]
-            profile, _ = UserProfile.get_or_create(username=xperweb_id, email=email)
-            group, _ = Group.objects.get_or_create(
-                name=group_name, slug=slugify(group_id)
-            )
-            seat, _ = group.get_or_add_user(
-                user=profile.user, display_name=profile.user.get_full_name()
-            )
-            plan, _ = WKPlan.objects.get_or_create(
-                credits_per_enrich=validated_data["credits_per_enrich"],
-                credits_per_work_email=validated_data["credits_per_work_email"],
-                credits_per_personal_email=validated_data["credits_per_personal_email"],
-                credits_per_phone=validated_data["credits_per_phone"],
-            )
-            if group_id == "public":
-                billing_account_name = f"{xperweb_id} Primary Billing Account"
-            else:
-                billing_account_name = f"{group_name} Primary Billing Account"
-            billing_account, _ = BillingAccount.objects.update_or_create(
-                name=billing_account_name,
-                slug=slugify(billing_account_name),
-                group=group,
-                defaults=dict(plan=plan),
-            )
-            billing_member, _ = billing_account.get_or_add_user(
-                user=profile.user, seat=seat
-            )
-            billing_member.seat_credits = validated_data["seat_credits"]
-            billing_member.save()
-        else:
-            seat = None
         export = SearchExport.create_from_query(
-            seat=seat,
+            seat=validated_data["seat"],
             query=validated_data["query"],
             uploadable=validated_data["uploadable"],
             notify=not validated_data["uploadable"],

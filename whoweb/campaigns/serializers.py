@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from whoweb.contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
 from whoweb.users.models import Seat
-from whoweb.coldemail.serializers import CampaignSerializer
+from whoweb.coldemail.serializers import CampaignSerializer, TaggableMixin
 from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
 from whoweb.search.serializers import FilteredSearchQuerySerializer
 from .models import (
@@ -40,19 +40,22 @@ class DripRecordSerializer(serializers.ModelSerializer):
         }
 
 
-def create(self, validated_data):
-    rules = validated_data.pop("sending_rules")
-    runner = self.Meta.model.objects.create(**validated_data)
-    for rule in rules:
-        idx = rule.pop("index")
-        SendingRule.objects.update_or_create(
-            runner=runner, index=idx, defaults=rule,
-        )
-    runner.refresh_from_db(fields=("messages",))
-    return runner
+class SendingRuleMixin(object):
+    def create(self, validated_data):
+        rules = validated_data.pop("sending_rules")
+        runner = super().create(validated_data)
+        for rule in rules:
+            idx = rule.pop("index")
+            SendingRule.objects.update_or_create(
+                runner=runner, index=idx, defaults=rule,
+            )
+        runner.refresh_from_db(fields=("messages",))
+        return runner
 
 
-class SimpleDripCampaignRunnerSerializer(IdOrHyperlinkedModelSerializer):
+class SimpleDripCampaignRunnerSerializer(
+    TaggableMixin, SendingRuleMixin, IdOrHyperlinkedModelSerializer
+):
     id = serializers.CharField(source="public_id", read_only=True)
     query = FilteredSearchQuerySerializer()
     seat = IdOrHyperlinkedRelatedField(
@@ -65,6 +68,7 @@ class SimpleDripCampaignRunnerSerializer(IdOrHyperlinkedModelSerializer):
     campaigns = CampaignSerializer(many=True, read_only=True)
     sending_rules = SendingRuleSerializer(many=True)
     status_name = serializers.CharField(source="get_status_display", read_only=True)
+    tags = serializers.ListSerializer(child=serializers.CharField(), required=False)
 
     class Meta:
         model = SimpleDripCampaignRunner
@@ -78,6 +82,8 @@ class SimpleDripCampaignRunnerSerializer(IdOrHyperlinkedModelSerializer):
             "query",
             "seat",
             "budget",
+            "title",
+            "tags",
             "sending_rules",
             "drips",
             "campaigns",
@@ -98,11 +104,10 @@ class SimpleDripCampaignRunnerSerializer(IdOrHyperlinkedModelSerializer):
             "published_at",
         ]
 
-    def create(self, validated_data):
-        return create(self, validated_data)
 
-
-class IntervalCampaignRunnerSerializer(IdOrHyperlinkedModelSerializer):
+class IntervalCampaignRunnerSerializer(
+    TaggableMixin, SendingRuleMixin, IdOrHyperlinkedModelSerializer
+):
     id = serializers.CharField(source="public_id", read_only=True)
     query = FilteredSearchQuerySerializer()
     campaigns = CampaignSerializer(many=True, read_only=True)
@@ -115,6 +120,7 @@ class IntervalCampaignRunnerSerializer(IdOrHyperlinkedModelSerializer):
         required=False,
         allow_null=True,
     )
+    tags = serializers.ListSerializer(child=serializers.CharField(), required=False)
 
     class Meta:
         model = IntervalCampaignRunner
@@ -128,6 +134,8 @@ class IntervalCampaignRunnerSerializer(IdOrHyperlinkedModelSerializer):
             "query",
             "seat",
             "budget",
+            "title",
+            "tags",
             "sending_rules",
             "drips",
             "campaigns",
@@ -148,6 +156,3 @@ class IntervalCampaignRunnerSerializer(IdOrHyperlinkedModelSerializer):
             "status_name",
             "published_at",
         ]
-
-    def create(self, validated_data):
-        return create(self, validated_data)

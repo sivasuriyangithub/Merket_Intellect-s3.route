@@ -16,7 +16,9 @@ def test_create_simple_campaign(su_client, query_contact_invites):
         {
             "query": query_contact_invites,
             "budget": 500,
+            "title": "my campaign",
             "seat": seat.public_id,
+            "tags": ["apple", "banana"],
             "sending_rules": [
                 {
                     "message": msg0.public_id,
@@ -45,6 +47,7 @@ def test_publish_simplecampaign(publish_mock, su_client, query_contact_invites):
         {
             "query": query_contact_invites,
             "budget": 500,
+            "title": "my campaign",
             "sending_rules": [],
             "seat": seat.public_id,
         },
@@ -66,6 +69,8 @@ def test_create_interval_campaign(su_client, query_contact_invites):
         {
             "query": query_contact_invites,
             "budget": 500,
+            "tags": ["apple", "banana"],
+            "title": "my campaign",
             "sending_rules": [
                 {
                     "message": msg0.public_id,
@@ -102,6 +107,7 @@ def test_publish_intervalcampaign(publish_mock, su_client, query_contact_invites
         {
             "query": query_contact_invites,
             "budget": 500,
+            "title": "my campaign",
             "sending_rules": [],
             "seat": seat.public_id,
         },

@@ -9,5 +9,5 @@ google-cloud-logging # https://cloud.google.com/logging/docs/reference/libraries
 
 # Django
 # ------------------------------------------------------------------------------
-django-storages[google]==1.8  # https://github.com/jschneier/django-storages
+django-storages[google]==1.9.1  # https://github.com/jschneier/django-storages
 django-anymail[mailgun]==7.0.0  # https://github.com/anymail/django-anymail

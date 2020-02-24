@@ -1,10 +1,12 @@
 from typing import Union
 
+import tagulous
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from model_utils import Choices
 from model_utils.fields import MonitorField
 from model_utils.models import TimeStampedModel, SoftDeletableModel
+from tagulous.models import TagField, TagModel
 
 from whoweb.coldemail.api.resource import (
     CreateableResource,
@@ -15,6 +17,11 @@ from whoweb.coldemail.api.resource import (
 from whoweb.contrib.fields import ObscureIdMixin
 from whoweb.core.models import EventLoggingModel
 from whoweb.users.models import Seat
+
+
+class ColdEmailTagModel(TagModel):
+    class TagMeta:
+        force_lowercase = True
 
 
 class ColdemailBaseModel(
@@ -41,6 +48,7 @@ class ColdemailBaseModel(
     published_at = MonitorField(
         monitor="status", when=["published"], null=True, default=None, blank=True
     )
+    tags = TagField(to=ColdEmailTagModel)
 
     class Meta:
         abstract = True

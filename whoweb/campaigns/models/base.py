@@ -9,6 +9,7 @@ from model_utils.fields import MonitorField
 from model_utils.models import SoftDeletableModel, TimeStampedModel
 from polymorphic.managers import PolymorphicManager
 from polymorphic.models import PolymorphicModel
+from tagulous.models import TagField
 
 from whoweb.contrib.fields import ObscureIdMixin
 from whoweb.campaigns.events import (
@@ -20,6 +21,7 @@ from whoweb.campaigns.events import (
 )
 from whoweb.coldemail.models import (
     ReplyTo,
+    ColdEmailTagModel,
     ColdCampaign,
     CampaignList,
     CampaignMessage,
@@ -145,6 +147,7 @@ class BaseCampaignRunner(
     )
 
     tracking_params = JSONField(default=dict, null=True, blank=True)
+    tags = TagField(to=ColdEmailTagModel)
 
     from_name = models.CharField(max_length=255)
 

@@ -12,9 +12,25 @@ from .models import (
 from whoweb.search.serializers import FilteredSearchQuerySerializer
 
 
-class CampaignMessageSerializer(IdOrHyperlinkedModelSerializer):
+class TaggableMixin(object):
+    def update(self, instance, validated_data):
+        if tags := validated_data.pop("tags", None) is not None:
+            instance.tags = tags
+        return super().update(instance, validated_data)
+
+    def create(self, validated_data):
+        tags = validated_data.pop("tags", None)
+        instance = super().create(validated_data)
+        if tags is not None:
+            instance.tags = tags
+            instance.save()
+        return instance
+
+
+class CampaignMessageSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
     status_name = serializers.CharField(source="get_status_display", read_only=True)
     id = serializers.CharField(source="public_id", read_only=True)
+    tags = serializers.ListSerializer(child=serializers.CharField(), required=False)
 
     class Meta:
         model = CampaignMessage
@@ -31,6 +47,7 @@ class CampaignMessageSerializer(IdOrHyperlinkedModelSerializer):
             "plain_content",
             "html_content",
             "editor",
+            "tags",
             "status",
             "status_name",
             "status_changed",
@@ -39,8 +56,9 @@ class CampaignMessageSerializer(IdOrHyperlinkedModelSerializer):
         read_only_fields = ("status", "status_changed", "status_name", "published_at")
 
 
-class CampaignMessageTemplateSerializer(IdOrHyperlinkedModelSerializer):
+class CampaignMessageTemplateSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
     id = serializers.CharField(source="public_id", read_only=True)
+    tags = serializers.ListSerializer(child=serializers.CharField(), required=False)
 
     class Meta:
         model = CampaignMessageTemplate
@@ -53,6 +71,7 @@ class CampaignMessageTemplateSerializer(IdOrHyperlinkedModelSerializer):
             "id",
             "seat",
             "title",
+            "tags",
             "subject",
             "plain_content",
             "html_content",
@@ -60,10 +79,11 @@ class CampaignMessageTemplateSerializer(IdOrHyperlinkedModelSerializer):
         )
 
 
-class CampaignListSerializer(IdOrHyperlinkedModelSerializer):
+class CampaignListSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
     query = FilteredSearchQuerySerializer()
     status_name = serializers.CharField(source="get_status_display", read_only=True)
     id = serializers.CharField(source="public_id", read_only=True)
+    tags = serializers.ListSerializer(child=serializers.CharField(), required=False)
 
     class Meta:
         model = CampaignList
@@ -76,6 +96,7 @@ class CampaignListSerializer(IdOrHyperlinkedModelSerializer):
             "id",
             "seat",
             "name",
+            "tags",
             "origin",
             "description",
             "query",
@@ -116,13 +137,16 @@ class CampaignSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class SingleColdEmailSerializer(IdOrHyperlinkedModelSerializer):
+class SingleColdEmailSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
+    tags = serializers.ListSerializer(child=serializers.CharField(), required=False)
+
     class Meta:
         model = SingleColdEmail
         fields = (
             "url",
             "public_id",
             "message",
+            "tags",
             "email",
             "send_date",
             "test",

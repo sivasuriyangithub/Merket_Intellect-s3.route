@@ -9,7 +9,12 @@ pytestmark = pytest.mark.django_db
 def test_create_campaignlist(su_client, query_contact_invites):
     resp = su_client.post(
         "/ww/api/campaign/lists/",
-        {"query": query_contact_invites, "name": "list name", "origin": "1",},
+        {
+            "query": query_contact_invites,
+            "name": "list name",
+            "origin": "1",
+            "tags": [],
+        },
         format="json",
     )
     print(resp.content)
@@ -24,7 +29,12 @@ def test_create_campaignlist(su_client, query_contact_invites):
 def test_update_campaignlist(su_client, query_contact_invites):
     resp = su_client.post(
         "/ww/api/campaign/lists/",
-        {"query": query_contact_invites, "name": "list name", "origin": "1",},
+        {
+            "query": query_contact_invites,
+            "name": "list name",
+            "origin": "1",
+            "tags": [],
+        },
         format="json",
     )
     url = resp.json()["url"]
@@ -38,7 +48,12 @@ def test_update_campaignlist(su_client, query_contact_invites):
 def test_delete_campaignlist(su_client, query_contact_invites):
     resp = su_client.post(
         "/ww/api/campaign/lists/",
-        {"query": query_contact_invites, "name": "list name", "origin": "1",},
+        {
+            "query": query_contact_invites,
+            "name": "list name",
+            "origin": "1",
+            "tags": [],
+        },
         format="json",
     )
     url = resp.json()["url"]

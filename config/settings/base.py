@@ -85,6 +85,7 @@ THIRD_PARTY_APPS = [
     "organizations",
     "prettyjson",
     "polymorphic",
+    "tagulous",
 ]
 
 LOCAL_APPS = [
@@ -389,6 +390,14 @@ GRAPHQL_JWT = {
     "JWT_REFRESH_EXPIRATION_DELTA": timedelta(days=30),
 }
 
+# tagulous
+# ------------------------------------------------------------------------------
+SERIALIZATION_MODULES = {
+    "xml": "tagulous.serializers.xml_serializer",
+    "json": "tagulous.serializers.json",
+    "python": "tagulous.serializers.python",
+    "yaml": "tagulous.serializers.pyyaml",
+}
 
 # Your stuff...
 # ------------------------------------------------------------------------------

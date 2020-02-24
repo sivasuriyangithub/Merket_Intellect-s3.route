@@ -95,8 +95,7 @@ def spawn_do_page_process_tasks(self, prefetch_multiplier, export_id):
 @shared_task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
 def do_post_pages_completion(self, export_id):
     export = SearchExport.objects.get(pk=export_id)
-    if not export.do_post_pages_completion(task_context=self.request):
-        self.retry(countdown=60)
+    return export.do_post_pages_completion(task_context=self.request)
 
 
 @shared_task(bind=True, autoretry_for=NETWORK_ERRORS)

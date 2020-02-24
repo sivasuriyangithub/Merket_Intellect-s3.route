@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from celery import shared_task
+from django.db import transaction
 from django.db.models import Q
 from django.utils.timezone import now
 from requests import HTTPError, Timeout
@@ -13,25 +14,30 @@ NETWORK_ERRORS = [HTTPError, Timeout, ConnectionError]
 
 @shared_task(bind=True, autoretry_for=NETWORK_ERRORS)
 def publish_single_email(self, single_id):
-    single_email: SingleColdEmail = SingleColdEmail.objects.select_for_update().get(
-        pk=single_id
-    )
-    if single_email.message.is_published:
-        single_email.api_upload(task_context=self.request)
+    with transaction.atomic():
+        single_email: SingleColdEmail = SingleColdEmail.objects.select_for_update().get(
+            pk=single_id
+        )
+        if single_email.message.is_published:
+            single_email.api_upload(task_context=self.request)
 
 
 @shared_task(bind=True, autoretry_for=NETWORK_ERRORS)
 def publish_message(self, message_id):
-    msg: CampaignMessage = CampaignMessage.objects.select_for_update().get(
-        pk=message_id
-    )
-    msg.api_upload(task_context=self.request)
+    with transaction.atomic():
+        msg: CampaignMessage = CampaignMessage.objects.select_for_update().get(
+            pk=message_id
+        )
+        msg.api_upload(task_context=self.request)
 
 
 @shared_task(bind=True, autoretry_for=NETWORK_ERRORS)
 def upload_list(self, list_id):
-    list_record: CampaignList = CampaignList.objects.select_for_update().get(pk=list_id)
-    list_record.api_upload(task_context=self.request)
+    with transaction.atomic():
+        list_record: CampaignList = CampaignList.objects.select_for_update().get(
+            pk=list_id
+        )
+        list_record.api_upload(task_context=self.request)
 
 
 @shared_task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
@@ -48,9 +54,11 @@ def check_for_list_publication(self, list_id):
 
     campaigns: [ColdCampaign] = ColdCampaign.objects.filter(
         campaign_list=list_id, status=ColdCampaign.STATUS.pending
-    ).select_for_update()
+    )
     for campaign in campaigns:
-        campaign.api_upload(task_context=self.request)
+        with transaction.atomic():
+            locked = ColdCampaign.objects.select_for_update().get(pk=campaign.pk)
+            locked.api_upload(task_context=self.request)
 
 
 @shared_task(bind=True, autoretry_for=NETWORK_ERRORS)

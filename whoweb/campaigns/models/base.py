@@ -11,7 +11,7 @@ from polymorphic.managers import PolymorphicManager
 from polymorphic.models import PolymorphicModel
 from tagulous.models import TagField
 
-from whoweb.contrib.fields import ObscureIdMixin
+from whoweb.accounting.models import Transaction, MatchType
 from whoweb.campaigns.events import (
     PUBLISH_DRIP_CAMPAIGN,
     PUBLISH_CAMPAIGN,
@@ -27,6 +27,7 @@ from whoweb.coldemail.models import (
     CampaignMessage,
     CampaignMessageTemplate,
 )
+from whoweb.contrib.fields import ObscureIdMixin
 from whoweb.contrib.polymorphic.managers import PolymorphicSoftDeletableManager
 from whoweb.contrib.postgres.fields import EmbeddedModelField
 from whoweb.core.models import EventLoggingModel
@@ -168,6 +169,16 @@ class BaseCampaignRunner(
 
     def drip_records(self):
         return DripRecord.objects.filter(runner=self)
+
+    @property
+    def transactions(self):
+        exports = [
+            campaign.campaign_list.export
+            for campaign in self.campaigns.all().select_related("campaign_list__export")
+        ]
+        return Transaction.objects.filter_by_related_objects(
+            exports, match_type=MatchType.ANY
+        )
 
     def get_next_rule(self, following: ColdCampaign):
         return (

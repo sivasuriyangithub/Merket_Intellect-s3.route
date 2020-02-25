@@ -149,7 +149,7 @@ class BaseCampaignRunner(
     tracking_params = JSONField(default=dict, null=True, blank=True)
     tags = TagField(to=ColdEmailTagModel)
 
-    from_name = models.CharField(max_length=255)
+    from_name = models.CharField(max_length=255, default="", blank=True)
 
     # Enforce only 1 active signature chain in celery,
     # enabling republishing via .resume(), even with a pending canvas.

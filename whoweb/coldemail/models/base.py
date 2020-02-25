@@ -48,7 +48,7 @@ class ColdemailBaseModel(
     published_at = MonitorField(
         monitor="status", when=["published"], null=True, default=None, blank=True
     )
-    tags = TagField(to=ColdEmailTagModel)
+    tags = TagField(to=ColdEmailTagModel, blank=True)
 
     class Meta:
         abstract = True

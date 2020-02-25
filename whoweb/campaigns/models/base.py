@@ -53,7 +53,11 @@ class SendingRule(models.Model):
     )
     runner = models.ForeignKey("BaseCampaignRunner", on_delete=models.CASCADE)
     message_template = models.ForeignKey(
-        CampaignMessageTemplate, null=True, on_delete=models.SET_NULL, related_name="+",
+        CampaignMessageTemplate,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        blank=True,
     )
     message = models.ForeignKey(CampaignMessage, on_delete=models.CASCADE)
     index = (
@@ -147,13 +151,13 @@ class BaseCampaignRunner(
     )
 
     tracking_params = JSONField(default=dict, null=True, blank=True)
-    tags = TagField(to=ColdEmailTagModel)
+    tags = TagField(to=ColdEmailTagModel, blank=True)
 
     from_name = models.CharField(max_length=255, default="", blank=True)
 
     # Enforce only 1 active signature chain in celery,
     # enabling republishing via .resume(), even with a pending canvas.
-    run_id = models.UUIDField(null=True)
+    run_id = models.UUIDField(null=True, blank=True)
 
     objects = PolymorphicSoftDeletableManager()
     all_objects = PolymorphicManager()

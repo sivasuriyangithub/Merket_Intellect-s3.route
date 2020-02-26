@@ -9,7 +9,10 @@ import requests
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db import models
+from model_utils.models import TimeStampedModel
 
+from whoweb.users.models import Seat
 from whoweb.core.router import router
 from whoweb.core.utils import PERSONAL_DOMAINS
 
@@ -495,3 +498,11 @@ profile_load_config = dacite.Config(
         List[GradedEmail]: DerivedContact.parse_graded_emails,
     }
 )
+
+
+class DerivationCache(TimeStampedModel):
+    profile_id = models.CharField(max_length=180)
+    seat = models.ForeignKey(Seat, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ("profile_id", "seat")

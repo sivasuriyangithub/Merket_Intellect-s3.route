@@ -15,6 +15,7 @@ from whoweb.search.models import (
     ExportOptions,
     FilteredSearchFilterElement,
     ResultProfile,
+    DerivationCache,
 )
 from whoweb.search.models.profile import WORK, PERSONAL, SOCIAL, PROFILE, PHONE
 from whoweb.users.models import Seat
@@ -153,6 +154,14 @@ class SearchExportDataSerializer(serializers.Serializer):
 
 class ResultProfileSerializer(serializers.Serializer):
     id = serializers.CharField(source="_id")
+    initiated_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    seat = IdOrHyperlinkedRelatedField(
+        view_name="seat-detail",
+        lookup_field="public_id",
+        queryset=Seat.objects.all(),
+        required=False,
+        allow_null=True,
+    )
     first_name = serializers.CharField()
     last_name = serializers.CharField()
     company = serializers.CharField()
@@ -178,13 +187,30 @@ class ResultProfileSerializer(serializers.Serializer):
     twitter = serializers.CharField(read_only=True)
     facebook = serializers.CharField(read_only=True)
     status = serializers.CharField(source="derivation_status", read_only=True)
+    credits_used = serializers.IntegerField(read_only=True)
+    credits_remaining = serializers.IntegerField(read_only=True)
 
     class Meta:
         read_only_fields = ("emails",)
 
     def create(self, validated_data):
-        filters = validated_data["filters"]
-        timeout = validated_data["timeout"]
+        filters = validated_data.pop("filters")
+        timeout = validated_data.pop("timeout")
+        initiated_by = validated_data.pop("initiated_by")
         profile = ResultProfile.from_json(validated_data)
         profile.derive_contact(filters=filters, timeout=timeout)
-        return profile.to_json()
+        seat = validated_data["seat"]
+        cache_obj, created = DerivationCache.objects.get_or_create(
+            profile_id=profile.id, seat=seat
+        )
+        data = profile.to_json()
+        if created:
+            charge = seat.billing.plan.compute_contact_credit_use(profile=profile)
+            seat.billing.consume_credits(
+                amount=charge, evidence=(cache_obj,), initiated_by=initiated_by
+            )
+            data["credits_used"] = charge
+        else:
+            data["credits_used"] = 0
+        data["credits_remaining"] = seat.billing.credits
+        return data

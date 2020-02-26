@@ -1,23 +1,23 @@
 from rest_framework import serializers
-from slugify import slugify
+from rest_framework.exceptions import ValidationError
 
-from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
-from whoweb.users.models import Seat
 from whoweb.accounting.serializers import TransactionSerializer
 from whoweb.contrib.rest_framework.fields import (
     MultipleChoiceListField,
     PublicPrivateMultipleChoiceListField,
     IdOrHyperlinkedRelatedField,
 )
-from whoweb.payments.models import BillingAccount, WKPlan
+from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
 from whoweb.search.models import (
     SearchExport,
     FilteredSearchQuery,
     FilteredSearchFilters,
     ExportOptions,
     FilteredSearchFilterElement,
+    ResultProfile,
 )
-from whoweb.users.models import UserProfile
+from whoweb.search.models.profile import WORK, PERSONAL, SOCIAL, PROFILE, PHONE
+from whoweb.users.models import Seat
 
 
 class ExportOptionsSerializer(serializers.ModelSerializer):
@@ -149,3 +149,42 @@ class SearchExportDataSerializer(serializers.Serializer):
     emails = serializers.ListField(serializers.EmailField())
     grade = serializers.CharField()
     derivation_status = serializers.CharField()
+
+
+class ResultProfileSerializer(serializers.Serializer):
+    id = serializers.CharField(source="_id")
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+    company = serializers.CharField()
+    timeout = serializers.IntegerField(
+        required=False, initial=28, default=28, write_only=True
+    )
+    filters = serializers.MultipleChoiceField(
+        choices=[WORK, SOCIAL, PERSONAL, PROFILE, PHONE],
+        initial=[WORK, SOCIAL, PERSONAL, PROFILE],
+        default=[WORK, SOCIAL, PERSONAL, PROFILE],
+        write_only=True,
+    )
+    title = serializers.CharField(read_only=True)
+    email = serializers.EmailField(read_only=True)
+    graded_emails = serializers.JSONField(read_only=True)
+    emails = serializers.ListField(
+        child=serializers.EmailField(read_only=True), read_only=True
+    )
+    grade = serializers.CharField(read_only=True)
+    graded_phones = serializers.JSONField(read_only=True)
+    social_links = serializers.JSONField(read_only=True)
+    li_url = serializers.CharField(read_only=True)
+    twitter = serializers.CharField(read_only=True)
+    facebook = serializers.CharField(read_only=True)
+    status = serializers.CharField(source="derivation_status", read_only=True)
+
+    class Meta:
+        read_only_fields = ("emails",)
+
+    def create(self, validated_data):
+        filters = validated_data["filters"]
+        timeout = validated_data["timeout"]
+        profile = ResultProfile.from_json(validated_data)
+        profile.derive_contact(filters=filters, timeout=timeout)
+        return profile.to_json()

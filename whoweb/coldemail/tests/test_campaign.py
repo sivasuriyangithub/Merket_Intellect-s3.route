@@ -54,7 +54,7 @@ def test_api_upload(api_create_mock, cold_campaign):
         whoisid="123",
         profileid="456",
         fromaddress="",
-        fromname="Joe Engels",
+        fromname="",
         suppressionid="1",
         dklim=1,
         viewaswebpage=0,

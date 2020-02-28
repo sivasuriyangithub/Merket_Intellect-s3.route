@@ -15,7 +15,11 @@ from whoweb.search.models import ResultProfile
 from whoweb.search.models.export import SearchExportPage
 from .events import DOWNLOAD_VALIDATION, DOWNLOAD
 from .models import SearchExport
-from .serializers import SearchExportSerializer, SearchExportDataSerializer
+from .serializers import (
+    SearchExportSerializer,
+    SearchExportDataSerializer,
+    ResultProfileSerializer,
+)
 
 
 class Echo:
@@ -165,3 +169,8 @@ class SearchExportResultViewSet(
             many=True,
         )
         return Response(serializer.data)
+
+
+class DeriveProfileViewSet(mixins.CreateModelMixin, GenericViewSet):
+    serializer_class = ResultProfileSerializer
+    permission_classes = [IsSuperUser]

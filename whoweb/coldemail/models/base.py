@@ -46,7 +46,7 @@ class ColdemailBaseModel(
     coldemail_id = models.CharField(max_length=100)
     is_removed_changed = MonitorField("deleted at", monitor="is_removed")
     published_at = MonitorField(
-        monitor="status", when=["published"], null=True, default=None, blank=True
+        monitor="status", when=[STATUS.published], null=True, default=None, blank=True
     )
     tags = TagField(to=ColdEmailTagModel, blank=True)
 

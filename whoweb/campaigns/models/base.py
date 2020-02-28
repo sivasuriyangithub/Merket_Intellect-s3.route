@@ -11,7 +11,7 @@ from polymorphic.managers import PolymorphicManager
 from polymorphic.models import PolymorphicModel
 from tagulous.models import TagField
 
-from whoweb.contrib.fields import ObscureIdMixin
+from whoweb.accounting.models import Transaction, MatchType
 from whoweb.campaigns.events import (
     PUBLISH_DRIP_CAMPAIGN,
     PUBLISH_CAMPAIGN,
@@ -27,6 +27,7 @@ from whoweb.coldemail.models import (
     CampaignMessage,
     CampaignMessageTemplate,
 )
+from whoweb.contrib.fields import ObscureIdMixin
 from whoweb.contrib.polymorphic.managers import PolymorphicSoftDeletableManager
 from whoweb.contrib.postgres.fields import EmbeddedModelField
 from whoweb.core.models import EventLoggingModel
@@ -147,7 +148,7 @@ class BaseCampaignRunner(
     status_changed = MonitorField("status changed", monitor="status")
     is_removed_changed = MonitorField("deleted at", monitor="is_removed")
     published_at = MonitorField(
-        monitor="status", when=["published"], null=True, default=None, blank=True
+        monitor="status", when=[STATUS.published], null=True, default=None, blank=True
     )
 
     tracking_params = JSONField(default=dict, null=True, blank=True)
@@ -170,6 +171,16 @@ class BaseCampaignRunner(
 
     def drip_records(self):
         return DripRecord.objects.filter(runner=self)
+
+    @property
+    def transactions(self):
+        exports = [
+            campaign.campaign_list.export
+            for campaign in self.campaigns.all().select_related("campaign_list__export")
+        ]
+        return Transaction.objects.filter_by_related_objects(
+            exports, match_type=MatchType.ANY
+        )
 
     def get_next_rule(self, following: ColdCampaign):
         return (
@@ -371,11 +382,8 @@ class BaseCampaignRunner(
     def create_campaign_list(self, *args, **kwargs):
         return CampaignList.objects.create(query=self.query, origin=2, seat=self.seat)
 
-    def create_campaign(self, campaign_kwargs=None, *args, **kwargs):
+    def create_campaign(self, **campaign_kwargs):
         first_message_rule = self.sending_rules().first()
-
-        if campaign_kwargs is None:
-            campaign_kwargs = {}
 
         if self.seat:
             campaign_kwargs.setdefault("seat", self.seat)
@@ -403,7 +411,13 @@ class BaseCampaignRunner(
     #                 add_to_set__messages=InboxMessage(id=ObjectId(), campaign_message=message_id, source=source))
 
     def publish(
-        self, apply_tasks=True, on_complete=None, task_context=None, *args, **kwargs
+        self,
+        apply_tasks=True,
+        on_complete=None,
+        task_context=None,
+        with_campaign=None,
+        *args,
+        **kwargs,
     ):
         """
         :rtype: (celery.canvas.Signature | celery.result.AsyncResult | None,  Campaign | None)
@@ -411,13 +425,17 @@ class BaseCampaignRunner(
         from whoweb.campaigns.tasks import set_published
 
         self.log_event(PUBLISH_CAMPAIGN, task=task_context)
-        campaign = self.create_campaign()
+        if with_campaign:
+            campaign = with_campaign
+        else:
+            campaign = self.create_campaign()
         if not campaign:
             return None, None
         if publish_sigs := campaign.publish(apply_tasks=False, on_complete=on_complete):
             if self.run_id is None:
                 self.run_id = uuid.uuid4()
                 self.status = self.STATUS.pending
+                self.save()
 
             publish_sigs |= set_published.si(pk=self.pk, run_id=self.run_id)
             if drip_sigs := self.drip_tasks(
@@ -425,13 +443,12 @@ class BaseCampaignRunner(
             ):
                 publish_sigs |= drip_sigs
 
-            self.log_event(
-                CAMPAIGN_SIGNATURES,
-                task=task_context,
-                data={"sigs": repr(publish_sigs)},
-            )
-            self.save()
             if apply_tasks:
+                self.log_event(
+                    CAMPAIGN_SIGNATURES,
+                    task=task_context,
+                    data={"sigs": repr(publish_sigs)},
+                )
                 return publish_sigs.apply_async(), campaign
             else:
                 return publish_sigs, campaign

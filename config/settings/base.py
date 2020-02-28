@@ -34,6 +34,7 @@ USE_I18N = True
 USE_L10N = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#use-tz
 USE_TZ = True
+DATETIME_FORMAT = "N j, Y, P T"
 # https://docs.djangoproject.com/en/dev/ref/settings/#locale-paths
 LOCALE_PATHS = [ROOT_DIR.path("locale")]
 
@@ -72,6 +73,7 @@ DJANGO_APPS = [
     "django.contrib.admin",
 ]
 THIRD_PARTY_APPS = [
+    "inline_actions",
     "crispy_forms",
     "allauth",
     "allauth.account",

@@ -8,6 +8,9 @@ router.register(r"exports", views.SearchExportViewSet, basename="searchexport")
 router.register(
     r"export-results", views.SearchExportResultViewSet, basename="exportresult"
 )
+router.register(
+    r"profiles/derive", views.DeriveProfileViewSet, basename="derive_profile"
+)
 
 app_name = "search"
 urlpatterns = [

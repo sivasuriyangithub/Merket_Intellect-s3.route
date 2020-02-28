@@ -1,5 +1,7 @@
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.contenttypes.admin import GenericTabularInline
+from django.conf.locale.en import formats as en_formats
 
 from whoweb.core.models import ModelEvent
 
@@ -22,3 +24,5 @@ class ModelEventAdmin(admin.ModelAdmin):
 
 admin.site.site_url = "/ww/api"
 admin.site.site_header = "Whoweb Administration"
+
+en_formats.DATETIME_FORMAT = settings.DATETIME_FORMAT

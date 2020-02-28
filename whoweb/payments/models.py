@@ -49,22 +49,45 @@ class WKPlan(ObscureIdMixin, models.Model):
         help_text="Number of credits charged for a service call returning any phone numbers.",
     )
 
-    def compute_contact_credit_use(self, profile: "ResultProfile"):
+    def compute_credit_use_types(self, graded_emails, graded_phones):
         work = False
         personal = False
-        phone = any(profile.graded_phones)
-        for graded_email in profile.graded_emails:
+        phone = any(graded_phones)
+        for graded_email in graded_emails:
             if graded_email.is_passing and graded_email.is_personal:
                 personal = True
             if graded_email.is_passing and graded_email.is_work:
                 work = True
             if work and personal:
                 break
+        return work, personal, phone
+
+    def compute_contact_credit_use(self, profile: "ResultProfile"):
+        work, personal, phone = self.compute_credit_use_types(
+            profile.graded_emails, profile.graded_phones
+        )
         return sum(
             [
                 work * self.credits_per_work_email,
                 personal * self.credits_per_personal_email,
                 phone * self.credits_per_phone,
+            ]
+        )
+
+    def compute_additional_contact_info_credit_use(
+        self, cached_emails, cached_phones, profile
+    ):
+        cached_work, cached_personal, cached_phone = self.compute_credit_use_types(
+            cached_emails, cached_phones
+        )
+        work, personal, phone = self.compute_credit_use_types(
+            profile.graded_emails, profile.graded_phones
+        )
+        return sum(
+            [
+                (work and not cached_work) * self.credits_per_work_email,
+                (personal and not cached_personal) * self.credits_per_personal_email,
+                (phone and not cached_phone) * self.credits_per_phone,
             ]
         )
 

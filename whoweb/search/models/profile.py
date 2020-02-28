@@ -8,13 +8,14 @@ import dacite
 import requests
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.postgres.fields import JSONField
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from model_utils.models import TimeStampedModel
 
-from whoweb.users.models import Seat
 from whoweb.core.router import router
 from whoweb.core.utils import PERSONAL_DOMAINS
+from whoweb.users.models import Seat
 
 RETRY = "retry"
 COMPLETE = "complete"
@@ -122,6 +123,10 @@ class GradedEmail:
     def is_work(self):
         return self.email_type == WORK or self.domain not in PERSONAL_DOMAINS
 
+    @classmethod
+    def from_json(cls, data):
+        return dacite.from_dict(data_class=cls, data=data, config=profile_load_config)
+
 
 @dataclass
 class GradedPhone:
@@ -141,6 +146,10 @@ class GradedPhone:
 
     def __gt__(self, other):
         return self.status_value > other.status_value
+
+    @classmethod
+    def from_json(cls, data):
+        return dacite.from_dict(data_class=cls, data=data, config=profile_load_config)
 
 
 @dataclass
@@ -323,7 +332,7 @@ class ResultProfile:
             self.title = derived.extra.title
 
         self.derivation_requested_email = derived.requested_email
-        self.derivation_requested_phone = derived.requested_email
+        self.derivation_requested_phone = derived.requested_phone
         self.returned_status = derived.status
         # self.normalize_email_grades()
         self.set_status()
@@ -501,8 +510,35 @@ profile_load_config = dacite.Config(
 
 
 class DerivationCache(TimeStampedModel):
-    profile_id = models.CharField(max_length=180)
     seat = models.ForeignKey(Seat, on_delete=models.CASCADE)
+    profile_id = models.CharField(max_length=180)
+    emails = JSONField(default=list)
+    phones = JSONField(default=list)
 
     class Meta:
         unique_together = ("profile_id", "seat")
+
+    @classmethod
+    def get_or_charge(cls, seat: Seat, profile: ResultProfile):
+        obj, created = DerivationCache.objects.get_or_create(
+            seat=seat,
+            profile_id=profile.id,
+            defaults={
+                "emails": [asdict(email) for email in profile.graded_emails],
+                "phones": [asdict(phone) for phone in profile.graded_phones],
+            },
+        )
+        if created:
+            charge = seat.billing.plan.compute_contact_credit_use(profile=profile)
+        else:
+            emails = [GradedEmail.from_json(email) for email in obj.emails]
+            phones = [GradedPhone.from_json(phone) for phone in obj.phones]
+            charge = seat.billing.plan.compute_additional_contact_info_credit_use(
+                cached_emails=emails, cached_phones=phones, profile=profile
+            )
+            if len(profile.graded_emails) > len(obj.emails):
+                obj.emails = profile.graded_emails
+            if len(profile.graded_phones) > len(obj.phones):
+                obj.phones = profile.graded_phones
+            obj.save()
+        return obj, charge

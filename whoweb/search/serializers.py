@@ -1,6 +1,8 @@
+from django.http import Http404
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from whoweb.core.router import router
 from whoweb.accounting.serializers import TransactionSerializer
 from whoweb.contrib.rest_framework.fields import (
     MultipleChoiceListField,
@@ -162,9 +164,9 @@ class ResultProfileSerializer(serializers.Serializer):
         required=False,
         allow_null=True,
     )
-    first_name = serializers.CharField()
-    last_name = serializers.CharField()
-    company = serializers.CharField()
+    first_name = serializers.CharField(required=False)
+    last_name = serializers.CharField(required=False)
+    company = serializers.CharField(required=False)
     timeout = serializers.IntegerField(
         required=False, initial=28, default=28, write_only=True
     )
@@ -194,23 +196,32 @@ class ResultProfileSerializer(serializers.Serializer):
         read_only_fields = ("emails",)
 
     def create(self, validated_data):
+
         filters = validated_data.pop("filters")
         timeout = validated_data.pop("timeout")
         initiated_by = validated_data.pop("initiated_by")
-        profile = ResultProfile.from_json(validated_data)
+        if not all(
+            [
+                "first_name" in validated_data,
+                "last_name" in validated_data,
+                "company" in validated_data,
+            ]
+        ):
+            search = router.profile_lookup(json={"profile_id": validated_data["_id"]})
+            results = search.get("results")
+            if not results:
+                raise Http404("Unable to find a profile matching the supplied id.")
+            profile = ResultProfile.from_json(results[0])
+        else:
+            profile = ResultProfile.from_json(validated_data)
         profile.derive_contact(filters=filters, timeout=timeout)
         seat = validated_data["seat"]
-        cache_obj, created = DerivationCache.objects.get_or_create(
-            profile_id=profile.id, seat=seat
-        )
-        data = profile.to_json()
-        if created:
-            charge = seat.billing.plan.compute_contact_credit_use(profile=profile)
+        cache_obj, charge = DerivationCache.get_or_charge(seat=seat, profile=profile)
+        if charge > 0:
             seat.billing.consume_credits(
                 amount=charge, evidence=(cache_obj,), initiated_by=initiated_by
             )
-            data["credits_used"] = charge
-        else:
-            data["credits_used"] = 0
+        data = profile.to_json()
+        data["credits_used"] = charge
         data["credits_remaining"] = seat.billing.credits
         return data

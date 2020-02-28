@@ -1,23 +1,26 @@
+from django.http import Http404
 from rest_framework import serializers
-from slugify import slugify
+from rest_framework.exceptions import ValidationError
 
-from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
-from whoweb.users.models import Seat
+from whoweb.core.router import router
 from whoweb.accounting.serializers import TransactionSerializer
 from whoweb.contrib.rest_framework.fields import (
     MultipleChoiceListField,
     PublicPrivateMultipleChoiceListField,
     IdOrHyperlinkedRelatedField,
 )
-from whoweb.payments.models import BillingAccount, WKPlan
+from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
 from whoweb.search.models import (
     SearchExport,
     FilteredSearchQuery,
     FilteredSearchFilters,
     ExportOptions,
     FilteredSearchFilterElement,
+    ResultProfile,
+    DerivationCache,
 )
-from whoweb.users.models import UserProfile
+from whoweb.search.models.profile import WORK, PERSONAL, SOCIAL, PROFILE, PHONE
+from whoweb.users.models import Seat
 
 
 class ExportOptionsSerializer(serializers.ModelSerializer):
@@ -149,3 +152,76 @@ class SearchExportDataSerializer(serializers.Serializer):
     emails = serializers.ListField(serializers.EmailField())
     grade = serializers.CharField()
     derivation_status = serializers.CharField()
+
+
+class ResultProfileSerializer(serializers.Serializer):
+    id = serializers.CharField(source="_id")
+    initiated_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    seat = IdOrHyperlinkedRelatedField(
+        view_name="seat-detail",
+        lookup_field="public_id",
+        queryset=Seat.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    first_name = serializers.CharField(required=False)
+    last_name = serializers.CharField(required=False)
+    company = serializers.CharField(required=False)
+    timeout = serializers.IntegerField(
+        required=False, initial=28, default=28, write_only=True
+    )
+    filters = serializers.MultipleChoiceField(
+        choices=[WORK, SOCIAL, PERSONAL, PROFILE, PHONE],
+        initial=[WORK, SOCIAL, PERSONAL, PROFILE],
+        default=[WORK, SOCIAL, PERSONAL, PROFILE],
+        write_only=True,
+    )
+    title = serializers.CharField(read_only=True)
+    email = serializers.EmailField(read_only=True)
+    graded_emails = serializers.JSONField(read_only=True)
+    emails = serializers.ListField(
+        child=serializers.EmailField(read_only=True), read_only=True
+    )
+    grade = serializers.CharField(read_only=True)
+    graded_phones = serializers.JSONField(read_only=True)
+    social_links = serializers.JSONField(read_only=True)
+    li_url = serializers.CharField(read_only=True)
+    twitter = serializers.CharField(read_only=True)
+    facebook = serializers.CharField(read_only=True)
+    status = serializers.CharField(source="derivation_status", read_only=True)
+    credits_used = serializers.IntegerField(read_only=True)
+    credits_remaining = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        read_only_fields = ("emails",)
+
+    def create(self, validated_data):
+
+        filters = validated_data.pop("filters")
+        timeout = validated_data.pop("timeout")
+        initiated_by = validated_data.pop("initiated_by")
+        if not all(
+            [
+                "first_name" in validated_data,
+                "last_name" in validated_data,
+                "company" in validated_data,
+            ]
+        ):
+            search = router.profile_lookup(json={"profile_id": validated_data["_id"]})
+            results = search.get("results")
+            if not results:
+                raise Http404("Unable to find a profile matching the supplied id.")
+            profile = ResultProfile.from_json(results[0])
+        else:
+            profile = ResultProfile.from_json(validated_data)
+        profile.derive_contact(filters=filters, timeout=timeout)
+        seat = validated_data["seat"]
+        cache_obj, charge = DerivationCache.get_or_charge(seat=seat, profile=profile)
+        if charge > 0:
+            seat.billing.consume_credits(
+                amount=charge, evidence=(cache_obj,), initiated_by=initiated_by
+            )
+        data = profile.to_json()
+        data["credits_used"] = charge
+        data["credits_remaining"] = seat.billing.credits
+        return data

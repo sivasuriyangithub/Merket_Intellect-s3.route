@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from whoweb.accounting.serializers import TransactionSerializer
 from whoweb.contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
 from whoweb.users.models import Seat
 from whoweb.coldemail.serializers import CampaignSerializer, TaggableMixin
@@ -68,6 +69,7 @@ class SimpleDripCampaignRunnerSerializer(
     sending_rules = SendingRuleSerializer(many=True)
     status_name = serializers.CharField(source="get_status_display", read_only=True)
     tags = serializers.ListSerializer(child=serializers.CharField(), required=False)
+    transactions = TransactionSerializer(many=True, read_only=True)
 
     class Meta:
         model = SimpleDripCampaignRunner
@@ -86,6 +88,7 @@ class SimpleDripCampaignRunnerSerializer(
             "sending_rules",
             "drips",
             "campaigns",
+            "transactions",
             "status",
             "status_name",
             "status_changed",
@@ -120,6 +123,7 @@ class IntervalCampaignRunnerSerializer(
         allow_null=True,
     )
     tags = serializers.ListSerializer(child=serializers.CharField(), required=False)
+    transactions = TransactionSerializer(many=True, read_only=True)
 
     class Meta:
         model = IntervalCampaignRunner
@@ -138,6 +142,7 @@ class IntervalCampaignRunnerSerializer(
             "sending_rules",
             "drips",
             "campaigns",
+            "transactions",
             "status",
             "status_name",
             "status_changed",

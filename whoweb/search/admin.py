@@ -1,6 +1,7 @@
 import datetime
 
 from admin_actions.admin import ActionsModelAdmin
+from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.admin import TabularInline
 from django.contrib.admin.options import IncorrectLookupParameters
@@ -8,6 +9,7 @@ from django.contrib.humanize.templatetags.humanize import naturaltime
 from django.core.exceptions import ValidationError
 from django.db.models import Sum, Max, Case, When, DateTimeField, Value
 from django.shortcuts import redirect
+from django.template.defaultfilters import date
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.safestring import mark_safe
@@ -210,7 +212,7 @@ class ExportAdmin(ActionsModelAdmin):
                     "queue_priority",
                     "rows_enqueued",
                     "working_count",
-                    ("latest_page_modified_precise", "latest_page_modified"),
+                    "latest_page_modified",
                     ("sent", "sent_at",),
                     "validation_list_id",
                 ),
@@ -231,7 +233,6 @@ class ExportAdmin(ActionsModelAdmin):
         "rows_enqueued",
         "queue_priority",
         "latest_page_modified",
-        "latest_page_modified_precise",
         "status_changed",
         "scroller",
         "column_names",
@@ -273,15 +274,13 @@ class ExportAdmin(ActionsModelAdmin):
         return (
             "n/a"
             if obj._latest_page_modified == epoch
-            else naturaltime(obj._latest_page_modified)
+            else "{} ({})".format(
+                date(localtime(obj._latest_page_modified), settings.DATETIME_FORMAT),
+                naturaltime(obj._latest_page_modified),
+            )
         )
 
     latest_page_modified.admin_order_field = "_latest_page_modified"
-
-    def latest_page_modified_precise(self, obj):
-        return localtime(obj._latest_page_modified).strftime("%Y-%m-%d %H:%M:%S %Z")
-
-    latest_page_modified_precise.short_description = "latest page modified"
 
     def column_names(self, obj):
         return ", ".join(obj.get_column_names())

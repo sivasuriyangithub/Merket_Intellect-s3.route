@@ -1,5 +1,6 @@
 PUBLISH_CAMPAIGN = 100, "Publishing Campaign."
 PUBLISH_DRIP_CAMPAIGN = 150, "Publishing Drip Campaign."
 PAUSE_CAMPAIGN = 300, "Pausing Campaign."
-RESUME_CAMPAIGN = 110, "Resuming Campaign."
+RESUME_CAMPAIGN = 150, "Resuming Campaign."
 CAMPAIGN_SIGNATURES = 110, "Generated signatures for publishing campaign manager."
+ENQUEUED_FROM_ADMIN = 120, "Enqueued from Admin."

@@ -45,7 +45,7 @@ class CampaignList(ColdemailBaseModel):
         return export
 
     def publish(self, apply_tasks=True, on_complete=None):
-        from ..tasks import upload_list, check_for_list_publication
+        from whoweb.coldemail.tasks import upload_list, check_for_list_publication
 
         if self.is_published:
             return

@@ -1,12 +1,11 @@
 import logging
 from math import ceil
 
-from celery import chord, group, shared_task
+from celery import group, shared_task
 from celery.exceptions import MaxRetriesExceededError
 from django.db.models import F
 from requests import HTTPError, Timeout, ConnectionError
 from redis.exceptions import ConnectionError as RedisConnectionError
-from sentry_sdk import capture_exception
 
 from whoweb.core.router import router
 from whoweb.search.events import ALERT_XPERWEB, PAGES_SPAWNED
@@ -160,8 +159,8 @@ def fetch_mx_domains(domains):
     for mxd in mxds:
         try:
             return mxd.fetch_mx()
-        except:
-            capture_exception()
+        except Exception as e:
+            logger.exception(e)
 
 
 @shared_task(bind=True, autoretry_for=NETWORK_ERRORS)

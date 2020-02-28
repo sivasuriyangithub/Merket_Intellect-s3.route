@@ -28,6 +28,7 @@ django-organizations==1.1.2 # https://github.com/bennylope/django-organizations
 django-prettyjson==0.4.1 # https://github.com/kevinmickey/django-prettyjson
 django-autoslug==1.9.6 # https://github.com/justinmayer/django-autoslug
 git+https://git@github.com/lukasvinclav/django-admin-actions.git@cdc6a82f62009b042a71dc26030c27cb67e28e60#egg=django-admin-actions
+django-inline-actions==2.3.0 # https://github.com/escaped/django-inline-actions
 django-polymorphic==2.1.2 # https://github.com/django-polymorphic/django-polymorphic
 django-tagulous[i18n]==0.14.1 # http://radiac.net/projects/django-tagulous/documentation
 # Django REST Framework

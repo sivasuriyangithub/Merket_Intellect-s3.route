@@ -92,7 +92,7 @@ class WKPlan(ObscureIdMixin, models.Model):
         )
 
 
-class BillingAccount(AbstractOrganization):
+class BillingAccount(ObscureIdMixin, AbstractOrganization):
     group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True)
     seats = models.ManyToManyField(
         Seat, related_name="billing_account", through="BillingAccountMember"
@@ -156,7 +156,7 @@ class BillingAccount(AbstractOrganization):
         )
 
 
-class BillingAccountMember(AbstractOrganizationUser):
+class BillingAccountMember(ObscureIdMixin, AbstractOrganizationUser):
     seat = models.OneToOneField(
         Seat,
         verbose_name="group seat",

@@ -1,5 +1,6 @@
 from typing import List
 
+from graphene import relay, GlobalID
 from graphene_django import DjangoObjectType
 from graphene_django.types import DjangoObjectTypeOptions
 from graphql import GraphQLError
@@ -91,3 +92,10 @@ class GuardedObjectType(DjangoObjectType):
         return info.context.loaders.load(cls, _id).then(
             lambda obj: cls.check_object_permissions(context=info.context, obj=obj)
         )
+
+
+class ObscureIdNode(relay.Node):
+    class Meta:
+        name = "GraphNode"
+
+    id = GlobalID(source="public_id", description="The ID of the object.")

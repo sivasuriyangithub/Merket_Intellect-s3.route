@@ -5,10 +5,12 @@ from graphene_django.debug import DjangoDebug
 from graphql_jwt.decorators import login_required
 
 from whoweb.users.schema import Query as UsersQuery
+from whoweb.search.schema import Query as SearchQuery
+from whoweb.payments.schema import Query as PaymentsQuery
 from whoweb.users.mutations import Mutation as UsersMutation
 
 
-class Viewer(UsersQuery, graphene.ObjectType):
+class Viewer(UsersQuery, SearchQuery, PaymentsQuery, graphene.ObjectType):
     class Meta:
         interfaces = [graphene.relay.Node]
 

@@ -147,4 +147,5 @@ class ObscureIdMixin(models.Model):
         default=random_public_id,
         editable=False,
         unique=True,
+        help_text="Public ID of the object.",
     )

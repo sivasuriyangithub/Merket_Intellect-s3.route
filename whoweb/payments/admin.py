@@ -12,6 +12,7 @@ from whoweb.payments.models import (
     BillingAccountOwner,
     BillingAccount,
     BillingAccountMember,
+    WKPlan,
 )
 
 
@@ -59,6 +60,34 @@ class BillingAccountOwnerAdmin(BaseOrganizationOwnerAdmin):
     pass
 
 
+class WKPlanAdmin(admin.ModelAdmin):
+    list_display = (
+        "pk",
+        "public_id",
+        "credits_per_enrich",
+        "credits_per_work_email",
+        "credits_per_personal_email",
+        "credits_per_phone",
+    )
+    list_display_links = (
+        "pk",
+        "public_id",
+    )
+    fields = (
+        "pk",
+        "public_id",
+        "credits_per_enrich",
+        "credits_per_work_email",
+        "credits_per_personal_email",
+        "credits_per_phone",
+    )
+    readonly_fields = (
+        "pk",
+        "public_id",
+    )
+
+
 admin.site.register(BillingAccount, BillingAccountAdmin)
 admin.site.register(BillingAccountMember, BillingAccountMemberAdmin)
 admin.site.register(BillingAccountOwner, BillingAccountOwnerAdmin)
+admin.site.register(WKPlan, WKPlanAdmin)

@@ -80,6 +80,7 @@ THIRD_PARTY_APPS = [
     "allauth.socialaccount",
     "rest_framework",
     "graphene_django",
+    "djstripe",
     "django_celery_beat",
     "django_celery_results",
     "django_filters",
@@ -400,6 +401,21 @@ SERIALIZATION_MODULES = {
     "python": "tagulous.serializers.python",
     "yaml": "tagulous.serializers.pyyaml",
 }
+
+# djstripe
+# ------------------------------------------------------------------------------
+
+
+def billing_account_request_callback(request):
+    from whoweb.payments.models import BillingAccount
+
+    return BillingAccount.objects.filter(seats__user=request.user).first()
+
+
+DJSTRIPE_SUBSCRIBER_MODEL = "payments.BillingAccount"
+DJSTRIPE_SUBSCRIBER_MODEL_MIGRATION_DEPENDENCY = "0007_auto_20200228_1436"
+DJSTRIPE_SUBSCRIBER_MODEL_REQUEST_CALLBACK = billing_account_request_callback
+DJSTRIPE_USE_NATIVE_JSONFIELD = True
 
 # Your stuff...
 # ------------------------------------------------------------------------------

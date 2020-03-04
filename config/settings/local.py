@@ -78,6 +78,15 @@ INSTALLED_APPS += ["django_extensions"]  # noqa F405
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-eager-propagates
 CELERY_TASK_EAGER_PROPAGATES = True
 
+
+# djstripe
+# ------------------------------------------------------------------------------
+STRIPE_TEST_PUBLIC_KEY = env("STRIPE_TEST_PUBLIC_KEY", default=None)
+STRIPE_TEST_SECRET_KEY = env("STRIPE_TEST_SECRET_KEY", default=None)
+DJSTRIPE_WEBHOOK_SECRET = env("DJSTRIPE_WEBHOOK_SECRET", default=None)
+STRIPE_LIVE_MODE = False
+DJSTRIPE_WEBHOOK_VALIDATION = "retrieve_event"
+
 # Your stuff...
 # ------------------------------------------------------------------------------
 

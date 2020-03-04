@@ -5,11 +5,12 @@ from whoweb.contrib.graphene_django.fields import NodeRelatedField
 from whoweb.contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
 from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
 from whoweb.users.models import Seat, UserProfile, Group
-from .models import WKPlan
+from .models import WKPlan, BillingAccount, BillingAccountMember
 
 
 class PlanSerializer(IdOrHyperlinkedModelSerializer):
     id = serializers.CharField(source="public_id", read_only=True)
+    graph_id = NodeRelatedField("PlanNode", source="public_id")
 
     class Meta:
         model = WKPlan
@@ -17,11 +18,70 @@ class PlanSerializer(IdOrHyperlinkedModelSerializer):
         fields = (
             "url",
             "id",
+            "graph_id",
             "credits_per_enrich",
             "credits_per_work_email",
             "credits_per_personal_email",
             "credits_per_phone",
         )
+        read_only_fields = fields
+
+
+class BillingAccountSerializer(IdOrHyperlinkedModelSerializer):
+    id = serializers.CharField(source="public_id", read_only=True)
+    graph_id = NodeRelatedField("BillingAccountNode", source="public_id")
+
+    class Meta:
+        model = BillingAccount
+        extra_kwargs = {
+            "url": {"lookup_field": "public_id"},
+            "plan": {"lookup_field": "public_id"},
+        }
+        fields = ("url", "id", "graph_id", "plan", "credit_pool", "trial_credit_pool")
+        read_only_fields = fields
+
+
+class BillingAccountMemberSerializer(IdOrHyperlinkedModelSerializer):
+    id = serializers.CharField(source="public_id", read_only=True)
+    graph_id = NodeRelatedField("BillingAccountMemberNode", source="public_id")
+    billing_account = IdOrHyperlinkedRelatedField(
+        source="organization",
+        view_name="billing_account-detail",
+        lookup_field="public_id",
+        read_only=True,
+    )
+    plan = IdOrHyperlinkedRelatedField(
+        view_name="wkplan-detail", lookup_field="public_id", read_only=True,
+    )
+
+    class Meta:
+        model = BillingAccountMember
+        extra_kwargs = {
+            "url": {"lookup_field": "public_id"},
+            "seat": {"lookup_field": "public_id"},
+        }
+        fields = (
+            "url",
+            "id",
+            "graph_id",
+            "billing_account",
+            "seat",
+            "pool_credits",
+            "credits",
+            "trial_credits",
+        )
+        read_only_fields = fields
+
+
+class CreateSubscriptionSerializer(serializers.Serializer):
+    """A serializer used to create a Subscription."""
+
+    stripe_token = serializers.CharField(max_length=200)
+    plans = serializers.ListField(serializers.CharField(max_length=50))
+    charge_immediately = serializers.NullBooleanField(required=False)
+    tax_percent = serializers.DecimalField(
+        required=False, max_digits=5, decimal_places=2
+    )
 
 
 class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):

@@ -6,6 +6,7 @@ from django.db import models
 from django.db.models import F, Value
 from django.db.models.functions import Greatest
 from django.db.transaction import atomic
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from organizations.abstract import (
     AbstractOrganization,
@@ -28,6 +29,10 @@ if TYPE_CHECKING:
 
 
 class WKPlan(ObscureIdMixin, models.Model):
+    class Meta:
+        verbose_name = _("credit plan")
+        verbose_name_plural = _("credit plans")
+
     credits_per_enrich = models.IntegerField(
         default=5,
         verbose_name="Credits per Enrich",
@@ -154,6 +159,10 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
         record_transaction_refund_credits(
             amount, *args, evidence=evidence + (self,), **kwargs
         )
+
+    @cached_property
+    def email(self):
+        return self.owner.organization_user.seat.email
 
 
 class BillingAccountMember(ObscureIdMixin, AbstractOrganizationUser):

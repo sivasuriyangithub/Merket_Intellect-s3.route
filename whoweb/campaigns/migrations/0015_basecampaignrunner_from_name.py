@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('campaigns', '0014_auto_20200226_1833'),
+        ("campaigns", "0014_auto_20200226_1833"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='basecampaignrunner',
-            name='from_name',
-            field=models.CharField(blank=True, default='', max_length=255),
+            model_name="basecampaignrunner",
+            name="from_name",
+            field=models.CharField(blank=True, default="", max_length=255),
         ),
     ]

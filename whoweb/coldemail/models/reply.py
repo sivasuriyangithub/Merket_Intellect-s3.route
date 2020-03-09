@@ -42,7 +42,13 @@ class ReplyTo(TimeStampedModel):
                 )
                 created = False
             except cls.DoesNotExist:
-                instance = cls.objects.create(replyable_object=replyable_object)
+                if from_name := getattr(replyable_object, "from_name", None):
+                    instance = cls.objects.create(
+                        replyable_object=replyable_object, from_name=from_name
+                    )
+                else:
+                    instance = cls.objects.create(replyable_object=replyable_object)
+
                 instance = instance.publish()
                 created = True
         return instance, created
@@ -56,7 +62,9 @@ class ReplyTo(TimeStampedModel):
             forwarding_webhook=self.get_reply_webhook(),
         )
         if route_id := route.get("id"):
-            self.from_name = self.from_name or seat.user.get_full_name() or settings.FROM_NAME
+            self.from_name = (
+                self.from_name or seat.user.get_full_name() or settings.FROM_NAME
+            )
             self.coldemail_route_id = str(route_id)
             self.save()
             return self

@@ -352,7 +352,13 @@ class BaseCampaignRunner(
         return self.scroll.ensure_live(force=force)
 
     def set_reply_fields(self, campaign):
-        instance, created = ReplyTo.get_or_create_with_api(replyable_object=campaign)
+        if self.from_name:
+            defaults = {"from_name": self.from_name}
+        else:
+            defaults = {}
+        instance, created = ReplyTo.get_or_create_with_api(
+            replyable_object=campaign, defaults=defaults
+        )
         campaign.from_address = instance.from_address
         campaign.from_name = instance.from_name
         campaign.save()

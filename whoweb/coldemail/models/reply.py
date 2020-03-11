@@ -29,7 +29,7 @@ class ReplyTo(TimeStampedModel):
         return f"{self.pk} ({self.from_name} in {self.replyable_object})"
 
     @classmethod
-    def get_or_create_with_api(cls, replyable_object):
+    def get_or_create_with_api(cls, replyable_object, defaults=None):
         with transaction.atomic():
             replyable_type = ContentType.objects.get_for_model(
                 replyable_object.__class__
@@ -42,13 +42,11 @@ class ReplyTo(TimeStampedModel):
                 )
                 created = False
             except cls.DoesNotExist:
-                if from_name := getattr(replyable_object, "from_name", None):
-                    instance = cls.objects.create(
-                        replyable_object=replyable_object, from_name=from_name
-                    )
-                else:
-                    instance = cls.objects.create(replyable_object=replyable_object)
-
+                if defaults is None:
+                    defaults = {}
+                instance = cls.objects.create(
+                    replyable_object=replyable_object, **defaults
+                )
                 instance = instance.publish()
                 created = True
         return instance, created

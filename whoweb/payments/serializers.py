@@ -73,15 +73,26 @@ class BillingAccountMemberSerializer(IdOrHyperlinkedModelSerializer):
         read_only_fields = fields
 
 
+class PlanQuantitySerializer(serializers.Serializer):
+    stripe_id = serializers.CharField()
+    quantity = serializers.IntegerField()
+
+
 class CreateSubscriptionSerializer(serializers.Serializer):
     """A serializer used to create a Subscription."""
 
     stripe_token = serializers.CharField(max_length=200)
-    plans = serializers.ListField(serializers.CharField(max_length=50))
+    plan = serializers.CharField(max_length=50)
+    items = PlanQuantitySerializer()
     charge_immediately = serializers.NullBooleanField(required=False)
-    tax_percent = serializers.DecimalField(
-        required=False, max_digits=5, decimal_places=2
-    )
+
+
+class UpdateSubscriptionSerializer(serializers.Serializer):
+    """A serializer used to create a Subscription."""
+
+    plan = serializers.CharField(max_length=50)
+    items = PlanQuantitySerializer()
+    charge_immediately = serializers.NullBooleanField(required=False)
 
 
 class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):

@@ -8,6 +8,7 @@ from django.db.models.functions import Greatest
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
+from djstripe.models import Plan
 from organizations.abstract import (
     AbstractOrganization,
     AbstractOrganizationUser,
@@ -26,6 +27,28 @@ from whoweb.users.models import Seat, Group
 
 if TYPE_CHECKING:
     from whoweb.search.models import ResultProfile
+
+
+def patched_get_or_create(cls, **kwargs):
+    """ Get or create a Plan."""
+
+    try:
+        return Plan.objects.get(id=kwargs.get("id")), False
+    except Plan.DoesNotExist:
+        return cls.create(**kwargs), True
+
+
+Plan.get_or_create = classmethod(patched_get_or_create)
+
+
+def patched_create(cls, description=None, name=None, aggregate_usage=None, **kwargs):
+    if aggregate_usage:
+        kwargs["aggregate_usage"] = aggregate_usage
+    return Plan._original_create(**kwargs)
+
+
+Plan._original_create = Plan.create
+Plan.create = classmethod(patched_create)
 
 
 class WKPlan(ObscureIdMixin, models.Model):
@@ -95,6 +118,14 @@ class WKPlan(ObscureIdMixin, models.Model):
                 (phone and not cached_phone) * self.credits_per_phone,
             ]
         )
+
+
+class WKPlanPreset(WKPlan):
+    stripe_plans = models.ManyToManyField(Plan, limit_choices_to={"active": True})
+
+    class Meta:
+        verbose_name = _("credit plan factory")
+        verbose_name_plural = _("credit plan factories")
 
 
 class BillingAccount(ObscureIdMixin, AbstractOrganization):

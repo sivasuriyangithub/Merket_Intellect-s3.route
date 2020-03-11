@@ -1,4 +1,5 @@
 from django.contrib import admin
+from djstripe.models import Plan
 from organizations.base_admin import BaseOrganizationAdmin
 from organizations.base_admin import BaseOrganizationOwnerAdmin
 from organizations.base_admin import BaseOrganizationUserAdmin
@@ -13,6 +14,7 @@ from whoweb.payments.models import (
     BillingAccount,
     BillingAccountMember,
     WKPlan,
+    WKPlanPreset,
 )
 
 
@@ -87,7 +89,17 @@ class WKPlanAdmin(admin.ModelAdmin):
     )
 
 
+class StripePlanInline(admin.TabularInline):
+    model = WKPlanPreset.stripe_plans.through
+    extra = 1
+
+
+class WKPlanPresetAdmin(WKPlanAdmin):
+    inlines = [StripePlanInline]
+
+
 admin.site.register(BillingAccount, BillingAccountAdmin)
 admin.site.register(BillingAccountMember, BillingAccountMemberAdmin)
 admin.site.register(BillingAccountOwner, BillingAccountOwnerAdmin)
 admin.site.register(WKPlan, WKPlanAdmin)
+admin.site.register(WKPlanPreset, WKPlanPresetAdmin)

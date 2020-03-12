@@ -1,28 +1,32 @@
+from copy import copy
 from typing import Optional
 from typing import TYPE_CHECKING
 
-
+from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.models import F, Value
 from django.db.models.functions import Greatest
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
+from django.utils.timezone import now
 from django.utils.translation import ugettext_lazy as _
 from djstripe.models import Plan
+from model_utils.models import SoftDeletableModel
 from organizations.abstract import (
     AbstractOrganization,
     AbstractOrganizationUser,
     AbstractOrganizationOwner,
 )
 from organizations.signals import user_added
+from slugify import slugify
 
-from whoweb.contrib.fields import ObscureIdMixin
 from whoweb.accounting.actions import create_transaction, Debit, Credit
-from whoweb.accounting.models import Ledger, LedgerEntry
 from whoweb.accounting.ledgers import (
     wkcredits_liability_ledger,
     wkcredits_fulfilled_ledger,
 )
+from whoweb.accounting.models import Ledger, LedgerEntry
+from whoweb.contrib.fields import ObscureIdMixin
 from whoweb.users.models import Seat, Group
 
 if TYPE_CHECKING:
@@ -51,10 +55,9 @@ Plan._original_create = Plan.create
 Plan.create = classmethod(patched_create)
 
 
-class WKPlan(ObscureIdMixin, models.Model):
+class AbstractPlanModel(ObscureIdMixin, models.Model):
     class Meta:
-        verbose_name = _("credit plan")
-        verbose_name_plural = _("credit plans")
+        abstract = True
 
     credits_per_enrich = models.IntegerField(
         default=5,
@@ -76,6 +79,12 @@ class WKPlan(ObscureIdMixin, models.Model):
         verbose_name="Credits per Phone Derivation",
         help_text="Number of credits charged for a service call returning any phone numbers.",
     )
+
+
+class WKPlan(SoftDeletableModel, AbstractPlanModel):
+    class Meta:
+        verbose_name = _("credit plan")
+        verbose_name_plural = _("credit plans")
 
     def compute_credit_use_types(self, graded_emails, graded_phones):
         work = False
@@ -120,12 +129,20 @@ class WKPlan(ObscureIdMixin, models.Model):
         )
 
 
-class WKPlanPreset(WKPlan):
+class WKPlanPreset(AbstractPlanModel):
     stripe_plans = models.ManyToManyField(Plan, limit_choices_to={"active": True})
 
     class Meta:
         verbose_name = _("credit plan factory")
         verbose_name_plural = _("credit plan factories")
+
+    def create(self):
+        return WKPlan.objects.create(
+            credits_per_enrich=self.credits_per_enrich,
+            credits_per_work_email=self.credits_per_work_email,
+            credits_per_personal_email=self.credits_per_personal_email,
+            credits_per_phone=self.credits_per_phone,
+        )
 
 
 class BillingAccount(ObscureIdMixin, AbstractOrganization):
@@ -134,7 +151,8 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
         Seat, related_name="billing_account", through="BillingAccountMember"
     )
 
-    plan = models.ForeignKey(WKPlan, on_delete=models.SET_NULL, null=True)
+    plan = models.OneToOneField(WKPlan, on_delete=models.SET_NULL, null=True)
+    plan_history = JSONField(null=True, blank=True, default=dict)
     credit_pool = models.IntegerField(default=0, blank=True)
     trial_credit_pool = models.IntegerField(default=0, blank=True)
 
@@ -194,6 +212,13 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
     @cached_property
     def email(self):
         return self.owner.organization_user.seat.email
+
+    def update_plan(self, new_plan):
+        if self.plan is not None:
+            old_plan = copy(self.plan.pk)
+            self.plan_history[old_plan] = now()
+        self.plan = new_plan
+        self.save()
 
 
 class BillingAccountMember(ObscureIdMixin, AbstractOrganizationUser):
@@ -263,7 +288,6 @@ class BillingAccountOwner(AbstractOrganizationOwner):
 def record_transaction_consume_credits(
     amount, initiated_by, evidence=(), notes="", transaction_kind=None, posted_at=None
 ):
-
     create_transaction(
         user=initiated_by,
         ledger_entries=(

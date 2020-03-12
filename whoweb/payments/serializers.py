@@ -82,6 +82,12 @@ class CreateSubscriptionSerializer(serializers.Serializer):
     """A serializer used to create a Subscription."""
 
     stripe_token = serializers.CharField(max_length=200)
+    billing_account = IdOrHyperlinkedRelatedField(
+        view_name="billing_account-detail",
+        lookup_field="public_id",
+        queryset=BillingAccount.objects.all(),
+        required=True,
+    )
     plan = serializers.CharField(max_length=50)
     items = PlanQuantitySerializer()
     charge_immediately = serializers.NullBooleanField(required=False)
@@ -90,6 +96,12 @@ class CreateSubscriptionSerializer(serializers.Serializer):
 class UpdateSubscriptionSerializer(serializers.Serializer):
     """A serializer used to create a Subscription."""
 
+    billing_account = IdOrHyperlinkedRelatedField(
+        view_name="billing_account-detail",
+        lookup_field="public_id",
+        queryset=BillingAccount.objects.all(),
+        required=True,
+    )
     plan = serializers.CharField(max_length=50)
     items = PlanQuantitySerializer()
     charge_immediately = serializers.NullBooleanField(required=False)
@@ -128,6 +140,13 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
         write_only=True, required=False
     )
     credits_per_phone = serializers.IntegerField(write_only=True, required=False)
+    billing_account = IdOrHyperlinkedRelatedField(
+        view_name="billing_account-detail",
+        source="billing.account",
+        lookup_field="public_id",
+        default=None,
+        read_only=True,
+    )
 
     class Meta:
         model = Seat
@@ -141,6 +160,7 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
             "url",
             "id",
             "graph_id",
+            "billing_account",
             "user",
             "xperweb_id",
             "group_name",

@@ -96,6 +96,7 @@ class SimpleDripCampaignRunnerSerializer(
             "tracking_params",
             "use_credits_method",
             "open_credit_budget",
+            "from_name",
         ]
         read_only_fields = [
             "drips",
@@ -149,6 +150,7 @@ class IntervalCampaignRunnerSerializer(
             "tracking_params",
             "interval_hours",
             "max_sends",
+            "from_name",
         ]
         read_only_fields = [
             "drips",

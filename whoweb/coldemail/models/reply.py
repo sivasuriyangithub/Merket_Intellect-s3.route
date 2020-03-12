@@ -29,7 +29,7 @@ class ReplyTo(TimeStampedModel):
         return f"{self.pk} ({self.from_name} in {self.replyable_object})"
 
     @classmethod
-    def get_or_create_with_api(cls, replyable_object):
+    def get_or_create_with_api(cls, replyable_object, defaults=None):
         with transaction.atomic():
             replyable_type = ContentType.objects.get_for_model(
                 replyable_object.__class__
@@ -42,7 +42,11 @@ class ReplyTo(TimeStampedModel):
                 )
                 created = False
             except cls.DoesNotExist:
-                instance = cls.objects.create(replyable_object=replyable_object)
+                if defaults is None:
+                    defaults = {}
+                instance = cls.objects.create(
+                    replyable_object=replyable_object, **defaults
+                )
                 instance = instance.publish()
                 created = True
         return instance, created
@@ -56,8 +60,9 @@ class ReplyTo(TimeStampedModel):
             forwarding_webhook=self.get_reply_webhook(),
         )
         if route_id := route.get("id"):
-            from_name = seat.user.get_full_name() or settings.FROM_NAME
-            self.from_name = from_name
+            self.from_name = (
+                self.from_name or seat.user.get_full_name() or settings.FROM_NAME
+            )
             self.coldemail_route_id = str(route_id)
             self.save()
             return self

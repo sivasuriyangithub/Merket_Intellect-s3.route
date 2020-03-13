@@ -190,7 +190,7 @@ def test_do_post_pages_completion(
     compute_charges.return_value = progress
     export.do_post_pages_completion()
     export.refresh_from_db()
-    assert export.seat.billing.seat_credits == refund
+    assert export.billing_seat.seat_credits == refund
     assert export.status == 4
 
 
@@ -205,15 +205,15 @@ def test_lifecyle_charges(
     processing_signatures,
     query_contact_invites_defer_validation,
 ):
-    seat = BillingAccountMemberFactory(seat_credits=1500000).seat
+    seat = BillingAccountMemberFactory(seat_credits=1500000)
     export = SearchExport.create_from_query(
-        seat=seat, query=query_contact_invites_defer_validation, charge=True
+        billing_seat=seat, query=query_contact_invites_defer_validation, charge=True
     )
     export.refresh_from_db()
     assert export.target == 5000
     assert export.charged == 1500000
     seat.refresh_from_db()
-    assert seat.billing.credits == 0
+    assert seat.credits == 0
 
     get_validation_results.return_value = [
         {"profile_id": "1", "email": "1@acme.com", "grade": "A+"}
@@ -223,7 +223,7 @@ def test_lifecyle_charges(
 
     assert export.charged == 10000
     seat.refresh_from_db()
-    assert seat.billing.credits == 1490000
+    assert seat.credits == 1490000
 
 
 @pytest.mark.parametrize(
@@ -254,7 +254,7 @@ def test_do_post_validation_completion(
     export.do_post_validation_completion()
     assert cache_mock.call_count == 1
     export.refresh_from_db()
-    assert export.seat.billing.seat_credits == this_refund  # factory default creds == 0
+    assert export.billing_seat.seat_credits == this_refund  # factory default creds == 0
     assert export.status == 16
 
 

@@ -1,3 +1,4 @@
+from djstripe.models import Subscription, SubscriptionItem, Plan
 from rest_framework import serializers
 from slugify import slugify
 
@@ -27,9 +28,54 @@ class PlanSerializer(IdOrHyperlinkedModelSerializer):
         read_only_fields = fields
 
 
+class StripePlanSerializer(serializers.ModelSerializer):
+    """A serializer used for the Plan model."""
+
+    product = serializers.CharField(source="product.name", read_only=True)
+
+    class Meta:
+        """Model class options."""
+
+        model = Plan
+        fields = [
+            "amount",
+            "currency",
+            "interval",
+            "interval_count",
+            "product",
+            "trial_period_days",
+            "statement_descriptor",
+        ]
+
+
+class SubscriptionItemSerializer(serializers.ModelSerializer):
+    """A serializer used for the SubscriptionItem model."""
+
+    class Meta:
+        """Model class options."""
+
+        model = SubscriptionItem
+        exclude = ["subscription"]
+
+
+class SubscriptionSerializer(serializers.ModelSerializer):
+    """A serializer used for the Subscription model."""
+
+    can_charge = serializers.BooleanField(read_only=True)
+    is_valid = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        """Model class options."""
+
+        model = Subscription
+        exclude = ["default_tax_rates"]
+
+
 class BillingAccountSerializer(IdOrHyperlinkedModelSerializer):
     id = serializers.CharField(source="public_id", read_only=True)
     graph_id = NodeRelatedField("BillingAccountNode", source="public_id")
+    subscription = SubscriptionSerializer(read_only=True)
+    plan = PlanSerializer(read_only=True)
 
     class Meta:
         model = BillingAccount
@@ -37,7 +83,16 @@ class BillingAccountSerializer(IdOrHyperlinkedModelSerializer):
             "url": {"lookup_field": "public_id"},
             "plan": {"lookup_field": "public_id"},
         }
-        fields = ("url", "id", "graph_id", "plan", "credit_pool", "trial_credit_pool")
+        depth = 2
+        fields = (
+            "url",
+            "id",
+            "graph_id",
+            "plan",
+            "credit_pool",
+            "trial_credit_pool",
+            "subscription",
+        )
         read_only_fields = fields
 
 
@@ -46,12 +101,9 @@ class BillingAccountMemberSerializer(IdOrHyperlinkedModelSerializer):
     graph_id = NodeRelatedField("BillingAccountMemberNode", source="public_id")
     billing_account = IdOrHyperlinkedRelatedField(
         source="organization",
-        view_name="billing_account-detail",
+        view_name="billingaccount-detail",
         lookup_field="public_id",
         read_only=True,
-    )
-    plan = IdOrHyperlinkedRelatedField(
-        view_name="wkplan-detail", lookup_field="public_id", read_only=True,
     )
 
     class Meta:
@@ -81,7 +133,7 @@ class PlanQuantitySerializer(serializers.Serializer):
 class CreateSubscriptionSerializer(serializers.Serializer):
     """A serializer used to create a Subscription."""
 
-    stripe_token = serializers.CharField(max_length=200)
+    stripe_token = serializers.CharField(max_length=200, required=False)
     billing_account = IdOrHyperlinkedRelatedField(
         view_name="billing_account-detail",
         lookup_field="public_id",
@@ -96,6 +148,7 @@ class CreateSubscriptionSerializer(serializers.Serializer):
 class UpdateSubscriptionSerializer(serializers.Serializer):
     """A serializer used to create a Subscription."""
 
+    stripe_token = serializers.CharField(max_length=200, required=False)
     billing_account = IdOrHyperlinkedRelatedField(
         view_name="billing_account-detail",
         lookup_field="public_id",
@@ -105,6 +158,16 @@ class UpdateSubscriptionSerializer(serializers.Serializer):
     plan = serializers.CharField(max_length=50)
     items = PlanQuantitySerializer()
     charge_immediately = serializers.NullBooleanField(required=False)
+
+
+class AddPaymentSourceSerializer(serializers.Serializer):
+    stripe_token = serializers.CharField(max_length=200)
+    billing_account = IdOrHyperlinkedRelatedField(
+        view_name="billing_account-detail",
+        lookup_field="public_id",
+        queryset=BillingAccount.objects.all(),
+        required=True,
+    )
 
 
 class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
@@ -236,3 +299,89 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
             instance.billing.organization.plan = plan
             instance.billing.organization.save()
         return instance
+
+
+class AdminBillingAccountSerializer(IdOrHyperlinkedModelSerializer):
+    created_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    graph_id = NodeRelatedField("SeatNode", source="public_id")
+    id = serializers.CharField(source="public_id", read_only=True)
+    network = IdOrHyperlinkedRelatedField(
+        source="organization",
+        view_name="group-detail",
+        lookup_field="public_id",
+        read_only=True,
+    )
+    user = IdOrHyperlinkedRelatedField(
+        source="user_profile",
+        view_name="userprofile-detail",
+        lookup_field="public_id",
+        read_only=True,
+    )
+    billing_account = IdOrHyperlinkedRelatedField(
+        view_name="billing_account-detail",
+        source="billing.account",
+        lookup_field="public_id",
+        default=None,
+        read_only=True,
+    )
+
+    xperweb_id = serializers.CharField(write_only=True, required=False)
+    group_name = serializers.CharField(
+        write_only=True, allow_null=True, allow_blank=True, required=False
+    )
+    group_id = serializers.CharField(write_only=True, required=False)
+    first_name = serializers.CharField(
+        write_only=True, required=False, allow_blank=True
+    )
+    last_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    email = serializers.EmailField(write_only=True, required=False)
+
+    class Meta:
+        model = Seat
+        extra_kwargs = {
+            "url": {"lookup_field": "public_id"},
+        }
+        fields = [
+            "display_name",
+            "network",
+            "created_by",
+            "url",
+            "id",
+            "graph_id",
+            "billing_account",
+            "user",
+            "xperweb_id",
+            "group_name",
+            "group_id",
+            "first_name",
+            "last_name",
+            "email",
+        ]
+
+    def create(self, validated_data):
+        from whoweb.payments.models import BillingAccount, WKPlan
+
+        group_id = validated_data["group_id"]
+        group_name = validated_data.get("group_name") or group_id
+        xperweb_id = validated_data["xperweb_id"]
+        email = validated_data["email"]
+        first_name = validated_data["first_name"]
+        last_name = validated_data["last_name"]
+        profile, _ = UserProfile.get_or_create(
+            username=xperweb_id, email=email, first_name=first_name, last_name=last_name
+        )
+        group, _ = Group.objects.get_or_create(name=group_name, slug=slugify(group_id))
+        seat, _ = group.get_or_add_user(
+            user=profile.user, display_name=profile.user.get_full_name()
+        )
+        if group_id == "public":
+            billing_account_name = f"{xperweb_id} Primary Billing Account"
+        else:
+            billing_account_name = f"{group_name} Primary Billing Account"
+        billing_account, _ = BillingAccount.objects.get_or_create(
+            name=billing_account_name, slug=slugify(billing_account_name), group=group,
+        )
+        billing_member, _ = billing_account.get_or_add_user(
+            user=profile.user, seat=seat
+        )
+        return seat

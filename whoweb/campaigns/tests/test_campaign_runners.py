@@ -40,7 +40,7 @@ def test_create_campaignlist_from_runner(query_contact_invites_defer_validation)
     )
     campaign_list = runner.create_campaign_list()
     assert campaign_list.query == runner.query
-    assert campaign_list.seat == runner.seat
+    assert campaign_list.billing_seat == runner.billing_seat
     assert campaign_list.origin == campaign_list.ORIGIN.system
 
 
@@ -54,7 +54,7 @@ def test_create_campaign_from_runner(list_mock, reply_fields):
     campaign = runner.create_campaign()
 
     assert campaign.title == runner.title + " - m0"
-    assert campaign.seat == runner.seat
+    assert campaign.billing_seat == runner.billing_seat
     assert campaign.message, runner.messages.first()
     assert campaign.campaign_list, campaign_list
     assert campaign in runner.campaigns.all()

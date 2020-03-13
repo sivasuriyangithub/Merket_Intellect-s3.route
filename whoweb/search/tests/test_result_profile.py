@@ -45,7 +45,7 @@ def test_load_unload_derived_profile():
 @pytest.mark.django_db
 @patch("whoweb.core.router.Router.derive_email")
 def test_derive_profile(derive_mock, su_client):
-    seat = BillingAccountMemberFactory(seat_credits=10000).seat
+    seat = BillingAccountMemberFactory(seat_credits=10000)
     derive_mock.return_value = done[0]
     resp = su_client.post(
         "/ww/api/profiles/derive/",
@@ -54,7 +54,7 @@ def test_derive_profile(derive_mock, su_client):
             "last_name": done[0]["last_name"],
             "company": done[0]["company"],
             "id": done[0]["profile_id"],
-            "seat": seat.public_id,
+            "billing_seat": seat.public_id,
         },
         format="json",
     )
@@ -67,14 +67,14 @@ def test_derive_profile(derive_mock, su_client):
 @pytest.mark.django_db
 @patch("whoweb.core.router.Router.derive_email")
 def test_derive_profile_cached_charges(derive_mock, su_client):
-    seat = BillingAccountMemberFactory(seat_credits=10000).seat
+    seat = BillingAccountMemberFactory(seat_credits=10000)
     derive_mock.return_value = done[0]
     payload = {
         "first_name": done[0]["first_name"],
         "last_name": done[0]["last_name"],
         "company": done[0]["company"],
         "id": done[0]["profile_id"],
-        "seat": seat.public_id,
+        "billing_seat": seat.public_id,
     }
     resp = su_client.post("/ww/api/profiles/derive/", payload, format="json",)
     assert resp.status_code == 201

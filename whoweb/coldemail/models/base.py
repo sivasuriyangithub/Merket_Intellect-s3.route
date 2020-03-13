@@ -1,6 +1,5 @@
 from typing import Union
 
-import tagulous
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from model_utils import Choices
@@ -16,6 +15,7 @@ from whoweb.coldemail.api.resource import (
 )
 from whoweb.contrib.fields import ObscureIdMixin
 from whoweb.core.models import EventLoggingModel
+from whoweb.payments.models import BillingAccountMember
 from whoweb.users.models import Seat
 
 
@@ -38,6 +38,9 @@ class ColdemailBaseModel(
         (8, "paused", "Paused"),
     )
     seat = models.ForeignKey(Seat, on_delete=models.CASCADE, null=True, blank=True)
+    billing_seat = models.ForeignKey(
+        BillingAccountMember, on_delete=models.CASCADE, null=True, blank=True
+    )
 
     status = models.IntegerField(
         _("status"), db_index=True, choices=STATUS, blank=True, default=STATUS.created

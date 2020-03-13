@@ -35,7 +35,7 @@ from whoweb.contrib.fields import CompressedBinaryJSONField
 from whoweb.contrib.postgres.fields import EmbeddedModelField
 from whoweb.core.models import EventLoggingModel
 from whoweb.core.router import router, external_link
-from whoweb.payments.models import WKPlan
+from whoweb.payments.models import WKPlan, BillingAccountMember
 from whoweb.search.events import (
     GENERATING_PAGES,
     FINALIZING,
@@ -124,6 +124,9 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     )
 
     seat = models.ForeignKey(Seat, on_delete=models.CASCADE, null=True, blank=True)
+    billing_seat = models.ForeignKey(
+        BillingAccountMember, on_delete=models.CASCADE, null=True, blank=True
+    )
     scroll = models.ForeignKey(ScrollSearch, on_delete=models.SET_NULL, null=True)
     uuid = models.UUIDField(default=uuid.uuid4, db_index=True, blank=True)
     query = EmbeddedModelField(
@@ -160,14 +163,14 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         return "%s (%s) %s" % (self.__class__.__name__, self.pk, self.uuid.hex)
 
     @classmethod
-    def create_from_query(cls, seat: Seat, query: dict, **kwargs):
-        export = cls(seat=seat, query=query, **kwargs)
+    def create_from_query(cls, billing_seat: Seat, query: dict, **kwargs):
+        export = cls(billing_seat=billing_seat, query=query, **kwargs)
         if not export.should_derive_email:
             export.charge = False
         # save here because export needs a pk to be added as evidence to transaction below
         export = export._set_target(save=True)
         if export.charge:
-            plan: WKPlan = seat.billing.plan
+            plan: WKPlan = billing_seat.plan
             if not plan:
                 raise SubscriptionError("No plan or subscription found for user.")
 
@@ -181,13 +184,15 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             if FilteredSearchQuery.CONTACT_FILTER_CHOICES.PHONE in filters:
                 fee_per_row += plan.credits_per_phone
             credits_to_charge = export.target * fee_per_row  # maximum possible
-            charged = seat.billing.consume_credits(
-                amount=credits_to_charge, initiated_by=seat.user, evidence=(export,)
+            charged = billing_seat.consume_credits(
+                amount=credits_to_charge,
+                initiated_by=billing_seat.user,
+                evidence=(export,),
             )
             if not charged:
                 raise SubscriptionError(
                     f"Not enough credits to complete this export. "
-                    f"{seat.billing.credits} available but {credits_to_charge} required"
+                    f"{billing_seat.credits} available but {credits_to_charge} required"
                 )
         tasks = export.processing_signatures()
 
@@ -340,7 +345,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     def ensure_search_interface(self, force=False):
         if self.scroll is None:
             search, created = ScrollSearch.get_or_create(
-                query=self.query, user_id=self.seat_id
+                query=self.query, user_id=self.billing_seat_id
             )
             self.scroll = search
             self.save()
@@ -472,7 +477,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     def compute_charges(self):
         charges = 0
         profiles = self.get_profiles()
-        plan: WKPlan = self.seat.billing.plan
+        plan: WKPlan = self.billing_seat.plan
         if self.charge:
             return sum(
                 plan.compute_contact_credit_use(profile=profile)
@@ -633,9 +638,9 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         if export.charge and not export.defer_validation:
             charges = export.compute_charges()
             credits_to_refund = export.charged - charges
-            export.seat.billing.refund_credits(
+            export.billing_seat.refund_credits(
                 amount=credits_to_refund,
-                initiated_by=export.seat.user,
+                initiated_by=export.billing_seat.user,
                 evidence=(export,),
                 notes="Computed for inline-validated export at post page completion stage.",
             )
@@ -658,9 +663,9 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         if export.charge:
             charges = export.compute_charges()
             credits_to_refund = export.charged - charges
-            export.seat.billing.refund_credits(
+            export.billing_seat.refund_credits(
                 amount=credits_to_refund,
-                initiated_by=export.seat.user,
+                initiated_by=export.billing_seat.user,
                 evidence=(export,),
                 notes="Computed for deferred-validation export at post validation stage.",
             )
@@ -845,7 +850,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             return
         if export.sent:
             return
-        email = self.seat.email
+        email = self.billing_seat.seat.email
         link = external_link(self.get_absolute_url())
         json_link = external_link(self.get_absolute_url(filetype="json"))
         subject = "Your WhoKnows Export Results"

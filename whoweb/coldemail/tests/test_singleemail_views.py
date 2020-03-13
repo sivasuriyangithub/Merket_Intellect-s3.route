@@ -22,8 +22,8 @@ TEST_QUERY = {
 
 
 def test_create_single_email(su_client):
-    seat = BillingAccountMemberFactory().seat
-    msg = CampaignMessageFactory(seat=seat)
+    seat = BillingAccountMemberFactory()
+    msg = CampaignMessageFactory(billing_seat=seat)
     resp = su_client.post(
         "/ww/api/single_emails/",
         {
@@ -34,7 +34,7 @@ def test_create_single_email(su_client):
             "from_name": "Joe Engels",
             "use_credits_method": "2",
             "send_date": datetime.utcnow(),
-            "seat": seat.public_id,
+            "billing_seat": seat.public_id,
         },
         format="json",
     )
@@ -48,8 +48,8 @@ def test_create_single_email(su_client):
 
 
 def test_update_single_email(su_client):
-    seat = BillingAccountMemberFactory().seat
-    msg = CampaignMessageFactory(seat=seat)
+    seat = BillingAccountMemberFactory()
+    msg = CampaignMessageFactory(billing_seat=seat)
     resp = su_client.post(
         "/ww/api/single_emails/",
         {
@@ -60,7 +60,7 @@ def test_update_single_email(su_client):
             "from_name": "Joe Engels",
             "use_credits_method": "2",
             "send_date": "2020-02-11T04:03:22",
-            "seat": seat.public_id,
+            "billing_seat": seat.public_id,
         },
         format="json",
     )

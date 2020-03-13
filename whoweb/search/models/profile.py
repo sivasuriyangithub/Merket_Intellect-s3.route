@@ -13,6 +13,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from model_utils.models import TimeStampedModel
 
+from whoweb.payments.models import BillingAccountMember
 from whoweb.core.router import router
 from whoweb.core.utils import PERSONAL_DOMAINS
 from whoweb.users.models import Seat
@@ -510,18 +511,18 @@ profile_load_config = dacite.Config(
 
 
 class DerivationCache(TimeStampedModel):
-    seat = models.ForeignKey(Seat, on_delete=models.CASCADE)
+    billing_seat = models.ForeignKey(BillingAccountMember, on_delete=models.CASCADE)
     profile_id = models.CharField(max_length=180)
     emails = JSONField(default=list)
     phones = JSONField(default=list)
 
     class Meta:
-        unique_together = ("profile_id", "seat")
+        unique_together = ("profile_id", "billing_seat")
 
     @classmethod
-    def get_or_charge(cls, seat: Seat, profile: ResultProfile):
+    def get_or_charge(cls, billing_seat: BillingAccountMember, profile: ResultProfile):
         obj, created = DerivationCache.objects.get_or_create(
-            seat=seat,
+            billing_seat=billing_seat,
             profile_id=profile.id,
             defaults={
                 "emails": [asdict(email) for email in profile.graded_emails],
@@ -529,11 +530,11 @@ class DerivationCache(TimeStampedModel):
             },
         )
         if created:
-            charge = seat.billing.plan.compute_contact_credit_use(profile=profile)
+            charge = billing_seat.plan.compute_contact_credit_use(profile=profile)
         else:
             emails = [GradedEmail.from_json(email) for email in obj.emails]
             phones = [GradedPhone.from_json(phone) for phone in obj.phones]
-            charge = seat.billing.plan.compute_additional_contact_info_credit_use(
+            charge = billing_seat.plan.compute_additional_contact_info_credit_use(
                 cached_emails=emails, cached_phones=phones, profile=profile
             )
             if len(profile.graded_emails) > len(obj.emails):

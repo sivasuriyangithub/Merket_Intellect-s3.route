@@ -10,7 +10,7 @@ from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import ugettext_lazy as _
-from djstripe.models import Plan
+from djstripe.models import Plan, Customer
 from model_utils.models import SoftDeletableModel
 from organizations.abstract import (
     AbstractOrganization,
@@ -18,12 +18,12 @@ from organizations.abstract import (
     AbstractOrganizationOwner,
 )
 from organizations.signals import user_added
-from slugify import slugify
 
 from whoweb.accounting.actions import create_transaction, Debit, Credit
 from whoweb.accounting.ledgers import (
     wkcredits_liability_ledger,
     wkcredits_fulfilled_ledger,
+    wkcredits_sold_ledger,
 )
 from whoweb.accounting.models import Ledger, LedgerEntry
 from whoweb.contrib.fields import ObscureIdMixin
@@ -160,6 +160,22 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
         verbose_name = _("billing account")
         verbose_name_plural = _("billing accounts")
 
+    @cached_property
+    def email(self):
+        return self.owner.organization_user.seat.email
+
+    @property
+    def credits(self) -> int:
+        return self.credit_pool + sum(
+            self.organization_users.filter(pool_credits=False).values_list(
+                "seat_credits", flat=True
+            )
+        )
+
+    def subscription(self):
+        customer, _created = Customer.get_or_create(subscriber=self)
+        return customer.subscription
+
     def get_or_add_user(self, user, **kwargs):
         """
         Adds a new user to the organization, and if it's the first user makes
@@ -209,14 +225,62 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
             amount, *args, evidence=evidence + (self,), **kwargs
         )
 
-    @cached_property
-    def email(self):
-        return self.owner.organization_user.seat.email
+    @atomic
+    def apply_credits(self, amount, *args, evidence=(), **kwargs):
+        self.credit_pool = F("credit_pool") + amount
+        self.save()
+        record_transaction_sold_credits(
+            amount, *args, evidence=evidence + (self,), **kwargs
+        )
 
-    def update_plan(self, new_plan):
+    @atomic
+    def allocate_credits_to_member(
+        self, member: "BillingAccountMember", amount: int, trial_amount=0
+    ):
+        updated = BillingAccount.objects.filter(
+            pk=self.pk, credit_pool__gte=amount
+        ).update(credit_pool=F("credit_pool") - amount,)
+        if updated:
+            member.pool_credits = False
+            member.seat_credits = F("seat_credits") + amount
+            member.seat_trial_credits = F("seat_trial_credits") + trial_amount
+            member.save()
+        return bool(updated)
+
+    @atomic
+    def revoke_credits_from_member(self, member: "BillingAccountMember", amount: int):
+        updated = BillingAccountMember.objects.filter(
+            pk=member.pk, seat_credits__gte=amount
+        ).update(
+            seat_credits=F("seat_credits") - amount,
+            seat_trial_credits=Greatest(F("seat_trial_credits") - amount, Value(0)),
+        )
+        if updated:
+            self.credit_pool = F("credit_pool") + amount
+            self.save()
+        return bool(updated)
+
+    def set_member_credits(self, member: "BillingAccountMember", target: int):
+        with atomic():
+            locked_member = BillingAccountMember.objects.filter(
+                pk=member.pk
+            ).select_for_update(of=("self",))
+            adjustment = target - locked_member.seat_credits
+            # TODO: not sure if update can be done in subtransaction; test!
+            if adjustment > 0:
+                return self.allocate_credits_to_member(member, amount=adjustment)
+            elif adjustment < 0:
+                return self.revoke_credits_from_member(member, amount=adjustment)
+            else:
+                return True
+
+    def update_plan(self, new_plan, with_credits=None):
         if self.plan is not None:
             old_plan = copy(self.plan.pk)
             self.plan_history[old_plan] = now()
+            if with_credits is not None:
+                if with_credits > self.credits:
+                    self.purchase_credits(with_credits - self.credits)
         self.plan = new_plan
         self.save()
 
@@ -272,6 +336,10 @@ class BillingAccountMember(ObscureIdMixin, AbstractOrganizationUser):
 
     @atomic
     def refund_credits(self, amount, *args, evidence=(), **kwargs):
+        if self.pool_credits:
+            return self.organization.refund_credits(
+                amount, *args, evidence=evidence + (self,), **kwargs
+            )
         self.seat_credits = F("seat_credits") + amount
         self.save()
         record_transaction_refund_credits(
@@ -309,6 +377,22 @@ def record_transaction_refund_credits(
         ledger_entries=(
             LedgerEntry(ledger=wkcredits_liability_ledger(), amount=Credit(amount)),
             LedgerEntry(ledger=wkcredits_fulfilled_ledger(), amount=Debit(amount)),
+        ),
+        evidence=evidence,
+        notes=notes,
+        kind=transaction_kind,
+        posted_timestamp=posted_at,
+    )
+
+
+def record_transaction_sold_credits(
+    amount, initiated_by, evidence=(), notes="", transaction_kind=None, posted_at=None
+):
+    create_transaction(
+        user=initiated_by,
+        ledger_entries=(
+            LedgerEntry(ledger=wkcredits_sold_ledger(), amount=Credit(amount)),
+            LedgerEntry(ledger=wkcredits_liability_ledger(), amount=Credit(amount)),
         ),
         evidence=evidence,
         notes=notes,

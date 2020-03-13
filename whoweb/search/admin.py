@@ -201,7 +201,7 @@ class ExportAdmin(ActionsModelAdmin):
     )
     search_fields = ("seat__user__email", "seat__user__username", "pk", "uuid__exact")
     fieldsets = (
-        (None, {"fields": ("uuid", "seat", "query", "scroller",)}),
+        (None, {"fields": ("uuid", "billing_seat", "query", "scroller",)}),
         (
             "Status Fields",
             {

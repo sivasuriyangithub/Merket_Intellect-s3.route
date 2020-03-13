@@ -1,8 +1,6 @@
 from django.http import Http404
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 
-from whoweb.core.router import router
 from whoweb.accounting.serializers import TransactionSerializer
 from whoweb.contrib.rest_framework.fields import (
     MultipleChoiceListField,
@@ -10,6 +8,8 @@ from whoweb.contrib.rest_framework.fields import (
     IdOrHyperlinkedRelatedField,
 )
 from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
+from whoweb.core.router import router
+from whoweb.payments.models import BillingAccountMember
 from whoweb.search.models import (
     SearchExport,
     FilteredSearchQuery,
@@ -84,10 +84,10 @@ class SearchExportSerializer(IdOrHyperlinkedModelSerializer):
     status_name = serializers.SerializerMethodField()
     for_campaign = serializers.BooleanField(source="uploadable", required=False)
     transactions = TransactionSerializer(many=True, read_only=True)
-    seat = IdOrHyperlinkedRelatedField(
-        view_name="seat-detail",
+    billing_seat = IdOrHyperlinkedRelatedField(
+        view_name="billingaccountmember-detail",
         lookup_field="public_id",
-        queryset=Seat.objects.all(),
+        queryset=BillingAccountMember.objects.all(),
         required=False,
         allow_null=True,
     )
@@ -113,7 +113,7 @@ class SearchExportSerializer(IdOrHyperlinkedModelSerializer):
             "url",
             "results_url",
             "uuid",
-            "seat",
+            "billing_seat",
             "query",
             "status_name",
             "status_changed",
@@ -134,7 +134,7 @@ class SearchExportSerializer(IdOrHyperlinkedModelSerializer):
 
     def create(self, validated_data):
         export = SearchExport.create_from_query(
-            seat=validated_data["seat"],
+            billing_seat=validated_data["billing_seat"],
             query=validated_data["query"],
             uploadable=validated_data["uploadable"],
             notify=not validated_data["uploadable"],
@@ -157,10 +157,10 @@ class SearchExportDataSerializer(serializers.Serializer):
 class ResultProfileSerializer(serializers.Serializer):
     id = serializers.CharField(source="_id")
     initiated_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    seat = IdOrHyperlinkedRelatedField(
-        view_name="seat-detail",
+    billing_seat = IdOrHyperlinkedRelatedField(
+        view_name="billingaccountmember-detail",
         lookup_field="public_id",
-        queryset=Seat.objects.all(),
+        queryset=BillingAccountMember.objects.all(),
         required=False,
         allow_null=True,
     )
@@ -215,13 +215,15 @@ class ResultProfileSerializer(serializers.Serializer):
         else:
             profile = ResultProfile.from_json(validated_data)
         profile.derive_contact(filters=filters, timeout=timeout)
-        seat = validated_data["seat"]
-        cache_obj, charge = DerivationCache.get_or_charge(seat=seat, profile=profile)
+        billing_seat = validated_data["billing_seat"]
+        cache_obj, charge = DerivationCache.get_or_charge(
+            billing_seat=billing_seat, profile=profile
+        )
         if charge > 0:
-            seat.billing.consume_credits(
+            billing_seat.consume_credits(
                 amount=charge, evidence=(cache_obj,), initiated_by=initiated_by
             )
         data = profile.to_json()
         data["credits_used"] = charge
-        data["credits_remaining"] = seat.billing.credits
+        data["credits_remaining"] = billing_seat.credits
         return data

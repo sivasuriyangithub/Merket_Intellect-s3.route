@@ -22,7 +22,7 @@ fake.add_provider(internet)
 
 
 class SearchExportFactory(DjangoModelFactory):
-    seat = LazyAttribute(lambda o: BillingAccountMemberFactory().seat)
+    billing_seat = SubFactory(BillingAccountMemberFactory)
 
     class Meta:
         model = SearchExport

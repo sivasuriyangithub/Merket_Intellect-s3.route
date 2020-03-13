@@ -31,6 +31,7 @@ from whoweb.contrib.fields import ObscureIdMixin
 from whoweb.contrib.polymorphic.managers import PolymorphicSoftDeletableManager
 from whoweb.contrib.postgres.fields import EmbeddedModelField
 from whoweb.core.models import EventLoggingModel
+from whoweb.payments.models import BillingAccountMember
 from whoweb.search.models import FilteredSearchQuery, ScrollSearch
 from whoweb.users.models import Seat
 
@@ -124,6 +125,9 @@ class BaseCampaignRunner(
 
     should_charge = True
     seat = models.ForeignKey(Seat, on_delete=models.CASCADE, null=True, blank=True)
+    billing_seat = models.ForeignKey(
+        BillingAccountMember, on_delete=models.CASCADE, null=True, blank=True
+    )
 
     messages = models.ManyToManyField(CampaignMessage, through=SendingRule)
     drips = models.ManyToManyField(
@@ -230,8 +234,8 @@ class BaseCampaignRunner(
         if campaign_kwargs is None:
             campaign_kwargs = {}
 
-        if self.seat:
-            campaign_kwargs.setdefault("seat", self.seat)
+        if self.billing_seat:
+            campaign_kwargs.setdefault("billing_seat", self.billing_seat)
         title = campaign_kwargs.setdefault("title", self.title)
         campaign_kwargs.update(
             message=rule.message,
@@ -386,13 +390,15 @@ class BaseCampaignRunner(
             return most_recent.campaign_list.export
 
     def create_campaign_list(self, *args, **kwargs):
-        return CampaignList.objects.create(query=self.query, origin=2, seat=self.seat)
+        return CampaignList.objects.create(
+            query=self.query, origin=2, billing_seat=self.billing_seat
+        )
 
     def create_campaign(self, **campaign_kwargs):
         first_message_rule = self.sending_rules().first()
 
-        if self.seat:
-            campaign_kwargs.setdefault("seat", self.seat)
+        if self.billing_seat:
+            campaign_kwargs.setdefault("billing_seat", self.billing_seat)
         title = campaign_kwargs.setdefault("title", self.title)
         campaign_kwargs.update(
             message=first_message_rule.message,

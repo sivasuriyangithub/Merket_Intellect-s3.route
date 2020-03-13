@@ -36,12 +36,12 @@ class CampaignMessageSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
         model = CampaignMessage
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
-            "seat": {"lookup_field": "public_id"},
+            "billing_seat": {"lookup_field": "public_id"},
         }
         fields = (
             "url",
             "id",
-            "seat",
+            "billing_seat",
             "title",
             "subject",
             "plain_content",
@@ -64,12 +64,12 @@ class CampaignMessageTemplateSerializer(TaggableMixin, IdOrHyperlinkedModelSeria
         model = CampaignMessageTemplate
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
-            "seat": {"lookup_field": "public_id"},
+            "billing_seat": {"lookup_field": "public_id"},
         }
         fields = (
             "url",
             "id",
-            "seat",
+            "billing_seat",
             "title",
             "tags",
             "subject",
@@ -89,12 +89,12 @@ class CampaignListSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
         model = CampaignList
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
-            "seat": {"lookup_field": "public_id"},
+            "billing_seat": {"lookup_field": "public_id"},
         }
         fields = (
             "url",
             "id",
-            "seat",
+            "billing_seat",
             "name",
             "tags",
             "origin",
@@ -152,7 +152,7 @@ class SingleColdEmailSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
             "send_date",
             "test",
             "use_credits_method",
-            "seat",
+            "billing_seat",
             "views",
             "clicks",
             "optouts",
@@ -160,12 +160,12 @@ class SingleColdEmailSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
         )
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
-            "seat": {"lookup_field": "public_id"},
+            "billing_seat": {"lookup_field": "public_id"},
             "message": {"lookup_field": "public_id"},
         }
 
     def validate(self, attrs):
-        seat = attrs.get("seat")
-        if seat and seat != attrs["message"].seat:
+        seat = attrs.get("billing_seat")
+        if seat and seat != attrs["message"].billing_seat:
             raise PermissionDenied
         return attrs

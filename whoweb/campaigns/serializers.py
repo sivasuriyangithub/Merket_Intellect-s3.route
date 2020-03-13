@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from whoweb.payments.models import BillingAccountMember
 from whoweb.accounting.serializers import TransactionSerializer
 from whoweb.contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
 from whoweb.users.models import Seat
@@ -57,10 +58,10 @@ class SimpleDripCampaignRunnerSerializer(
 ):
     id = serializers.CharField(source="public_id", read_only=True)
     query = FilteredSearchQuerySerializer()
-    seat = IdOrHyperlinkedRelatedField(
-        view_name="seat-detail",
+    billing_seat = IdOrHyperlinkedRelatedField(
+        view_name="billingaccountmember-detail",
         lookup_field="public_id",
-        queryset=Seat.objects.all(),
+        queryset=BillingAccountMember.objects.all(),
         required=True,
         allow_null=False,
     )
@@ -81,7 +82,7 @@ class SimpleDripCampaignRunnerSerializer(
             "url",
             "id",
             "query",
-            "seat",
+            "billing_seat",
             "budget",
             "title",
             "tags",
@@ -115,10 +116,10 @@ class IntervalCampaignRunnerSerializer(
     campaigns = CampaignSerializer(many=True, read_only=True)
     sending_rules = SendingRuleSerializer(many=True)
     status_name = serializers.CharField(source="get_status_display", read_only=True)
-    seat = IdOrHyperlinkedRelatedField(
-        view_name="seat-detail",
+    billing_seat = IdOrHyperlinkedRelatedField(
+        view_name="billingaccountmember-detail",
         lookup_field="public_id",
-        queryset=Seat.objects.all(),
+        queryset=BillingAccountMember.objects.all(),
         required=False,
         allow_null=True,
     )
@@ -135,7 +136,7 @@ class IntervalCampaignRunnerSerializer(
             "url",
             "id",
             "query",
-            "seat",
+            "billing_seat",
             "budget",
             "title",
             "tags",

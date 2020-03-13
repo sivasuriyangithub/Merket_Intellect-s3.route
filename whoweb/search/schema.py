@@ -66,7 +66,7 @@ class SearchExportNode(GuardedObjectType):
         filter_backends = (ObjectPermissionsFilter,)
         fields = (
             "uuid",
-            "seat",
+            "billing_seat",
             "query",
             "status",
             "status_changed",

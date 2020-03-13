@@ -19,7 +19,7 @@ TEST_QUERY = {
 
 
 def test_create_campaignmessage(su_client):
-    seat = BillingAccountMemberFactory().seat
+    seat = BillingAccountMemberFactory()
     resp = su_client.post(
         "/ww/api/campaign/messages/",
         {
@@ -31,7 +31,7 @@ def test_create_campaignmessage(su_client):
             "suppression_group_id": "2",
             "plain_content": "Yo!",
             "editor": "client",
-            "seat": seat.public_id,
+            "billing_seat": seat.public_id,
         },
         format="json",
     )
@@ -45,7 +45,7 @@ def test_create_campaignmessage(su_client):
 
 
 def test_update_campaignmessage(su_client):
-    seat = BillingAccountMemberFactory().seat
+    seat = BillingAccountMemberFactory()
     resp = su_client.post(
         "/ww/api/campaign/messages/",
         {
@@ -57,7 +57,7 @@ def test_update_campaignmessage(su_client):
             "suppression_group_id": "2",
             "plain_content": "Yo!",
             "editor": "client",
-            "seat": seat.public_id,
+            "billing_seat": seat.public_id,
         },
         format="json",
     )
@@ -83,7 +83,7 @@ def test_delete_campaignmessage(su_client):
 
 
 def test_create_campaignmessage_template(su_client):
-    seat = BillingAccountMemberFactory().seat
+    seat = BillingAccountMemberFactory()
     resp = su_client.post(
         "/ww/api/campaign/message_templates/",
         {
@@ -95,7 +95,7 @@ def test_create_campaignmessage_template(su_client):
             "suppression_group_id": "2",
             "plain_content": "Yo!",
             "editor": "client",
-            "seat": seat.public_id,
+            "billing_seat": seat.public_id,
         },
         format="json",
     )
@@ -111,7 +111,7 @@ def test_create_campaignmessage_template(su_client):
 
 
 def test_update_campaignmessage_template(su_client):
-    seat = BillingAccountMemberFactory().seat
+    seat = BillingAccountMemberFactory()
     resp = su_client.post(
         "/ww/api/campaign/message_templates/",
         {
@@ -123,7 +123,7 @@ def test_update_campaignmessage_template(su_client):
             "suppression_group_id": "2",
             "plain_content": "Yo!",
             "editor": "client",
-            "seat": seat.public_id,
+            "billing_seat": seat.public_id,
         },
         format="json",
     )

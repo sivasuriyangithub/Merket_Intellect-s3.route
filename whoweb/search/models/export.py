@@ -35,6 +35,7 @@ from whoweb.contrib.fields import CompressedBinaryJSONField
 from whoweb.contrib.postgres.fields import EmbeddedModelField
 from whoweb.core.models import EventLoggingModel
 from whoweb.core.router import router, external_link
+from whoweb.payments.exceptions import SubscriptionError
 from whoweb.payments.models import WKPlan, BillingAccountMember
 from whoweb.search.events import (
     GENERATING_PAGES,
@@ -57,10 +58,6 @@ from .scroll import FilteredSearchQuery, ScrollSearch
 logger = logging.getLogger(__name__)
 User = get_user_model()
 DATAVALIDATION_URL = "https://dv3.datavalidation.com/api/v2/user/me"
-
-
-class SubscriptionError(Exception):
-    pass
 
 
 class SearchExportManager(QueryManagerMixin, models.Manager):
@@ -895,7 +892,6 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             send_notification,
             do_post_validation_completion,
             spawn_mx_group,
-            alert_xperweb,
         )
 
         batch_ratio = self.PREFETCH_MULTIPLIER
@@ -930,11 +926,6 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             sigs |= send_notification.si(export_id=self.pk).set(priority=3)
         if self.uploadable:
             sigs |= spawn_mx_group.si(export_id=self.pk)
-        sigs |= (
-            alert_xperweb.si(export_id=self.pk)
-            .on_error(alert_xperweb.si(export_id=self.pk))
-            .set(priority=4)
-        )
         return sigs
 
     def get_validation_url(self):

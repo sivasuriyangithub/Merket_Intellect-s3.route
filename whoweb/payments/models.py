@@ -172,9 +172,12 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
             )
         )
 
-    def subscription(self):
+    def customer(self):
         customer, _created = Customer.get_or_create(subscriber=self)
-        return customer.subscription
+        return customer
+
+    def subscription(self):
+        return self.customer().subscription
 
     def get_or_add_user(self, user, **kwargs):
         """

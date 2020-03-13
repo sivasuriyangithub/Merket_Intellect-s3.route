@@ -9,6 +9,7 @@ from whoweb.contrib.rest_framework.fields import (
 )
 from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
 from whoweb.core.router import router
+from whoweb.payments.exceptions import PaymentRequired, SubscriptionError
 from whoweb.payments.models import BillingAccountMember
 from whoweb.search.models import (
     SearchExport,
@@ -20,7 +21,6 @@ from whoweb.search.models import (
     DerivationCache,
 )
 from whoweb.search.models.profile import WORK, PERSONAL, SOCIAL, PROFILE, PHONE
-from whoweb.users.models import Seat
 
 
 class ExportOptionsSerializer(serializers.ModelSerializer):
@@ -132,15 +132,25 @@ class SearchExportSerializer(IdOrHyperlinkedModelSerializer):
     def get_status_name(self, obj):
         return SearchExport.STATUS[int(obj.status)]
 
+    def validate(self, attrs):
+        billing_seat = attrs["billing_seat"]
+        if not (
+            billing_seat.plan
+            or billing_seat.organization.customer().has_any_active_subscription()
+        ):
+            raise PaymentRequired()
+
     def create(self, validated_data):
-        export = SearchExport.create_from_query(
-            billing_seat=validated_data["billing_seat"],
-            query=validated_data["query"],
-            uploadable=validated_data["uploadable"],
-            notify=not validated_data["uploadable"],
-            charge=not validated_data["uploadable"],
-        )
-        return export
+        try:
+            return SearchExport.create_from_query(
+                billing_seat=validated_data["billing_seat"],
+                query=validated_data["query"],
+                uploadable=validated_data["uploadable"],
+                notify=not validated_data["uploadable"],
+                charge=not validated_data["uploadable"],
+            )
+        except SubscriptionError as e:
+            raise PaymentRequired(detail=e)
 
 
 class SearchExportDataSerializer(serializers.Serializer):

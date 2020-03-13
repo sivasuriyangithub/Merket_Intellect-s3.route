@@ -51,7 +51,6 @@ def err_task():
     raise ValueError("error")
 
 
-@patch("whoweb.core.router.router.alert_xperweb_export_completion")
 @patch("whoweb.search.models.export.MXDomain.objects")
 @patch("whoweb.search.models.SearchExport.PAGE_DELAY", new_callable=PropertyMock)
 @patch("whoweb.search.models.SearchExport.get_mx_task_group")
@@ -73,7 +72,6 @@ def test_integration_all_processing_tasks(
     get_mx_task_group_mock,
     PAGE_DELAY,
     mx_object_mock,
-    alert_xperweb_mock,
     query_contact_invites_defer_validation,
 ):
     export: SearchExport = SearchExportFactory(
@@ -102,4 +100,3 @@ def test_integration_all_processing_tasks(
     assert get_validation_mock.call_count == 1
     assert do_post_valid_mock.call_count == 1
     assert notify_mock.call_count == 1
-    assert alert_xperweb_mock.call_count == 1

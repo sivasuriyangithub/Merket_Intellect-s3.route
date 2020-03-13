@@ -136,23 +136,6 @@ def send_notification(export_id):
     return export.send_link()
 
 
-@shared_task(
-    bind=True, max_retries=3000, track_started=True, autoretry_for=NETWORK_ERRORS
-)
-def alert_xperweb(self, export_id):
-    try:
-        export = SearchExport.objects.get(pk=export_id)
-    except SearchExport.DoesNotExist:
-        return 404
-    export.log_event(ALERT_XPERWEB, task=self.request)
-    router.alert_xperweb_export_completion(
-        idempotency_key=export.uuid, amount=export.charged
-    )
-    export.status = export.STATUS.complete
-    export.save()
-    return True
-
-
 @shared_task(ignore_result=False, autoretry_for=NETWORK_ERRORS)
 def fetch_mx_domains(domains):
     mxds = MXDomain.objects.filter(domain__in=domains)

@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import bson
 import pytest
 
@@ -6,7 +8,8 @@ from whoweb.payments.tests.factories import BillingAccountMemberFactory
 pytestmark = pytest.mark.django_db
 
 
-def test_create_billing_seat_for_passthrough(su_client):
+@patch("whoweb.payments.serializers.sync_subscriber")
+def test_create_billing_seat_for_passthrough(sync_mock, su_client):
     resp = su_client.post(
         "/ww/api/admin/seats/",
         {
@@ -14,6 +17,7 @@ def test_create_billing_seat_for_passthrough(su_client):
             "first_name": "A",
             "last_name": "B",
             "xperweb_id": str(bson.ObjectId()),
+            "customer_id": "cus_test001",
             "group_name": None,
             "group_id": "public",
             "email": "test@whoknows.com",
@@ -28,7 +32,7 @@ def test_create_billing_seat_for_passthrough(su_client):
     print(resp.content)
     assert resp.status_code == 201
     assert resp.json()["url"].startswith("http://testserver/ww/api/seats/")
-
+    assert sync_mock.call_count == 1
     network_url = resp.json()["network"]
     network = su_client.get(network_url, format="json",)
     assert network.json()["slug"] == "public"

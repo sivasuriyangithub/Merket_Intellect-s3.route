@@ -156,9 +156,6 @@ class SubscriptionRestView(DJStripeSubscriptionRestView):
             charge_immediately = False
         if charge_immediately:
             customer.send_invoice()
-        billing_account: BillingAccount = serializer.data["billing_account"]
-        wkplan = preset.create()
-        billing_account.update_plan(new_plan=wkplan, with_credits=total_credits)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 

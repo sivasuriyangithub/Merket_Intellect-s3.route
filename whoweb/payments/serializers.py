@@ -1,4 +1,7 @@
-from djstripe.models import Subscription, SubscriptionItem, Plan
+from djstripe.models import Subscription, SubscriptionItem, Plan, Customer
+from djstripe.sync import sync_subscriber
+from djstripe import settings as djstripe_settings
+
 from rest_framework import serializers
 from slugify import slugify
 
@@ -135,7 +138,7 @@ class CreateSubscriptionSerializer(serializers.Serializer):
 
     stripe_token = serializers.CharField(max_length=200, required=False)
     billing_account = IdOrHyperlinkedRelatedField(
-        view_name="billing_account-detail",
+        view_name="billingaccount-detail",
         lookup_field="public_id",
         queryset=BillingAccount.objects.all(),
         required=True,
@@ -150,7 +153,7 @@ class UpdateSubscriptionSerializer(serializers.Serializer):
 
     stripe_token = serializers.CharField(max_length=200, required=False)
     billing_account = IdOrHyperlinkedRelatedField(
-        view_name="billing_account-detail",
+        view_name="billin_account-detail",
         lookup_field="public_id",
         queryset=BillingAccount.objects.all(),
         required=True,
@@ -163,7 +166,7 @@ class UpdateSubscriptionSerializer(serializers.Serializer):
 class AddPaymentSourceSerializer(serializers.Serializer):
     stripe_token = serializers.CharField(max_length=200)
     billing_account = IdOrHyperlinkedRelatedField(
-        view_name="billing_account-detail",
+        view_name="billingaccount-detail",
         lookup_field="public_id",
         queryset=BillingAccount.objects.all(),
         required=True,
@@ -186,6 +189,7 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
         lookup_field="public_id",
         read_only=True,
     )
+    customer_id = serializers.CharField(write_only=True, required=False)
     xperweb_id = serializers.CharField(write_only=True, required=False)
     group_name = serializers.CharField(
         write_only=True, allow_null=True, allow_blank=True, required=False
@@ -204,7 +208,7 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
     )
     credits_per_phone = serializers.IntegerField(write_only=True, required=False)
     billing_account = IdOrHyperlinkedRelatedField(
-        view_name="billing_account-detail",
+        view_name="billingaccount-detail",
         source="billing.account",
         lookup_field="public_id",
         default=None,
@@ -225,6 +229,7 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
             "graph_id",
             "billing_account",
             "user",
+            "customer_id",
             "xperweb_id",
             "group_name",
             "group_id",
@@ -275,6 +280,24 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
         )
         billing_member.seat_credits = validated_data["seat_credits"]
         billing_member.save()
+
+        if existing_customer := validated_data.get("customer_id"):
+            _, created = Customer.objects.get_or_create(
+                id=existing_customer,
+                defaults={
+                    "subscriber": billing_account,
+                    "livemode": djstripe_settings.STRIPE_LIVE_MODE,
+                    "balance": 0,
+                    "delinquent": False,
+                },
+            )
+            if created:
+                customer = sync_subscriber(billing_account)
+                subscriber_key = djstripe_settings.SUBSCRIBER_CUSTOMER_KEY
+                if subscriber_key not in ("", None):
+                    customer.metadata[subscriber_key] = billing_account.pk
+                    customer.save()
+        seat.refresh_from_db()
         return seat
 
     def update(self, instance, validated_data):
@@ -318,7 +341,7 @@ class AdminBillingAccountSerializer(IdOrHyperlinkedModelSerializer):
         read_only=True,
     )
     billing_account = IdOrHyperlinkedRelatedField(
-        view_name="billing_account-detail",
+        view_name="billingaccount-detail",
         source="billing.account",
         lookup_field="public_id",
         default=None,

@@ -1,20 +1,20 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Union
 
-from django.contrib.auth.decorators import login_required
-from djstripe.contrib.rest_framework.views import (
-    SubscriptionRestView as DJStripeSubscriptionRestView,
-)
+from IPython.utils.tz import utcnow
+from django.db.models import Q
 from djstripe.enums import SubscriptionStatus
 from djstripe.models import Customer, Subscription
-from djstripe.settings import subscriber_request_callback
+from djstripe.settings import CANCELLATION_AT_PERIOD_END
 from rest_framework import viewsets, status
+from rest_framework.exceptions import ValidationError, MethodNotAllowed
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from whoweb.contrib.rest_framework.permissions import IsSuperUser
 from whoweb.users.models import Seat
+from .exceptions import SubscriptionError
 from .models import WKPlan, WKPlanPreset, BillingAccount, BillingAccountMember
 from .serializers import (
     PlanSerializer,
@@ -25,6 +25,7 @@ from .serializers import (
     AddPaymentSourceSerializer,
     AdminBillingAccountSerializer,
     BillingAccountMemberSerializer,
+    SubscriptionSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -67,18 +68,21 @@ class AdminBillingAccountViewSet(viewsets.ModelViewSet):
 
 class AddPaymentSourceRestView(APIView):
     # TODO: user passes test Can Edit Customer
-    @login_required
     def post(self, request, **kwargs):
-        serializer = AddPaymentSourceSerializer(data=request.data)
+        serializer = AddPaymentSourceSerializer(
+            data=request.data, context={"request": request}
+        )
 
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        billing_account: BillingAccount = serializer.data["billing_account"]
+        billing_account: BillingAccount = serializer.validated_data["billing_account"]
         customer, _created = Customer.get_or_create(subscriber=billing_account)
-        customer.add_card(serializer.data["stripe_token"])
+        customer.add_card(serializer.validated_data["stripe_token"])
 
         if subscription := customer.subscription:
+            print(subscription.status)
+            print(subscription.trial_end)
             if (
                 subscription.status == SubscriptionStatus.trialing
                 and subscription.trial_end > datetime.utcnow()
@@ -97,33 +101,50 @@ class AddPaymentSourceRestView(APIView):
                         type(stripe_invoice).sync_from_stripe_data(
                             updated_stripe_invoice
                         )
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-class SubscriptionRestView(DJStripeSubscriptionRestView):
-    @login_required
+class SubscriptionRestView(APIView):
     def post(self, request, **kwargs):
-        serializer = CreateSubscriptionSerializer(data=request.data)
+        serializer = CreateSubscriptionSerializer(
+            data=request.data, context={"request": request}
+        )
 
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        valid_items, plan_preset, total_credits = self.get_valid_items(serializer)
+        valid_items, plan_preset, total_credits = self._get_valid_items(serializer)
         wkplan = plan_preset.create()
-        billing_account: BillingAccount = serializer.data["billing_account"]
-        billing_account.update_plan(new_plan=wkplan, with_credits=total_credits)
+        billing_account: BillingAccount = serializer.validated_data["billing_account"]
+        billing_account.update_plan(
+            initiated_by=self.request.user, new_plan=wkplan, with_credits=total_credits,
+        )
 
         customer, _created = Customer.get_or_create(subscriber=billing_account)
-        token = serializer.data.get("stripe_token")
+        if customer.valid_subscriptions:
+            raise MethodNotAllowed(
+                method="POST", detail="Customer already subscribed, use PATCH instead."
+            )
+        token = serializer.validated_data.get("stripe_token")
+        trial_days = serializer.validated_data.get("trial_days", None)
+        if trial_days is None:
+            trial_end = "now"
+        elif trial_days > plan_preset.trial_days_allowed:
+            raise ValidationError(
+                f"Invalid number of trial days. Must be less than {plan_preset.trial_days_allowed}."
+            )
+        else:
+            trial_end = str(round((utcnow() + timedelta(days=trial_days)).timestamp()))
+
         if token:
             customer.add_card(token)
 
         stripe_subscription = Subscription._api_create(
-            items=valid_items, customer=customer.id
+            items=valid_items, customer=customer.id, trial_end=trial_end,
         )
         Subscription.sync_from_stripe_data(stripe_subscription)
 
-        charge_immediately = serializer.data.get("charge_immediately")
+        charge_immediately = serializer.validated_data.get("charge_immediately")
         if charge_immediately is None or not token:
             charge_immediately = False
         if charge_immediately:
@@ -132,26 +153,44 @@ class SubscriptionRestView(DJStripeSubscriptionRestView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def patch(self, request, **kwargs):
-        serializer = UpdateSubscriptionSerializer(data=request.data)
+        serializer = UpdateSubscriptionSerializer(
+            data=request.data, context={"request": request}
+        )
 
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        customer, _created = Customer.get_or_create(
-            subscriber=subscriber_request_callback(self.request)
-        )
-        token = serializer.data.get("stripe_token")
+        billing_account: BillingAccount = serializer.validated_data["billing_account"]
+        customer, _created = Customer.get_or_create(subscriber=billing_account)
+        token = serializer.validated_data.get("stripe_token")
         if token:
             customer.add_card(token)
 
-        valid_items, preset, total_credits = self.get_valid_items(serializer)
+        valid_items, preset, total_credits = self._get_valid_items(serializer)
 
         subscription = customer.subscription
-        stripe_subscription = subscription.api_retrieve()
-        setattr(stripe_subscription, "items", valid_items)
-        Subscription.sync_from_stripe_data(stripe_subscription.save())
+        patch_items_by_id = {item["plan"]: item for item in valid_items}
+        current_items_by_id = {item.plan.id: item for item in subscription.items.all()}
 
-        charge_immediately = serializer.data.get("charge_immediately")
+        settable_items = []
+        items_for_manual_deletion = []
+        for plan_id, patch_item in patch_items_by_id.items():
+            if plan_id in current_items_by_id:
+                patch_item["id"] = current_items_by_id[plan_id].id
+            settable_items.append(patch_item)
+        for plan_id, existing_item in current_items_by_id.items():
+            if plan_id not in patch_items_by_id:
+                settable_items.append(
+                    {"plan": plan_id, "id": existing_item.id, "deleted": True}
+                )
+                items_for_manual_deletion.append(existing_item)
+
+        stripe_subscription = subscription.api_retrieve()
+        setattr(stripe_subscription, "items", settable_items)
+        Subscription.sync_from_stripe_data(stripe_subscription.save())
+        for item in items_for_manual_deletion:
+            item.delete()
+
+        charge_immediately = serializer.validated_data.get("charge_immediately")
         if charge_immediately is None or not token:
             charge_immediately = False
         if charge_immediately:
@@ -159,16 +198,50 @@ class SubscriptionRestView(DJStripeSubscriptionRestView):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def get_valid_items(
+    def _get_valid_items(
         self,
         serializer: Union[CreateSubscriptionSerializer, UpdateSubscriptionSerializer],
     ) -> (dict, WKPlan):
-        plan_preset = WKPlanPreset.objects.get(public_id=serializer.data["plan"])
+        plan_preset = WKPlanPreset.objects.get(
+            public_id=serializer.validated_data["plan"]
+        )
         valid_plans = plan_preset.stripe_plans.all().values_list("id", flat=True)
         valid_items = []
         total_credits = 0
-        for plan_id, quantity in serializer.data["items"].items():
+        for item in serializer.validated_data["items"]:
+            plan_id, quantity = item["stripe_id"], item["quantity"]
             if plan_id in valid_plans:
                 total_credits += quantity
                 valid_items.append({"plan": plan_id, "quantity": quantity})
+        if len(valid_items) != len(valid_plans):
+            raise ValidationError("Invalid items.")
         return valid_items, plan_preset, total_credits
+
+    def get(self, request, billing_account_id, **kwargs):
+        """
+        Return the customer's valid subscriptions.
+
+        Returns with status code 200.
+        """
+        try:
+            billing_account = BillingAccount.objects.get(pk=billing_account_id)
+        except ValueError:
+            billing_account = BillingAccount.objects.get(public_id=billing_account_id)
+        customer, _created = Customer.get_or_create(subscriber=billing_account)
+        serializer = SubscriptionSerializer(customer.subscription)
+        return Response(serializer.data)
+
+    def delete(self, request, billing_account_id, **kwargs):
+        """
+        Mark the customers current subscription as canceled.
+
+        Returns with status code 204.
+        """
+        try:
+            billing_account = BillingAccount.objects.get(pk=billing_account_id)
+        except ValueError:
+            billing_account = BillingAccount.objects.get(public_id=billing_account_id)
+
+        customer, _created = Customer.get_or_create(subscriber=billing_account)
+        customer.subscription.cancel(at_period_end=CANCELLATION_AT_PERIOD_END)
+        return Response(status=status.HTTP_204_NO_CONTENT)

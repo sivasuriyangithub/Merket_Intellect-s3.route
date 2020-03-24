@@ -58,3 +58,11 @@ def api_client() -> APIClient:
 def su_client(su, api_client) -> APIClient:
     api_client.force_authenticate(user=su)
     return api_client
+
+
+@pytest.fixture(scope="module")
+def vcr_config():
+    return {
+        # Replace the Authorization request header with "DUMMY" in cassettes
+        "filter_headers": [("authorization", "DUMMY")],
+    }

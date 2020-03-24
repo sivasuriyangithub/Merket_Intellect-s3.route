@@ -34,18 +34,21 @@ class PlanSerializer(IdOrHyperlinkedModelSerializer):
 class StripePlanSerializer(serializers.ModelSerializer):
     """A serializer used for the Plan model."""
 
-    product = serializers.CharField(source="product.name", read_only=True)
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    product = serializers.CharField(source="product.id", read_only=True)
 
     class Meta:
         """Model class options."""
 
         model = Plan
         fields = [
+            "id",
             "amount",
             "currency",
             "interval",
             "interval_count",
             "product",
+            "product_name",
             "trial_period_days",
             "statement_descriptor",
         ]
@@ -54,22 +57,34 @@ class StripePlanSerializer(serializers.ModelSerializer):
 class SubscriptionItemSerializer(serializers.ModelSerializer):
     """A serializer used for the SubscriptionItem model."""
 
+    plan = StripePlanSerializer()
+
     class Meta:
         """Model class options."""
 
         model = SubscriptionItem
-        exclude = ["subscription"]
+        fields = [
+            "created",
+            "id",
+            "created",
+            "plan",
+            "quantity",
+            "metadata",
+            "description",
+        ]
 
 
 class SubscriptionSerializer(serializers.ModelSerializer):
     """A serializer used for the Subscription model."""
 
+    items = SubscriptionItemSerializer(many=True)
     can_charge = serializers.BooleanField(read_only=True)
     is_valid = serializers.BooleanField(read_only=True)
 
     class Meta:
         """Model class options."""
 
+        depth = 2
         model = Subscription
         exclude = ["default_tax_rates"]
 
@@ -144,7 +159,8 @@ class CreateSubscriptionSerializer(serializers.Serializer):
         required=True,
     )
     plan = serializers.CharField(max_length=50)
-    items = PlanQuantitySerializer()
+    items = PlanQuantitySerializer(many=True)
+    trial_days = serializers.IntegerField(required=False, default=None, allow_null=True)
     charge_immediately = serializers.NullBooleanField(required=False)
 
 
@@ -153,13 +169,13 @@ class UpdateSubscriptionSerializer(serializers.Serializer):
 
     stripe_token = serializers.CharField(max_length=200, required=False)
     billing_account = IdOrHyperlinkedRelatedField(
-        view_name="billin_account-detail",
+        view_name="billingaccount-detail",
         lookup_field="public_id",
         queryset=BillingAccount.objects.all(),
         required=True,
     )
     plan = serializers.CharField(max_length=50)
-    items = PlanQuantitySerializer()
+    items = PlanQuantitySerializer(many=True)
     charge_immediately = serializers.NullBooleanField(required=False)
 
 

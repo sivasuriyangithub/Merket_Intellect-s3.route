@@ -1,0 +1,338 @@
+from datetime import datetime, timedelta
+from unittest.mock import patch, PropertyMock
+
+import pytest
+from djstripe.enums import SubscriptionStatus
+
+from whoweb.payments.models import BillingAccount, MultiPlanCustomer
+from whoweb.payments.tests.factories import (
+    BillingAccountOwnerFactory,
+    WKPlanPresetFactory,
+    PlanFactory,
+)
+
+pytestmark = pytest.mark.django_db
+
+
+@pytest.mark.vcr()
+def test_add_card_no_existing_subscription(su_client):
+    billing = BillingAccountOwnerFactory(organization_user__seat_credits=0)
+    billing_account: BillingAccount = billing.organization
+    assert billing_account.customer.can_charge() is False
+
+    resp = su_client.post(
+        "/ww/api/payment_source/",
+        {"stripe_token": "tok_visa", "billing_account": billing_account.public_id,},
+        format="json",
+    )
+    assert resp.status_code == 201
+    assert (
+        resp.json()["billing_account"]
+        == f"http://testserver/ww/api/billing_accounts/{billing_account.public_id}/"
+    )
+
+    assert billing_account.customer.can_charge() is True
+
+
+@pytest.mark.vcr()
+@patch("djstripe.models.Customer.subscription", new_callable=PropertyMock)
+def test_add_card_has_existing_subscription_on_trial(sub_mock, su_client):
+    billing = BillingAccountOwnerFactory(organization_user__seat_credits=0)
+    billing_account: BillingAccount = billing.organization
+
+    assert billing_account.customer.can_charge() is False
+
+    sub_mock.return_value.status = SubscriptionStatus.trialing
+    sub_mock.return_value.trial_end = datetime.utcnow() + timedelta(1)
+    resp = su_client.post(
+        "/ww/api/payment_source/",
+        {"stripe_token": "tok_visa", "billing_account": billing_account.public_id,},
+        format="json",
+    )
+    assert sub_mock.return_value.update.call_count == 1
+    assert resp.status_code == 201
+    assert billing_account.customer.can_charge() is True
+
+
+@pytest.mark.vcr()
+@patch("djstripe.models.Customer.subscription", new_callable=PropertyMock)
+@patch("djstripe.models.Customer.invoices", new_callable=PropertyMock)
+def test_add_card_has_existing_subscription_past_due(
+    invoices_mock, sub_mock, su_client
+):
+    billing = BillingAccountOwnerFactory(organization_user__seat_credits=0)
+    billing_account: BillingAccount = billing.organization
+
+    assert billing_account.customer.can_charge() is False
+
+    sub_mock.return_value.status = SubscriptionStatus.unpaid
+    invoices_mock.return_value = []
+    resp = su_client.post(
+        "/ww/api/payment_source/",
+        {"stripe_token": "tok_visa", "billing_account": billing_account.public_id,},
+        format="json",
+    )
+    assert invoices_mock.call_count == 1
+    assert resp.status_code == 201
+    assert billing_account.customer.can_charge() is True
+
+
+@pytest.mark.vcr()
+def test_new_signup_subscription_with_token(su_client):
+    billing = BillingAccountOwnerFactory(organization_user__seat_credits=0)
+    billing_account: BillingAccount = billing.organization
+    plan_one, plan_two = (
+        PlanFactory(id="plan_GwOROprh1UPdQL"),  # Base Credits
+        PlanFactory(id="plan_GwOvKvoNibwMK4"),  # Std Email Addon
+    )
+    plan_one.sync_from_stripe_data(plan_one.api_retrieve())
+    plan_two.sync_from_stripe_data(plan_two.api_retrieve())
+    plan_preset = WKPlanPresetFactory(stripe_plans=(plan_one, plan_two))
+
+    assert billing_account.customer.can_charge() is False
+
+    resp = su_client.post(
+        "/ww/api/subscriptions/",
+        {
+            "stripe_token": "tok_visa",
+            "billing_account": billing_account.public_id,
+            "plan": plan_preset.public_id,
+            "items": [
+                {"stripe_id": plan_one.id, "quantity": 100,},
+                {"stripe_id": plan_two.id, "quantity": 1,},
+            ],
+        },
+        format="json",
+    )
+    assert resp.status_code == 201
+    assert (
+        resp.json()["billing_account"]
+        == f"http://testserver/ww/api/billing_accounts/{billing_account.public_id}/"
+    )
+    customer = billing_account.customer
+    assert customer.can_charge() is True
+    assert customer.has_active_subscription(plan_one)
+    assert customer.has_active_subscription(plan_two)
+    assert sorted(
+        [
+            item.plan.product.id
+            for item in customer.subscription.items.select_related("plan__product")
+        ]
+    ) == sorted(["prod_Gw6HrLt8HOhTju", "prod_GwOi2Tcxvn2pi7"])
+
+
+@pytest.mark.vcr()
+def test_new_signup_subscription_without_token(su_client):
+    billing = BillingAccountOwnerFactory(organization_user__seat_credits=0)
+    billing_account: BillingAccount = billing.organization
+    plan_one, plan_two = (
+        PlanFactory(id="plan_GwOROprh1UPdQL"),  # Base Credits
+        PlanFactory(id="plan_GwOvKvoNibwMK4"),  # Std Email Addon
+    )
+    stripe_plans = (plan_one, plan_two)
+    plan_one.sync_from_stripe_data(plan_one.api_retrieve())
+    plan_two.sync_from_stripe_data(plan_two.api_retrieve())
+    plan_preset = WKPlanPresetFactory(stripe_plans=stripe_plans)
+
+    assert billing_account.customer.can_charge() is False
+
+    resp = su_client.post(
+        "/ww/api/subscriptions/",
+        {
+            "billing_account": billing_account.public_id,
+            "plan": plan_preset.public_id,
+            "items": [
+                {"stripe_id": plan_one.id, "quantity": 100,},
+                {"stripe_id": plan_two.id, "quantity": 1,},
+            ],
+            "trial_days": 7,
+        },
+        format="json",
+    )
+    assert resp.status_code == 201
+    assert (
+        resp.json()["billing_account"]
+        == f"http://testserver/ww/api/billing_accounts/{billing_account.public_id}/"
+    )
+    customer = billing_account.customer
+    assert customer.can_charge() is False
+    assert customer.has_active_subscription(plan_one)
+    assert customer.has_active_subscription(plan_two)
+    assert sorted(
+        [
+            item.plan.product.id
+            for item in customer.subscription.items.select_related("plan__product")
+        ]
+    ) == sorted(["prod_Gw6HrLt8HOhTju", "prod_GwOi2Tcxvn2pi7"])
+
+
+@pytest.mark.vcr()
+def test_upgrade_subscription(su_client):
+    billing = BillingAccountOwnerFactory(organization_user__seat_credits=0)
+    billing_account: BillingAccount = billing.organization
+    plan_one, plan_two, plan_three = (
+        PlanFactory(id="plan_GwOROprh1UPdQL"),  # Base Credits
+        PlanFactory(id="plan_GwOvKvoNibwMK4"),  # Std Email Addon
+        PlanFactory(id="plan_GwOz3bLvfz05aL"),  # Advanced Email Addon
+    )
+    plan_one.sync_from_stripe_data(plan_one.api_retrieve())
+    plan_two.sync_from_stripe_data(plan_two.api_retrieve())
+    plan_three.sync_from_stripe_data(plan_three.api_retrieve())
+    base_credits_product = "prod_Gw6HrLt8HOhTju"
+    email_std_product = "prod_GwOi2Tcxvn2pi7"
+    email_adv_product = "prod_GwOiUYoDI3gJGX"
+    plan_preset = WKPlanPresetFactory(stripe_plans=(plan_one, plan_two))
+    plan_preset_upgrade = WKPlanPresetFactory(stripe_plans=(plan_one, plan_three))
+    resp = su_client.post(
+        "/ww/api/subscriptions/",
+        {
+            "stripe_token": "tok_visa",
+            "billing_account": billing_account.public_id,
+            "plan": plan_preset.public_id,
+            "items": [
+                {"stripe_id": plan_one.id, "quantity": 100,},
+                {"stripe_id": plan_two.id, "quantity": 1,},
+            ],
+        },
+        format="json",
+    )
+    assert resp.status_code == 201
+    customer = billing_account.customer
+    assert customer.has_active_subscription(plan_one)
+    assert customer.has_active_subscription(plan_two)
+    assert sorted(
+        [
+            item.plan.product.id
+            for item in customer.subscription.items.select_related("plan__product")
+        ]
+    ) == sorted([base_credits_product, email_std_product])
+
+    upgrade = su_client.patch(
+        "/ww/api/subscriptions/",
+        {
+            "billing_account": billing_account.public_id,
+            "plan": plan_preset_upgrade.public_id,
+            "items": [
+                {"stripe_id": plan_one.id, "quantity": 100,},
+                {"stripe_id": plan_three.id, "quantity": 1,},
+            ],
+        },
+        format="json",
+    )
+    assert upgrade.status_code == 200
+    customer = billing_account.customer
+    customer.refresh_from_db()
+    assert customer.has_active_subscription(plan_one)
+    assert customer.has_active_subscription(plan_two) is False
+    assert customer.has_active_subscription(plan_three)
+    assert sorted(
+        [
+            item.plan.product.id
+            for item in customer.subscription.items.select_related("plan__product")
+        ]
+    ) == sorted([base_credits_product, email_adv_product])
+
+
+@pytest.mark.vcr()
+def test_change_subscription_billing_cycle(su_client):
+    billing = BillingAccountOwnerFactory(organization_user__seat_credits=0)
+    billing_account: BillingAccount = billing.organization
+    monthly_one, monthly_two = (
+        PlanFactory(id="plan_GwOROprh1UPdQL"),  # Base Credits
+        PlanFactory(id="plan_GwOvKvoNibwMK4"),  # Std Email Addon
+    )
+    yearly_one, yearly_two = (
+        PlanFactory(id="plan_GwOabJCCxbWXI4"),  # Base Credits
+        PlanFactory(id="plan_GwOvSu4wEolMqF"),  # Std Email Addon
+    )
+    monthly_one.sync_from_stripe_data(monthly_one.api_retrieve())
+    monthly_two.sync_from_stripe_data(monthly_two.api_retrieve())
+    yearly_one.sync_from_stripe_data(yearly_one.api_retrieve())
+    yearly_two.sync_from_stripe_data(yearly_two.api_retrieve())
+
+    base_credits_product = "prod_Gw6HrLt8HOhTju"
+    email_std_product = "prod_GwOi2Tcxvn2pi7"
+    monthly_preset = WKPlanPresetFactory(stripe_plans=(monthly_one, monthly_two))
+    yearly_preset = WKPlanPresetFactory(stripe_plans=(yearly_one, yearly_two))
+    resp = su_client.post(
+        "/ww/api/subscriptions/",
+        {
+            "stripe_token": "tok_visa",
+            "billing_account": billing_account.public_id,
+            "plan": monthly_preset.public_id,
+            "items": [
+                {"stripe_id": monthly_one.id, "quantity": 100,},
+                {"stripe_id": monthly_two.id, "quantity": 1,},
+            ],
+        },
+        format="json",
+    )
+    assert resp.status_code == 201
+    customer = billing_account.customer
+    assert customer.has_active_subscription(monthly_one)
+    assert customer.has_active_subscription(monthly_two)
+    assert sorted(
+        [
+            item.plan.product.id
+            for item in customer.subscription.items.select_related("plan__product")
+        ]
+    ) == sorted([base_credits_product, email_std_product])
+
+    upgrade = su_client.patch(
+        "/ww/api/subscriptions/",
+        {
+            "billing_account": billing_account.public_id,
+            "plan": yearly_preset.public_id,
+            "items": [
+                {"stripe_id": yearly_one.id, "quantity": 100,},
+                {"stripe_id": yearly_two.id, "quantity": 1,},
+            ],
+        },
+        format="json",
+    )
+    assert upgrade.status_code == 200
+    customer = billing_account.customer
+    assert customer.has_active_subscription(yearly_one)
+    assert customer.has_active_subscription(yearly_two)
+    assert sorted(
+        [
+            item.plan.product.id
+            for item in customer.subscription.items.select_related("plan__product")
+        ]
+    ) == sorted([base_credits_product, email_std_product])
+
+
+@pytest.mark.vcr()
+def test_get_subscription(su_client):
+    billing = BillingAccountOwnerFactory(organization_user__seat_credits=0)
+    billing_account: BillingAccount = billing.organization
+    plan_one, plan_two = (
+        PlanFactory(id="plan_GwOROprh1UPdQL"),  # Base Credits
+        PlanFactory(id="plan_GwOvKvoNibwMK4"),  # Std Email Addon
+    )
+    plan_one.sync_from_stripe_data(plan_one.api_retrieve())
+    plan_two.sync_from_stripe_data(plan_two.api_retrieve())
+    plan_preset = WKPlanPresetFactory(stripe_plans=(plan_one, plan_two))
+
+    assert billing_account.customer.can_charge() is False
+
+    su_client.post(
+        "/ww/api/subscriptions/",
+        {
+            "stripe_token": "tok_visa",
+            "billing_account": billing_account.public_id,
+            "plan": plan_preset.public_id,
+            "items": [
+                {"stripe_id": plan_one.id, "quantity": 100,},
+                {"stripe_id": plan_two.id, "quantity": 1,},
+            ],
+        },
+        format="json",
+    )
+    get = su_client.get(
+        f"/ww/api/subscriptions/{billing_account.public_id}/", format="json",
+    )
+    assert get.json()["status"] == "active"
+    items = sorted(get.json()["items"], key=lambda x: x["plan"]["id"])
+    assert items[0]["plan"]["id"] == plan_one.id
+    assert items[1]["plan"]["id"] == plan_two.id

@@ -10,7 +10,8 @@ from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import ugettext_lazy as _
-from djstripe.models import Plan, Customer
+from djstripe import settings as djstripe_settings
+from djstripe.models import Plan, Customer, StripeModel
 from model_utils.models import SoftDeletableModel
 from organizations.abstract import (
     AbstractOrganization,
@@ -131,6 +132,7 @@ class WKPlan(SoftDeletableModel, AbstractPlanModel):
 
 class WKPlanPreset(AbstractPlanModel):
     stripe_plans = models.ManyToManyField(Plan, limit_choices_to={"active": True})
+    trial_days_allowed = models.PositiveSmallIntegerField(default=14)
 
     class Meta:
         verbose_name = _("credit plan factory")
@@ -143,6 +145,41 @@ class WKPlanPreset(AbstractPlanModel):
             credits_per_personal_email=self.credits_per_personal_email,
             credits_per_phone=self.credits_per_phone,
         )
+
+
+class MultiPlanCustomer(Customer):
+    class Meta:
+        proxy = True
+
+    def has_active_subscription(self, plan=None):
+        """
+        Checks to see if this customer has an active subscription to the given plan.
+
+        :param plan: The plan for which to check for an active subscription.
+            If plan is None and there exists only one active subscription,
+            this method will check if that subscription is valid.
+            Calling this method with no plan and multiple valid subscriptions
+            for this customer will throw an exception.
+        :type plan: Plan or string (plan ID)
+
+        :returns: True if there exists an active subscription, False otherwise.
+        :throws: TypeError if ``plan`` is None and more than one active subscription
+            exists for this customer.
+        """
+
+        if plan is None:
+            return super().has_active_subscription()
+
+        else:
+            # Convert Plan to id
+            if isinstance(plan, StripeModel):
+                plan = plan.id
+            return any(
+                [
+                    subscription.is_valid()
+                    for subscription in self.subscriptions.filter(items__plan__id=plan)
+                ]
+            )
 
 
 class BillingAccount(ObscureIdMixin, AbstractOrganization):
@@ -172,12 +209,15 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
             )
         )
 
-    def customer(self):
-        customer, _created = Customer.get_or_create(subscriber=self)
+    @property
+    def customer(self) -> MultiPlanCustomer:
+        customer, created = MultiPlanCustomer.get_or_create(subscriber=self)
+        if not created:
+            customer = MultiPlanCustomer.objects.get(pk=customer.pk)
         return customer
 
     def subscription(self):
-        return self.customer().subscription
+        return self.customer.subscription
 
     def get_or_add_user(self, user, **kwargs):
         """
@@ -229,7 +269,7 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
         )
 
     @atomic
-    def apply_credits(self, amount, *args, evidence=(), **kwargs):
+    def add_credits(self, amount, *args, evidence=(), **kwargs):
         self.credit_pool = F("credit_pool") + amount
         self.save()
         record_transaction_sold_credits(
@@ -277,13 +317,15 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
             else:
                 return True
 
-    def update_plan(self, new_plan, with_credits=None):
+    def update_plan(self, initiated_by, new_plan, with_credits=None):
         if self.plan is not None:
             old_plan = copy(self.plan.pk)
-            self.plan_history[old_plan] = now()
+            self.plan_history[old_plan] = now().isoformat()
             if with_credits is not None:
                 if with_credits > self.credits:
-                    self.purchase_credits(with_credits - self.credits)
+                    self.add_credits(
+                        amount=with_credits - self.credits, initiated_by=initiated_by
+                    )
         self.plan = new_plan
         self.save()
 
@@ -394,7 +436,7 @@ def record_transaction_sold_credits(
     create_transaction(
         user=initiated_by,
         ledger_entries=(
-            LedgerEntry(ledger=wkcredits_sold_ledger(), amount=Credit(amount)),
+            LedgerEntry(ledger=wkcredits_sold_ledger(), amount=Debit(amount)),
             LedgerEntry(ledger=wkcredits_liability_ledger(), amount=Credit(amount)),
         ),
         evidence=evidence,

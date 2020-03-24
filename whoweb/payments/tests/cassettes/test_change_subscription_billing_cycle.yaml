@@ -1,0 +1,1220 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Stripe-Version:
+      - '2019-09-09'
+      User-Agent:
+      - Stripe/v1 PythonBindings/2.43.0 dj-stripe/2.2.3 (https://github.com/dj-stripe/dj-stripe)
+      X-Stripe-Client-Telemetry:
+      - '{"last_request_metrics": {"request_id": "req_8dcHPY7Nvu3Fbu", "request_duration_ms":
+        575}}'
+      X-Stripe-Client-User-Agent:
+      - '{"bindings_version": "2.43.0", "lang": "python", "publisher": "stripe", "httplib":
+        "requests", "lang_version": "3.8.0", "platform": "macOS-10.15.2-x86_64-i386-64bit",
+        "uname": "Darwin MacBook-Pro-Touch.local 19.2.0 Darwin Kernel Version 19.2.0:
+        Sat Nov  9 03:47:04 PST 2019; root:xnu-6153.61.1~20/RELEASE_X86_64 x86_64
+        i386", "application": {"name": "dj-stripe", "partner_id": null, "url": "https://github.com/dj-stripe/dj-stripe",
+        "version": "2.2.3"}}'
+      authorization:
+      - DUMMY
+    method: GET
+    uri: https://api.stripe.com/v1/plans/plan_GwOROprh1UPdQL
+  response:
+    body:
+      string: "{\n  \"id\": \"plan_GwOROprh1UPdQL\",\n  \"object\": \"plan\",\n  \"\
+        active\": true,\n  \"aggregate_usage\": null,\n  \"amount\": null,\n  \"amount_decimal\"\
+        : null,\n  \"billing_scheme\": \"tiered\",\n  \"created\": 1584652287,\n \
+        \ \"currency\": \"usd\",\n  \"interval\": \"month\",\n  \"interval_count\"\
+        : 1,\n  \"livemode\": false,\n  \"metadata\": {\n  },\n  \"nickname\": \"\
+        Standard Monthly 201901\",\n  \"product\": \"prod_Gw6HrLt8HOhTju\",\n  \"\
+        tiers\": [\n    {\n      \"flat_amount\": 5000,\n      \"flat_amount_decimal\"\
+        : \"5000\",\n      \"unit_amount\": 0,\n      \"unit_amount_decimal\": \"\
+        0\",\n      \"up_to\": 10000\n    },\n    {\n      \"flat_amount\": 10000,\n\
+        \      \"flat_amount_decimal\": \"10000\",\n      \"unit_amount\": null,\n\
+        \      \"unit_amount_decimal\": null,\n      \"up_to\": 25000\n    },\n  \
+        \  {\n      \"flat_amount\": 20000,\n      \"flat_amount_decimal\": \"20000\"\
+        ,\n      \"unit_amount\": null,\n      \"unit_amount_decimal\": null,\n  \
+        \    \"up_to\": 50000\n    },\n    {\n      \"flat_amount\": 50000,\n    \
+        \  \"flat_amount_decimal\": \"50000\",\n      \"unit_amount\": null,\n   \
+        \   \"unit_amount_decimal\": null,\n      \"up_to\": 150000\n    },\n    {\n\
+        \      \"flat_amount\": 100000,\n      \"flat_amount_decimal\": \"100000\"\
+        ,\n      \"unit_amount\": null,\n      \"unit_amount_decimal\": null,\n  \
+        \    \"up_to\": 300000\n    },\n    {\n      \"flat_amount\": 200000,\n  \
+        \    \"flat_amount_decimal\": \"200000\",\n      \"unit_amount\": null,\n\
+        \      \"unit_amount_decimal\": null,\n      \"up_to\": 800000\n    },\n \
+        \   {\n      \"flat_amount\": null,\n      \"flat_amount_decimal\": null,\n\
+        \      \"unit_amount\": null,\n      \"unit_amount_decimal\": \"0.03\",\n\
+        \      \"up_to\": null\n    }\n  ],\n  \"tiers_mode\": \"volume\",\n  \"transform_usage\"\
+        : null,\n  \"trial_period_days\": null,\n  \"usage_type\": \"licensed\"\n\
+        }\n"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '1643'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 24 Mar 2020 18:41:36 GMT
+      Server:
+      - nginx
+      Strict-Transport-Security:
+      - max-age=31556926; includeSubDomains; preload
+      access-control-allow-credentials:
+      - 'true'
+      access-control-allow-methods:
+      - GET, POST, HEAD, OPTIONS, DELETE
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required
+      access-control-max-age:
+      - '300'
+      cache-control:
+      - no-cache, no-store
+      request-id:
+      - req_yEsvZCSMfHWsjA
+      stripe-version:
+      - '2019-09-09'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Stripe-Version:
+      - '2019-09-09'
+      User-Agent:
+      - Stripe/v1 PythonBindings/2.43.0 dj-stripe/2.2.3 (https://github.com/dj-stripe/dj-stripe)
+      X-Stripe-Client-Telemetry:
+      - '{"last_request_metrics": {"request_id": "req_yEsvZCSMfHWsjA", "request_duration_ms":
+        278}}'
+      X-Stripe-Client-User-Agent:
+      - '{"bindings_version": "2.43.0", "lang": "python", "publisher": "stripe", "httplib":
+        "requests", "lang_version": "3.8.0", "platform": "macOS-10.15.2-x86_64-i386-64bit",
+        "uname": "Darwin MacBook-Pro-Touch.local 19.2.0 Darwin Kernel Version 19.2.0:
+        Sat Nov  9 03:47:04 PST 2019; root:xnu-6153.61.1~20/RELEASE_X86_64 x86_64
+        i386", "application": {"name": "dj-stripe", "partner_id": null, "url": "https://github.com/dj-stripe/dj-stripe",
+        "version": "2.2.3"}}'
+      authorization:
+      - DUMMY
+    method: GET
+    uri: https://api.stripe.com/v1/products/prod_Gw6HrLt8HOhTju
+  response:
+    body:
+      string: "{\n  \"id\": \"prod_Gw6HrLt8HOhTju\",\n  \"object\": \"product\",\n\
+        \  \"active\": true,\n  \"attributes\": [\n\n  ],\n  \"created\": 1584584775,\n\
+        \  \"description\": null,\n  \"images\": [\n\n  ],\n  \"livemode\": false,\n\
+        \  \"metadata\": {\n    \"is_addon\": \"false\"\n  },\n  \"name\": \"WhoKnows\
+        \ Credits\",\n  \"statement_descriptor\": \"WhoKnows Credits\",\n  \"type\"\
+        : \"service\",\n  \"unit_label\": \"credit\",\n  \"updated\": 1584659955\n\
+        }\n"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '381'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 24 Mar 2020 18:41:37 GMT
+      Server:
+      - nginx
+      Strict-Transport-Security:
+      - max-age=31556926; includeSubDomains; preload
+      access-control-allow-credentials:
+      - 'true'
+      access-control-allow-methods:
+      - GET, POST, HEAD, OPTIONS, DELETE
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required
+      access-control-max-age:
+      - '300'
+      cache-control:
+      - no-cache, no-store
+      request-id:
+      - req_0nTErR1l2cfhCO
+      stripe-version:
+      - '2019-09-09'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Stripe-Version:
+      - '2019-09-09'
+      User-Agent:
+      - Stripe/v1 PythonBindings/2.43.0 dj-stripe/2.2.3 (https://github.com/dj-stripe/dj-stripe)
+      X-Stripe-Client-Telemetry:
+      - '{"last_request_metrics": {"request_id": "req_0nTErR1l2cfhCO", "request_duration_ms":
+        104}}'
+      X-Stripe-Client-User-Agent:
+      - '{"bindings_version": "2.43.0", "lang": "python", "publisher": "stripe", "httplib":
+        "requests", "lang_version": "3.8.0", "platform": "macOS-10.15.2-x86_64-i386-64bit",
+        "uname": "Darwin MacBook-Pro-Touch.local 19.2.0 Darwin Kernel Version 19.2.0:
+        Sat Nov  9 03:47:04 PST 2019; root:xnu-6153.61.1~20/RELEASE_X86_64 x86_64
+        i386", "application": {"name": "dj-stripe", "partner_id": null, "url": "https://github.com/dj-stripe/dj-stripe",
+        "version": "2.2.3"}}'
+      authorization:
+      - DUMMY
+    method: GET
+    uri: https://api.stripe.com/v1/plans/plan_GwOvKvoNibwMK4
+  response:
+    body:
+      string: "{\n  \"id\": \"plan_GwOvKvoNibwMK4\",\n  \"object\": \"plan\",\n  \"\
+        active\": true,\n  \"aggregate_usage\": null,\n  \"amount\": 0,\n  \"amount_decimal\"\
+        : \"0\",\n  \"billing_scheme\": \"per_unit\",\n  \"created\": 1584654106,\n\
+        \  \"currency\": \"usd\",\n  \"interval\": \"month\",\n  \"interval_count\"\
+        : 1,\n  \"livemode\": false,\n  \"metadata\": {\n  },\n  \"nickname\": \"\
+        Standard Email Addon (Monthly)\",\n  \"product\": \"prod_GwOi2Tcxvn2pi7\"\
+        ,\n  \"tiers\": null,\n  \"tiers_mode\": null,\n  \"transform_usage\": null,\n\
+        \  \"trial_period_days\": null,\n  \"usage_type\": \"licensed\"\n}\n"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '512'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 24 Mar 2020 18:41:37 GMT
+      Server:
+      - nginx
+      Strict-Transport-Security:
+      - max-age=31556926; includeSubDomains; preload
+      access-control-allow-credentials:
+      - 'true'
+      access-control-allow-methods:
+      - GET, POST, HEAD, OPTIONS, DELETE
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required
+      access-control-max-age:
+      - '300'
+      cache-control:
+      - no-cache, no-store
+      request-id:
+      - req_HUDpGEdC2mKjvn
+      stripe-version:
+      - '2019-09-09'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Stripe-Version:
+      - '2019-09-09'
+      User-Agent:
+      - Stripe/v1 PythonBindings/2.43.0 dj-stripe/2.2.3 (https://github.com/dj-stripe/dj-stripe)
+      X-Stripe-Client-Telemetry:
+      - '{"last_request_metrics": {"request_id": "req_HUDpGEdC2mKjvn", "request_duration_ms":
+        99}}'
+      X-Stripe-Client-User-Agent:
+      - '{"bindings_version": "2.43.0", "lang": "python", "publisher": "stripe", "httplib":
+        "requests", "lang_version": "3.8.0", "platform": "macOS-10.15.2-x86_64-i386-64bit",
+        "uname": "Darwin MacBook-Pro-Touch.local 19.2.0 Darwin Kernel Version 19.2.0:
+        Sat Nov  9 03:47:04 PST 2019; root:xnu-6153.61.1~20/RELEASE_X86_64 x86_64
+        i386", "application": {"name": "dj-stripe", "partner_id": null, "url": "https://github.com/dj-stripe/dj-stripe",
+        "version": "2.2.3"}}'
+      authorization:
+      - DUMMY
+    method: GET
+    uri: https://api.stripe.com/v1/products/prod_GwOi2Tcxvn2pi7
+  response:
+    body:
+      string: "{\n  \"id\": \"prod_GwOi2Tcxvn2pi7\",\n  \"object\": \"product\",\n\
+        \  \"active\": true,\n  \"attributes\": [\n\n  ],\n  \"created\": 1584653307,\n\
+        \  \"description\": null,\n  \"images\": [\n\n  ],\n  \"livemode\": false,\n\
+        \  \"metadata\": {\n    \"is_addon\": \"true\"\n  },\n  \"name\": \"Email\
+        \ (Standard)\",\n  \"statement_descriptor\": \"Email Standard\",\n  \"type\"\
+        : \"service\",\n  \"unit_label\": \"seat\",\n  \"updated\": 1584659944\n}\n"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '376'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 24 Mar 2020 18:41:37 GMT
+      Server:
+      - nginx
+      Strict-Transport-Security:
+      - max-age=31556926; includeSubDomains; preload
+      access-control-allow-credentials:
+      - 'true'
+      access-control-allow-methods:
+      - GET, POST, HEAD, OPTIONS, DELETE
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required
+      access-control-max-age:
+      - '300'
+      cache-control:
+      - no-cache, no-store
+      request-id:
+      - req_1ihKfLms1vNAqX
+      stripe-version:
+      - '2019-09-09'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Stripe-Version:
+      - '2019-09-09'
+      User-Agent:
+      - Stripe/v1 PythonBindings/2.43.0 dj-stripe/2.2.3 (https://github.com/dj-stripe/dj-stripe)
+      X-Stripe-Client-Telemetry:
+      - '{"last_request_metrics": {"request_id": "req_1ihKfLms1vNAqX", "request_duration_ms":
+        94}}'
+      X-Stripe-Client-User-Agent:
+      - '{"bindings_version": "2.43.0", "lang": "python", "publisher": "stripe", "httplib":
+        "requests", "lang_version": "3.8.0", "platform": "macOS-10.15.2-x86_64-i386-64bit",
+        "uname": "Darwin MacBook-Pro-Touch.local 19.2.0 Darwin Kernel Version 19.2.0:
+        Sat Nov  9 03:47:04 PST 2019; root:xnu-6153.61.1~20/RELEASE_X86_64 x86_64
+        i386", "application": {"name": "dj-stripe", "partner_id": null, "url": "https://github.com/dj-stripe/dj-stripe",
+        "version": "2.2.3"}}'
+      authorization:
+      - DUMMY
+    method: GET
+    uri: https://api.stripe.com/v1/plans/plan_GwOabJCCxbWXI4
+  response:
+    body:
+      string: "{\n  \"id\": \"plan_GwOabJCCxbWXI4\",\n  \"object\": \"plan\",\n  \"\
+        active\": true,\n  \"aggregate_usage\": null,\n  \"amount\": null,\n  \"amount_decimal\"\
+        : null,\n  \"billing_scheme\": \"tiered\",\n  \"created\": 1584652838,\n \
+        \ \"currency\": \"usd\",\n  \"interval\": \"year\",\n  \"interval_count\"\
+        : 1,\n  \"livemode\": false,\n  \"metadata\": {\n  },\n  \"nickname\": \"\
+        Standard Yearly 2019\",\n  \"product\": \"prod_Gw6HrLt8HOhTju\",\n  \"tiers\"\
+        : [\n    {\n      \"flat_amount\": 50000,\n      \"flat_amount_decimal\":\
+        \ \"50000\",\n      \"unit_amount\": 0,\n      \"unit_amount_decimal\": \"\
+        0\",\n      \"up_to\": 120000\n    },\n    {\n      \"flat_amount\": 100000,\n\
+        \      \"flat_amount_decimal\": \"100000\",\n      \"unit_amount\": 0,\n \
+        \     \"unit_amount_decimal\": \"0\",\n      \"up_to\": 300000\n    },\n \
+        \   {\n      \"flat_amount\": 200000,\n      \"flat_amount_decimal\": \"200000\"\
+        ,\n      \"unit_amount\": null,\n      \"unit_amount_decimal\": null,\n  \
+        \    \"up_to\": 600000\n    },\n    {\n      \"flat_amount\": 500000,\n  \
+        \    \"flat_amount_decimal\": \"500000\",\n      \"unit_amount\": null,\n\
+        \      \"unit_amount_decimal\": null,\n      \"up_to\": 1800000\n    },\n\
+        \    {\n      \"flat_amount\": 1000000,\n      \"flat_amount_decimal\": \"\
+        1000000\",\n      \"unit_amount\": null,\n      \"unit_amount_decimal\": null,\n\
+        \      \"up_to\": 3600000\n    },\n    {\n      \"flat_amount\": 2000000,\n\
+        \      \"flat_amount_decimal\": \"2000000\",\n      \"unit_amount\": null,\n\
+        \      \"unit_amount_decimal\": null,\n      \"up_to\": 9600000\n    },\n\
+        \    {\n      \"flat_amount\": null,\n      \"flat_amount_decimal\": null,\n\
+        \      \"unit_amount\": null,\n      \"unit_amount_decimal\": \"0.208333333333\"\
+        ,\n      \"up_to\": null\n    }\n  ],\n  \"tiers_mode\": \"volume\",\n  \"\
+        transform_usage\": null,\n  \"trial_period_days\": null,\n  \"usage_type\"\
+        : \"licensed\"\n}\n"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '1663'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 24 Mar 2020 18:41:37 GMT
+      Server:
+      - nginx
+      Strict-Transport-Security:
+      - max-age=31556926; includeSubDomains; preload
+      access-control-allow-credentials:
+      - 'true'
+      access-control-allow-methods:
+      - GET, POST, HEAD, OPTIONS, DELETE
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required
+      access-control-max-age:
+      - '300'
+      cache-control:
+      - no-cache, no-store
+      request-id:
+      - req_Vl9v83zc4EAwxE
+      stripe-version:
+      - '2019-09-09'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Stripe-Version:
+      - '2019-09-09'
+      User-Agent:
+      - Stripe/v1 PythonBindings/2.43.0 dj-stripe/2.2.3 (https://github.com/dj-stripe/dj-stripe)
+      X-Stripe-Client-Telemetry:
+      - '{"last_request_metrics": {"request_id": "req_Vl9v83zc4EAwxE", "request_duration_ms":
+        112}}'
+      X-Stripe-Client-User-Agent:
+      - '{"bindings_version": "2.43.0", "lang": "python", "publisher": "stripe", "httplib":
+        "requests", "lang_version": "3.8.0", "platform": "macOS-10.15.2-x86_64-i386-64bit",
+        "uname": "Darwin MacBook-Pro-Touch.local 19.2.0 Darwin Kernel Version 19.2.0:
+        Sat Nov  9 03:47:04 PST 2019; root:xnu-6153.61.1~20/RELEASE_X86_64 x86_64
+        i386", "application": {"name": "dj-stripe", "partner_id": null, "url": "https://github.com/dj-stripe/dj-stripe",
+        "version": "2.2.3"}}'
+      authorization:
+      - DUMMY
+    method: GET
+    uri: https://api.stripe.com/v1/plans/plan_GwOvSu4wEolMqF
+  response:
+    body:
+      string: "{\n  \"id\": \"plan_GwOvSu4wEolMqF\",\n  \"object\": \"plan\",\n  \"\
+        active\": true,\n  \"aggregate_usage\": null,\n  \"amount\": 0,\n  \"amount_decimal\"\
+        : \"0\",\n  \"billing_scheme\": \"per_unit\",\n  \"created\": 1584654132,\n\
+        \  \"currency\": \"usd\",\n  \"interval\": \"year\",\n  \"interval_count\"\
+        : 1,\n  \"livemode\": false,\n  \"metadata\": {\n  },\n  \"nickname\": \"\
+        Standard Email Addon (Yearly)\",\n  \"product\": \"prod_GwOi2Tcxvn2pi7\",\n\
+        \  \"tiers\": null,\n  \"tiers_mode\": null,\n  \"transform_usage\": null,\n\
+        \  \"trial_period_days\": null,\n  \"usage_type\": \"licensed\"\n}\n"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '510'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 24 Mar 2020 18:41:37 GMT
+      Server:
+      - nginx
+      Strict-Transport-Security:
+      - max-age=31556926; includeSubDomains; preload
+      access-control-allow-credentials:
+      - 'true'
+      access-control-allow-methods:
+      - GET, POST, HEAD, OPTIONS, DELETE
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required
+      access-control-max-age:
+      - '300'
+      cache-control:
+      - no-cache, no-store
+      request-id:
+      - req_nTnVYk59x0x585
+      stripe-version:
+      - '2019-09-09'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: email=znelson%40singh.org&metadata[djstripe_subscriber]=125
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '59'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      Idempotency-Key:
+      - 6725ce53-dc52-4a69-9e1a-a3fe4d2b4d6a
+      Stripe-Version:
+      - '2019-09-09'
+      User-Agent:
+      - Stripe/v1 PythonBindings/2.43.0 dj-stripe/2.2.3 (https://github.com/dj-stripe/dj-stripe)
+      X-Stripe-Client-Telemetry:
+      - '{"last_request_metrics": {"request_id": "req_nTnVYk59x0x585", "request_duration_ms":
+        101}}'
+      X-Stripe-Client-User-Agent:
+      - '{"bindings_version": "2.43.0", "lang": "python", "publisher": "stripe", "httplib":
+        "requests", "lang_version": "3.8.0", "platform": "macOS-10.15.2-x86_64-i386-64bit",
+        "uname": "Darwin MacBook-Pro-Touch.local 19.2.0 Darwin Kernel Version 19.2.0:
+        Sat Nov  9 03:47:04 PST 2019; root:xnu-6153.61.1~20/RELEASE_X86_64 x86_64
+        i386", "application": {"name": "dj-stripe", "partner_id": null, "url": "https://github.com/dj-stripe/dj-stripe",
+        "version": "2.2.3"}}'
+      authorization:
+      - DUMMY
+    method: POST
+    uri: https://api.stripe.com/v1/customers
+  response:
+    body:
+      string: "{\n  \"id\": \"cus_GyE9f9zGN9kGq3\",\n  \"object\": \"customer\",\n\
+        \  \"account_balance\": 0,\n  \"address\": null,\n  \"balance\": 0,\n  \"\
+        created\": 1585075297,\n  \"currency\": null,\n  \"default_source\": null,\n\
+        \  \"delinquent\": false,\n  \"description\": null,\n  \"discount\": null,\n\
+        \  \"email\": \"znelson@singh.org\",\n  \"invoice_prefix\": \"7AD95EBE\",\n\
+        \  \"invoice_settings\": {\n    \"custom_fields\": null,\n    \"default_payment_method\"\
+        : null,\n    \"footer\": null\n  },\n  \"livemode\": false,\n  \"metadata\"\
+        : {\n    \"djstripe_subscriber\": \"125\"\n  },\n  \"name\": null,\n  \"next_invoice_sequence\"\
+        : 1,\n  \"phone\": null,\n  \"preferred_locales\": [\n\n  ],\n  \"shipping\"\
+        : null,\n  \"sources\": {\n    \"object\": \"list\",\n    \"data\": [\n\n\
+        \    ],\n    \"has_more\": false,\n    \"total_count\": 0,\n    \"url\": \"\
+        /v1/customers/cus_GyE9f9zGN9kGq3/sources\"\n  },\n  \"subscriptions\": {\n\
+        \    \"object\": \"list\",\n    \"data\": [\n\n    ],\n    \"has_more\": false,\n\
+        \    \"total_count\": 0,\n    \"url\": \"/v1/customers/cus_GyE9f9zGN9kGq3/subscriptions\"\
+        \n  },\n  \"tax_exempt\": \"none\",\n  \"tax_ids\": {\n    \"object\": \"\
+        list\",\n    \"data\": [\n\n    ],\n    \"has_more\": false,\n    \"total_count\"\
+        : 0,\n    \"url\": \"/v1/customers/cus_GyE9f9zGN9kGq3/tax_ids\"\n  },\n  \"\
+        tax_info\": null,\n  \"tax_info_verification\": null\n}\n"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '1195'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 24 Mar 2020 18:41:37 GMT
+      Server:
+      - nginx
+      Strict-Transport-Security:
+      - max-age=31556926; includeSubDomains; preload
+      access-control-allow-credentials:
+      - 'true'
+      access-control-allow-methods:
+      - GET, POST, HEAD, OPTIONS, DELETE
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required
+      access-control-max-age:
+      - '300'
+      cache-control:
+      - no-cache, no-store
+      idempotency-key:
+      - 6725ce53-dc52-4a69-9e1a-a3fe4d2b4d6a
+      original-request:
+      - req_AJz19KHtfku5MY
+      request-id:
+      - req_AJz19KHtfku5MY
+      stripe-should-retry:
+      - 'false'
+      stripe-version:
+      - '2019-09-09'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Stripe-Version:
+      - '2019-09-09'
+      User-Agent:
+      - Stripe/v1 PythonBindings/2.43.0 dj-stripe/2.2.3 (https://github.com/dj-stripe/dj-stripe)
+      X-Stripe-Client-Telemetry:
+      - '{"last_request_metrics": {"request_id": "req_AJz19KHtfku5MY", "request_duration_ms":
+        295}}'
+      X-Stripe-Client-User-Agent:
+      - '{"bindings_version": "2.43.0", "lang": "python", "publisher": "stripe", "httplib":
+        "requests", "lang_version": "3.8.0", "platform": "macOS-10.15.2-x86_64-i386-64bit",
+        "uname": "Darwin MacBook-Pro-Touch.local 19.2.0 Darwin Kernel Version 19.2.0:
+        Sat Nov  9 03:47:04 PST 2019; root:xnu-6153.61.1~20/RELEASE_X86_64 x86_64
+        i386", "application": {"name": "dj-stripe", "partner_id": null, "url": "https://github.com/dj-stripe/dj-stripe",
+        "version": "2.2.3"}}'
+      authorization:
+      - DUMMY
+    method: GET
+    uri: https://api.stripe.com/v1/customers/cus_GyE9f9zGN9kGq3?expand%5B0%5D=default_source
+  response:
+    body:
+      string: "{\n  \"id\": \"cus_GyE9f9zGN9kGq3\",\n  \"object\": \"customer\",\n\
+        \  \"account_balance\": 0,\n  \"address\": null,\n  \"balance\": 0,\n  \"\
+        created\": 1585075297,\n  \"currency\": null,\n  \"default_source\": null,\n\
+        \  \"delinquent\": false,\n  \"description\": null,\n  \"discount\": null,\n\
+        \  \"email\": \"znelson@singh.org\",\n  \"invoice_prefix\": \"7AD95EBE\",\n\
+        \  \"invoice_settings\": {\n    \"custom_fields\": null,\n    \"default_payment_method\"\
+        : null,\n    \"footer\": null\n  },\n  \"livemode\": false,\n  \"metadata\"\
+        : {\n    \"djstripe_subscriber\": \"125\"\n  },\n  \"name\": null,\n  \"next_invoice_sequence\"\
+        : 1,\n  \"phone\": null,\n  \"preferred_locales\": [\n\n  ],\n  \"shipping\"\
+        : null,\n  \"sources\": {\n    \"object\": \"list\",\n    \"data\": [\n\n\
+        \    ],\n    \"has_more\": false,\n    \"total_count\": 0,\n    \"url\": \"\
+        /v1/customers/cus_GyE9f9zGN9kGq3/sources\"\n  },\n  \"subscriptions\": {\n\
+        \    \"object\": \"list\",\n    \"data\": [\n\n    ],\n    \"has_more\": false,\n\
+        \    \"total_count\": 0,\n    \"url\": \"/v1/customers/cus_GyE9f9zGN9kGq3/subscriptions\"\
+        \n  },\n  \"tax_exempt\": \"none\",\n  \"tax_ids\": {\n    \"object\": \"\
+        list\",\n    \"data\": [\n\n    ],\n    \"has_more\": false,\n    \"total_count\"\
+        : 0,\n    \"url\": \"/v1/customers/cus_GyE9f9zGN9kGq3/tax_ids\"\n  },\n  \"\
+        tax_info\": null,\n  \"tax_info_verification\": null\n}\n"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '1195'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 24 Mar 2020 18:41:37 GMT
+      Server:
+      - nginx
+      Strict-Transport-Security:
+      - max-age=31556926; includeSubDomains; preload
+      access-control-allow-credentials:
+      - 'true'
+      access-control-allow-methods:
+      - GET, POST, HEAD, OPTIONS, DELETE
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required
+      access-control-max-age:
+      - '300'
+      cache-control:
+      - no-cache, no-store
+      request-id:
+      - req_8fhSam1jbVwGvB
+      stripe-version:
+      - '2019-09-09'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: source=tok_visa
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '15'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      Idempotency-Key:
+      - 8cb4e481-e3ea-4ced-9701-eef471d95fa7
+      Stripe-Version:
+      - '2019-09-09'
+      User-Agent:
+      - Stripe/v1 PythonBindings/2.43.0 dj-stripe/2.2.3 (https://github.com/dj-stripe/dj-stripe)
+      X-Stripe-Client-Telemetry:
+      - '{"last_request_metrics": {"request_id": "req_8fhSam1jbVwGvB", "request_duration_ms":
+        133}}'
+      X-Stripe-Client-User-Agent:
+      - '{"bindings_version": "2.43.0", "lang": "python", "publisher": "stripe", "httplib":
+        "requests", "lang_version": "3.8.0", "platform": "macOS-10.15.2-x86_64-i386-64bit",
+        "uname": "Darwin MacBook-Pro-Touch.local 19.2.0 Darwin Kernel Version 19.2.0:
+        Sat Nov  9 03:47:04 PST 2019; root:xnu-6153.61.1~20/RELEASE_X86_64 x86_64
+        i386", "application": {"name": "dj-stripe", "partner_id": null, "url": "https://github.com/dj-stripe/dj-stripe",
+        "version": "2.2.3"}}'
+      authorization:
+      - DUMMY
+    method: POST
+    uri: https://api.stripe.com/v1/customers/cus_GyE9f9zGN9kGq3/sources
+  response:
+    body:
+      string: "{\n  \"id\": \"card_1GQHh0DGSmTJrpHgpcDmUcVR\",\n  \"object\": \"card\"\
+        ,\n  \"address_city\": null,\n  \"address_country\": null,\n  \"address_line1\"\
+        : null,\n  \"address_line1_check\": null,\n  \"address_line2\": null,\n  \"\
+        address_state\": null,\n  \"address_zip\": null,\n  \"address_zip_check\"\
+        : null,\n  \"brand\": \"Visa\",\n  \"country\": \"US\",\n  \"customer\": \"\
+        cus_GyE9f9zGN9kGq3\",\n  \"cvc_check\": null,\n  \"dynamic_last4\": null,\n\
+        \  \"exp_month\": 3,\n  \"exp_year\": 2021,\n  \"fingerprint\": \"JBQUMWEqhLPrdmkK\"\
+        ,\n  \"funding\": \"credit\",\n  \"last4\": \"4242\",\n  \"metadata\": {\n\
+        \  },\n  \"name\": null,\n  \"tokenization_method\": null\n}\n"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '578'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 24 Mar 2020 18:41:38 GMT
+      Server:
+      - nginx
+      Strict-Transport-Security:
+      - max-age=31556926; includeSubDomains; preload
+      access-control-allow-credentials:
+      - 'true'
+      access-control-allow-methods:
+      - GET, POST, HEAD, OPTIONS, DELETE
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required
+      access-control-max-age:
+      - '300'
+      cache-control:
+      - no-cache, no-store
+      idempotency-key:
+      - 8cb4e481-e3ea-4ced-9701-eef471d95fa7
+      original-request:
+      - req_JKUdaOrWW8z6uB
+      request-id:
+      - req_JKUdaOrWW8z6uB
+      stripe-should-retry:
+      - 'false'
+      stripe-version:
+      - '2019-09-09'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: default_source=card_1GQHh0DGSmTJrpHgpcDmUcVR
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '44'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      Idempotency-Key:
+      - 145c5bf9-9c6d-4986-84d6-7c13e4df0ef5
+      Stripe-Version:
+      - '2019-09-09'
+      User-Agent:
+      - Stripe/v1 PythonBindings/2.43.0 dj-stripe/2.2.3 (https://github.com/dj-stripe/dj-stripe)
+      X-Stripe-Client-Telemetry:
+      - '{"last_request_metrics": {"request_id": "req_JKUdaOrWW8z6uB", "request_duration_ms":
+        377}}'
+      X-Stripe-Client-User-Agent:
+      - '{"bindings_version": "2.43.0", "lang": "python", "publisher": "stripe", "httplib":
+        "requests", "lang_version": "3.8.0", "platform": "macOS-10.15.2-x86_64-i386-64bit",
+        "uname": "Darwin MacBook-Pro-Touch.local 19.2.0 Darwin Kernel Version 19.2.0:
+        Sat Nov  9 03:47:04 PST 2019; root:xnu-6153.61.1~20/RELEASE_X86_64 x86_64
+        i386", "application": {"name": "dj-stripe", "partner_id": null, "url": "https://github.com/dj-stripe/dj-stripe",
+        "version": "2.2.3"}}'
+      authorization:
+      - DUMMY
+    method: POST
+    uri: https://api.stripe.com/v1/customers/cus_GyE9f9zGN9kGq3
+  response:
+    body:
+      string: "{\n  \"id\": \"cus_GyE9f9zGN9kGq3\",\n  \"object\": \"customer\",\n\
+        \  \"account_balance\": 0,\n  \"address\": null,\n  \"balance\": 0,\n  \"\
+        created\": 1585075297,\n  \"currency\": null,\n  \"default_source\": \"card_1GQHh0DGSmTJrpHgpcDmUcVR\"\
+        ,\n  \"delinquent\": false,\n  \"description\": null,\n  \"discount\": null,\n\
+        \  \"email\": \"znelson@singh.org\",\n  \"invoice_prefix\": \"7AD95EBE\",\n\
+        \  \"invoice_settings\": {\n    \"custom_fields\": null,\n    \"default_payment_method\"\
+        : null,\n    \"footer\": null\n  },\n  \"livemode\": false,\n  \"metadata\"\
+        : {\n    \"djstripe_subscriber\": \"125\"\n  },\n  \"name\": null,\n  \"next_invoice_sequence\"\
+        : 1,\n  \"phone\": null,\n  \"preferred_locales\": [\n\n  ],\n  \"shipping\"\
+        : null,\n  \"sources\": {\n    \"object\": \"list\",\n    \"data\": [\n  \
+        \    {\n        \"id\": \"card_1GQHh0DGSmTJrpHgpcDmUcVR\",\n        \"object\"\
+        : \"card\",\n        \"address_city\": null,\n        \"address_country\"\
+        : null,\n        \"address_line1\": null,\n        \"address_line1_check\"\
+        : null,\n        \"address_line2\": null,\n        \"address_state\": null,\n\
+        \        \"address_zip\": null,\n        \"address_zip_check\": null,\n  \
+        \      \"brand\": \"Visa\",\n        \"country\": \"US\",\n        \"customer\"\
+        : \"cus_GyE9f9zGN9kGq3\",\n        \"cvc_check\": null,\n        \"dynamic_last4\"\
+        : null,\n        \"exp_month\": 3,\n        \"exp_year\": 2021,\n        \"\
+        fingerprint\": \"JBQUMWEqhLPrdmkK\",\n        \"funding\": \"credit\",\n \
+        \       \"last4\": \"4242\",\n        \"metadata\": {\n        },\n      \
+        \  \"name\": null,\n        \"tokenization_method\": null\n      }\n    ],\n\
+        \    \"has_more\": false,\n    \"total_count\": 1,\n    \"url\": \"/v1/customers/cus_GyE9f9zGN9kGq3/sources\"\
+        \n  },\n  \"subscriptions\": {\n    \"object\": \"list\",\n    \"data\": [\n\
+        \n    ],\n    \"has_more\": false,\n    \"total_count\": 0,\n    \"url\":\
+        \ \"/v1/customers/cus_GyE9f9zGN9kGq3/subscriptions\"\n  },\n  \"tax_exempt\"\
+        : \"none\",\n  \"tax_ids\": {\n    \"object\": \"list\",\n    \"data\": [\n\
+        \n    ],\n    \"has_more\": false,\n    \"total_count\": 0,\n    \"url\":\
+        \ \"/v1/customers/cus_GyE9f9zGN9kGq3/tax_ids\"\n  },\n  \"tax_info\": null,\n\
+        \  \"tax_info_verification\": null\n}\n"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '1955'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 24 Mar 2020 18:41:38 GMT
+      Server:
+      - nginx
+      Strict-Transport-Security:
+      - max-age=31556926; includeSubDomains; preload
+      access-control-allow-credentials:
+      - 'true'
+      access-control-allow-methods:
+      - GET, POST, HEAD, OPTIONS, DELETE
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required
+      access-control-max-age:
+      - '300'
+      cache-control:
+      - no-cache, no-store
+      idempotency-key:
+      - 145c5bf9-9c6d-4986-84d6-7c13e4df0ef5
+      original-request:
+      - req_Fd40Knk4jVfc27
+      request-id:
+      - req_Fd40Knk4jVfc27
+      stripe-should-retry:
+      - 'false'
+      stripe-version:
+      - '2019-09-09'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: items[0][plan]=plan_GwOROprh1UPdQL&items[0][quantity]=100&items[1][plan]=plan_GwOvKvoNibwMK4&items[1][quantity]=1&customer=cus_GyE9f9zGN9kGq3&trial_end=now
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '155'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      Idempotency-Key:
+      - 42ee4984-9ad7-474e-8300-9af40a3cdd27
+      Stripe-Version:
+      - '2019-09-09'
+      User-Agent:
+      - Stripe/v1 PythonBindings/2.43.0 dj-stripe/2.2.3 (https://github.com/dj-stripe/dj-stripe)
+      X-Stripe-Client-Telemetry:
+      - '{"last_request_metrics": {"request_id": "req_Fd40Knk4jVfc27", "request_duration_ms":
+        613}}'
+      X-Stripe-Client-User-Agent:
+      - '{"bindings_version": "2.43.0", "lang": "python", "publisher": "stripe", "httplib":
+        "requests", "lang_version": "3.8.0", "platform": "macOS-10.15.2-x86_64-i386-64bit",
+        "uname": "Darwin MacBook-Pro-Touch.local 19.2.0 Darwin Kernel Version 19.2.0:
+        Sat Nov  9 03:47:04 PST 2019; root:xnu-6153.61.1~20/RELEASE_X86_64 x86_64
+        i386", "application": {"name": "dj-stripe", "partner_id": null, "url": "https://github.com/dj-stripe/dj-stripe",
+        "version": "2.2.3"}}'
+      authorization:
+      - DUMMY
+    method: POST
+    uri: https://api.stripe.com/v1/subscriptions
+  response:
+    body:
+      string: "{\n  \"id\": \"sub_GyE9kSEbLkjEPg\",\n  \"object\": \"subscription\"\
+        ,\n  \"application_fee_percent\": null,\n  \"billing\": \"charge_automatically\"\
+        ,\n  \"billing_cycle_anchor\": 1585075299,\n  \"billing_thresholds\": null,\n\
+        \  \"cancel_at\": null,\n  \"cancel_at_period_end\": false,\n  \"canceled_at\"\
+        : null,\n  \"collection_method\": \"charge_automatically\",\n  \"created\"\
+        : 1585075299,\n  \"current_period_end\": 1587753699,\n  \"current_period_start\"\
+        : 1585075299,\n  \"customer\": \"cus_GyE9f9zGN9kGq3\",\n  \"days_until_due\"\
+        : null,\n  \"default_payment_method\": null,\n  \"default_source\": null,\n\
+        \  \"default_tax_rates\": [\n\n  ],\n  \"discount\": null,\n  \"ended_at\"\
+        : null,\n  \"invoice_customer_balance_settings\": {\n    \"consume_applied_balance_on_void\"\
+        : true\n  },\n  \"items\": {\n    \"object\": \"list\",\n    \"data\": [\n\
+        \      {\n        \"id\": \"si_GyE9GEmsdcNluY\",\n        \"object\": \"subscription_item\"\
+        ,\n        \"billing_thresholds\": null,\n        \"created\": 1585075299,\n\
+        \        \"metadata\": {\n        },\n        \"plan\": {\n          \"id\"\
+        : \"plan_GwOROprh1UPdQL\",\n          \"object\": \"plan\",\n          \"\
+        active\": true,\n          \"aggregate_usage\": null,\n          \"amount\"\
+        : null,\n          \"amount_decimal\": null,\n          \"billing_scheme\"\
+        : \"tiered\",\n          \"created\": 1584652287,\n          \"currency\"\
+        : \"usd\",\n          \"interval\": \"month\",\n          \"interval_count\"\
+        : 1,\n          \"livemode\": false,\n          \"metadata\": {\n        \
+        \  },\n          \"nickname\": \"Standard Monthly 201901\",\n          \"\
+        product\": \"prod_Gw6HrLt8HOhTju\",\n          \"tiers\": [\n            {\n\
+        \              \"flat_amount\": 5000,\n              \"flat_amount_decimal\"\
+        : \"5000\",\n              \"unit_amount\": 0,\n              \"unit_amount_decimal\"\
+        : \"0\",\n              \"up_to\": 10000\n            },\n            {\n\
+        \              \"flat_amount\": 10000,\n              \"flat_amount_decimal\"\
+        : \"10000\",\n              \"unit_amount\": null,\n              \"unit_amount_decimal\"\
+        : null,\n              \"up_to\": 25000\n            },\n            {\n \
+        \             \"flat_amount\": 20000,\n              \"flat_amount_decimal\"\
+        : \"20000\",\n              \"unit_amount\": null,\n              \"unit_amount_decimal\"\
+        : null,\n              \"up_to\": 50000\n            },\n            {\n \
+        \             \"flat_amount\": 50000,\n              \"flat_amount_decimal\"\
+        : \"50000\",\n              \"unit_amount\": null,\n              \"unit_amount_decimal\"\
+        : null,\n              \"up_to\": 150000\n            },\n            {\n\
+        \              \"flat_amount\": 100000,\n              \"flat_amount_decimal\"\
+        : \"100000\",\n              \"unit_amount\": null,\n              \"unit_amount_decimal\"\
+        : null,\n              \"up_to\": 300000\n            },\n            {\n\
+        \              \"flat_amount\": 200000,\n              \"flat_amount_decimal\"\
+        : \"200000\",\n              \"unit_amount\": null,\n              \"unit_amount_decimal\"\
+        : null,\n              \"up_to\": 800000\n            },\n            {\n\
+        \              \"flat_amount\": null,\n              \"flat_amount_decimal\"\
+        : null,\n              \"unit_amount\": null,\n              \"unit_amount_decimal\"\
+        : \"0.03\",\n              \"up_to\": null\n            }\n          ],\n\
+        \          \"tiers_mode\": \"volume\",\n          \"transform_usage\": null,\n\
+        \          \"trial_period_days\": null,\n          \"usage_type\": \"licensed\"\
+        \n        },\n        \"quantity\": 100,\n        \"subscription\": \"sub_GyE9kSEbLkjEPg\"\
+        ,\n        \"tax_rates\": [\n\n        ]\n      },\n      {\n        \"id\"\
+        : \"si_GyE9L6xAUBoAUd\",\n        \"object\": \"subscription_item\",\n   \
+        \     \"billing_thresholds\": null,\n        \"created\": 1585075299,\n  \
+        \      \"metadata\": {\n        },\n        \"plan\": {\n          \"id\"\
+        : \"plan_GwOvKvoNibwMK4\",\n          \"object\": \"plan\",\n          \"\
+        active\": true,\n          \"aggregate_usage\": null,\n          \"amount\"\
+        : 0,\n          \"amount_decimal\": \"0\",\n          \"billing_scheme\":\
+        \ \"per_unit\",\n          \"created\": 1584654106,\n          \"currency\"\
+        : \"usd\",\n          \"interval\": \"month\",\n          \"interval_count\"\
+        : 1,\n          \"livemode\": false,\n          \"metadata\": {\n        \
+        \  },\n          \"nickname\": \"Standard Email Addon (Monthly)\",\n     \
+        \     \"product\": \"prod_GwOi2Tcxvn2pi7\",\n          \"tiers\": null,\n\
+        \          \"tiers_mode\": null,\n          \"transform_usage\": null,\n \
+        \         \"trial_period_days\": null,\n          \"usage_type\": \"licensed\"\
+        \n        },\n        \"quantity\": 1,\n        \"subscription\": \"sub_GyE9kSEbLkjEPg\"\
+        ,\n        \"tax_rates\": [\n\n        ]\n      }\n    ],\n    \"has_more\"\
+        : false,\n    \"total_count\": 2,\n    \"url\": \"/v1/subscription_items?subscription=sub_GyE9kSEbLkjEPg\"\
+        \n  },\n  \"latest_invoice\": \"in_1GQHh1DGSmTJrpHgrqHZqHpP\",\n  \"livemode\"\
+        : false,\n  \"metadata\": {\n  },\n  \"next_pending_invoice_item_invoice\"\
+        : null,\n  \"pending_invoice_item_interval\": null,\n  \"pending_setup_intent\"\
+        : null,\n  \"pending_update\": null,\n  \"plan\": null,\n  \"quantity\": null,\n\
+        \  \"schedule\": null,\n  \"start\": 1585075299,\n  \"start_date\": 1585075299,\n\
+        \  \"status\": \"active\",\n  \"tax_percent\": null,\n  \"trial_end\": null,\n\
+        \  \"trial_start\": null\n}\n"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '4844'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 24 Mar 2020 18:41:43 GMT
+      Server:
+      - nginx
+      Strict-Transport-Security:
+      - max-age=31556926; includeSubDomains; preload
+      access-control-allow-credentials:
+      - 'true'
+      access-control-allow-methods:
+      - GET, POST, HEAD, OPTIONS, DELETE
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required
+      access-control-max-age:
+      - '300'
+      cache-control:
+      - no-cache, no-store
+      idempotency-key:
+      - 42ee4984-9ad7-474e-8300-9af40a3cdd27
+      original-request:
+      - req_TpOPqWtj3XdB0V
+      request-id:
+      - req_TpOPqWtj3XdB0V
+      stripe-should-retry:
+      - 'false'
+      stripe-version:
+      - '2019-09-09'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Stripe-Version:
+      - '2019-09-09'
+      User-Agent:
+      - Stripe/v1 PythonBindings/2.43.0 dj-stripe/2.2.3 (https://github.com/dj-stripe/dj-stripe)
+      X-Stripe-Client-Telemetry:
+      - '{"last_request_metrics": {"request_id": "req_TpOPqWtj3XdB0V", "request_duration_ms":
+        4494}}'
+      X-Stripe-Client-User-Agent:
+      - '{"bindings_version": "2.43.0", "lang": "python", "publisher": "stripe", "httplib":
+        "requests", "lang_version": "3.8.0", "platform": "macOS-10.15.2-x86_64-i386-64bit",
+        "uname": "Darwin MacBook-Pro-Touch.local 19.2.0 Darwin Kernel Version 19.2.0:
+        Sat Nov  9 03:47:04 PST 2019; root:xnu-6153.61.1~20/RELEASE_X86_64 x86_64
+        i386", "application": {"name": "dj-stripe", "partner_id": null, "url": "https://github.com/dj-stripe/dj-stripe",
+        "version": "2.2.3"}}'
+      authorization:
+      - DUMMY
+    method: GET
+    uri: https://api.stripe.com/v1/subscriptions/sub_GyE9kSEbLkjEPg
+  response:
+    body:
+      string: "{\n  \"id\": \"sub_GyE9kSEbLkjEPg\",\n  \"object\": \"subscription\"\
+        ,\n  \"application_fee_percent\": null,\n  \"billing\": \"charge_automatically\"\
+        ,\n  \"billing_cycle_anchor\": 1585075299,\n  \"billing_thresholds\": null,\n\
+        \  \"cancel_at\": null,\n  \"cancel_at_period_end\": false,\n  \"canceled_at\"\
+        : null,\n  \"collection_method\": \"charge_automatically\",\n  \"created\"\
+        : 1585075299,\n  \"current_period_end\": 1587753699,\n  \"current_period_start\"\
+        : 1585075299,\n  \"customer\": \"cus_GyE9f9zGN9kGq3\",\n  \"days_until_due\"\
+        : null,\n  \"default_payment_method\": null,\n  \"default_source\": null,\n\
+        \  \"default_tax_rates\": [\n\n  ],\n  \"discount\": null,\n  \"ended_at\"\
+        : null,\n  \"invoice_customer_balance_settings\": {\n    \"consume_applied_balance_on_void\"\
+        : true\n  },\n  \"items\": {\n    \"object\": \"list\",\n    \"data\": [\n\
+        \      {\n        \"id\": \"si_GyE9GEmsdcNluY\",\n        \"object\": \"subscription_item\"\
+        ,\n        \"billing_thresholds\": null,\n        \"created\": 1585075299,\n\
+        \        \"metadata\": {\n        },\n        \"plan\": {\n          \"id\"\
+        : \"plan_GwOROprh1UPdQL\",\n          \"object\": \"plan\",\n          \"\
+        active\": true,\n          \"aggregate_usage\": null,\n          \"amount\"\
+        : null,\n          \"amount_decimal\": null,\n          \"billing_scheme\"\
+        : \"tiered\",\n          \"created\": 1584652287,\n          \"currency\"\
+        : \"usd\",\n          \"interval\": \"month\",\n          \"interval_count\"\
+        : 1,\n          \"livemode\": false,\n          \"metadata\": {\n        \
+        \  },\n          \"nickname\": \"Standard Monthly 201901\",\n          \"\
+        product\": \"prod_Gw6HrLt8HOhTju\",\n          \"tiers\": [\n            {\n\
+        \              \"flat_amount\": 5000,\n              \"flat_amount_decimal\"\
+        : \"5000\",\n              \"unit_amount\": 0,\n              \"unit_amount_decimal\"\
+        : \"0\",\n              \"up_to\": 10000\n            },\n            {\n\
+        \              \"flat_amount\": 10000,\n              \"flat_amount_decimal\"\
+        : \"10000\",\n              \"unit_amount\": null,\n              \"unit_amount_decimal\"\
+        : null,\n              \"up_to\": 25000\n            },\n            {\n \
+        \             \"flat_amount\": 20000,\n              \"flat_amount_decimal\"\
+        : \"20000\",\n              \"unit_amount\": null,\n              \"unit_amount_decimal\"\
+        : null,\n              \"up_to\": 50000\n            },\n            {\n \
+        \             \"flat_amount\": 50000,\n              \"flat_amount_decimal\"\
+        : \"50000\",\n              \"unit_amount\": null,\n              \"unit_amount_decimal\"\
+        : null,\n              \"up_to\": 150000\n            },\n            {\n\
+        \              \"flat_amount\": 100000,\n              \"flat_amount_decimal\"\
+        : \"100000\",\n              \"unit_amount\": null,\n              \"unit_amount_decimal\"\
+        : null,\n              \"up_to\": 300000\n            },\n            {\n\
+        \              \"flat_amount\": 200000,\n              \"flat_amount_decimal\"\
+        : \"200000\",\n              \"unit_amount\": null,\n              \"unit_amount_decimal\"\
+        : null,\n              \"up_to\": 800000\n            },\n            {\n\
+        \              \"flat_amount\": null,\n              \"flat_amount_decimal\"\
+        : null,\n              \"unit_amount\": null,\n              \"unit_amount_decimal\"\
+        : \"0.03\",\n              \"up_to\": null\n            }\n          ],\n\
+        \          \"tiers_mode\": \"volume\",\n          \"transform_usage\": null,\n\
+        \          \"trial_period_days\": null,\n          \"usage_type\": \"licensed\"\
+        \n        },\n        \"quantity\": 100,\n        \"subscription\": \"sub_GyE9kSEbLkjEPg\"\
+        ,\n        \"tax_rates\": [\n\n        ]\n      },\n      {\n        \"id\"\
+        : \"si_GyE9L6xAUBoAUd\",\n        \"object\": \"subscription_item\",\n   \
+        \     \"billing_thresholds\": null,\n        \"created\": 1585075299,\n  \
+        \      \"metadata\": {\n        },\n        \"plan\": {\n          \"id\"\
+        : \"plan_GwOvKvoNibwMK4\",\n          \"object\": \"plan\",\n          \"\
+        active\": true,\n          \"aggregate_usage\": null,\n          \"amount\"\
+        : 0,\n          \"amount_decimal\": \"0\",\n          \"billing_scheme\":\
+        \ \"per_unit\",\n          \"created\": 1584654106,\n          \"currency\"\
+        : \"usd\",\n          \"interval\": \"month\",\n          \"interval_count\"\
+        : 1,\n          \"livemode\": false,\n          \"metadata\": {\n        \
+        \  },\n          \"nickname\": \"Standard Email Addon (Monthly)\",\n     \
+        \     \"product\": \"prod_GwOi2Tcxvn2pi7\",\n          \"tiers\": null,\n\
+        \          \"tiers_mode\": null,\n          \"transform_usage\": null,\n \
+        \         \"trial_period_days\": null,\n          \"usage_type\": \"licensed\"\
+        \n        },\n        \"quantity\": 1,\n        \"subscription\": \"sub_GyE9kSEbLkjEPg\"\
+        ,\n        \"tax_rates\": [\n\n        ]\n      }\n    ],\n    \"has_more\"\
+        : false,\n    \"total_count\": 2,\n    \"url\": \"/v1/subscription_items?subscription=sub_GyE9kSEbLkjEPg\"\
+        \n  },\n  \"latest_invoice\": \"in_1GQHh1DGSmTJrpHgrqHZqHpP\",\n  \"livemode\"\
+        : false,\n  \"metadata\": {\n  },\n  \"next_pending_invoice_item_invoice\"\
+        : null,\n  \"pending_invoice_item_interval\": null,\n  \"pending_setup_intent\"\
+        : null,\n  \"pending_update\": null,\n  \"plan\": null,\n  \"quantity\": null,\n\
+        \  \"schedule\": null,\n  \"start\": 1585075299,\n  \"start_date\": 1585075299,\n\
+        \  \"status\": \"active\",\n  \"tax_percent\": null,\n  \"trial_end\": null,\n\
+        \  \"trial_start\": null\n}\n"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '4844'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 24 Mar 2020 18:41:43 GMT
+      Server:
+      - nginx
+      Strict-Transport-Security:
+      - max-age=31556926; includeSubDomains; preload
+      access-control-allow-credentials:
+      - 'true'
+      access-control-allow-methods:
+      - GET, POST, HEAD, OPTIONS, DELETE
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required
+      access-control-max-age:
+      - '300'
+      cache-control:
+      - no-cache, no-store
+      request-id:
+      - req_JhBlzO4Wsgqndl
+      stripe-version:
+      - '2019-09-09'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: items[0][plan]=plan_GwOabJCCxbWXI4&items[0][quantity]=100&items[1][plan]=plan_GwOvSu4wEolMqF&items[1][quantity]=1&items[2][plan]=plan_GwOvKvoNibwMK4&items[2][id]=si_GyE9L6xAUBoAUd&items[2][deleted]=True&items[3][plan]=plan_GwOROprh1UPdQL&items[3][id]=si_GyE9GEmsdcNluY&items[3][deleted]=True
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '291'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      Idempotency-Key:
+      - 9e783717-fb67-40f3-a193-bdad0793db77
+      Stripe-Version:
+      - '2019-09-09'
+      User-Agent:
+      - Stripe/v1 PythonBindings/2.43.0 dj-stripe/2.2.3 (https://github.com/dj-stripe/dj-stripe)
+      X-Stripe-Client-Telemetry:
+      - '{"last_request_metrics": {"request_id": "req_JhBlzO4Wsgqndl", "request_duration_ms":
+        148}}'
+      X-Stripe-Client-User-Agent:
+      - '{"bindings_version": "2.43.0", "lang": "python", "publisher": "stripe", "httplib":
+        "requests", "lang_version": "3.8.0", "platform": "macOS-10.15.2-x86_64-i386-64bit",
+        "uname": "Darwin MacBook-Pro-Touch.local 19.2.0 Darwin Kernel Version 19.2.0:
+        Sat Nov  9 03:47:04 PST 2019; root:xnu-6153.61.1~20/RELEASE_X86_64 x86_64
+        i386", "application": {"name": "dj-stripe", "partner_id": null, "url": "https://github.com/dj-stripe/dj-stripe",
+        "version": "2.2.3"}}'
+      authorization:
+      - DUMMY
+    method: POST
+    uri: https://api.stripe.com/v1/subscriptions/sub_GyE9kSEbLkjEPg
+  response:
+    body:
+      string: "{\n  \"id\": \"sub_GyE9kSEbLkjEPg\",\n  \"object\": \"subscription\"\
+        ,\n  \"application_fee_percent\": null,\n  \"billing\": \"charge_automatically\"\
+        ,\n  \"billing_cycle_anchor\": 1585075303,\n  \"billing_thresholds\": null,\n\
+        \  \"cancel_at\": null,\n  \"cancel_at_period_end\": false,\n  \"canceled_at\"\
+        : null,\n  \"collection_method\": \"charge_automatically\",\n  \"created\"\
+        : 1585075299,\n  \"current_period_end\": 1616611303,\n  \"current_period_start\"\
+        : 1585075303,\n  \"customer\": \"cus_GyE9f9zGN9kGq3\",\n  \"days_until_due\"\
+        : null,\n  \"default_payment_method\": null,\n  \"default_source\": null,\n\
+        \  \"default_tax_rates\": [\n\n  ],\n  \"discount\": null,\n  \"ended_at\"\
+        : null,\n  \"invoice_customer_balance_settings\": {\n    \"consume_applied_balance_on_void\"\
+        : true\n  },\n  \"items\": {\n    \"object\": \"list\",\n    \"data\": [\n\
+        \      {\n        \"id\": \"si_GyE9Hu1u1pMg1x\",\n        \"object\": \"subscription_item\"\
+        ,\n        \"billing_thresholds\": null,\n        \"created\": 1585075304,\n\
+        \        \"metadata\": {\n        },\n        \"plan\": {\n          \"id\"\
+        : \"plan_GwOabJCCxbWXI4\",\n          \"object\": \"plan\",\n          \"\
+        active\": true,\n          \"aggregate_usage\": null,\n          \"amount\"\
+        : null,\n          \"amount_decimal\": null,\n          \"billing_scheme\"\
+        : \"tiered\",\n          \"created\": 1584652838,\n          \"currency\"\
+        : \"usd\",\n          \"interval\": \"year\",\n          \"interval_count\"\
+        : 1,\n          \"livemode\": false,\n          \"metadata\": {\n        \
+        \  },\n          \"nickname\": \"Standard Yearly 2019\",\n          \"product\"\
+        : \"prod_Gw6HrLt8HOhTju\",\n          \"tiers\": [\n            {\n      \
+        \        \"flat_amount\": 50000,\n              \"flat_amount_decimal\": \"\
+        50000\",\n              \"unit_amount\": 0,\n              \"unit_amount_decimal\"\
+        : \"0\",\n              \"up_to\": 120000\n            },\n            {\n\
+        \              \"flat_amount\": 100000,\n              \"flat_amount_decimal\"\
+        : \"100000\",\n              \"unit_amount\": 0,\n              \"unit_amount_decimal\"\
+        : \"0\",\n              \"up_to\": 300000\n            },\n            {\n\
+        \              \"flat_amount\": 200000,\n              \"flat_amount_decimal\"\
+        : \"200000\",\n              \"unit_amount\": null,\n              \"unit_amount_decimal\"\
+        : null,\n              \"up_to\": 600000\n            },\n            {\n\
+        \              \"flat_amount\": 500000,\n              \"flat_amount_decimal\"\
+        : \"500000\",\n              \"unit_amount\": null,\n              \"unit_amount_decimal\"\
+        : null,\n              \"up_to\": 1800000\n            },\n            {\n\
+        \              \"flat_amount\": 1000000,\n              \"flat_amount_decimal\"\
+        : \"1000000\",\n              \"unit_amount\": null,\n              \"unit_amount_decimal\"\
+        : null,\n              \"up_to\": 3600000\n            },\n            {\n\
+        \              \"flat_amount\": 2000000,\n              \"flat_amount_decimal\"\
+        : \"2000000\",\n              \"unit_amount\": null,\n              \"unit_amount_decimal\"\
+        : null,\n              \"up_to\": 9600000\n            },\n            {\n\
+        \              \"flat_amount\": null,\n              \"flat_amount_decimal\"\
+        : null,\n              \"unit_amount\": null,\n              \"unit_amount_decimal\"\
+        : \"0.208333333333\",\n              \"up_to\": null\n            }\n    \
+        \      ],\n          \"tiers_mode\": \"volume\",\n          \"transform_usage\"\
+        : null,\n          \"trial_period_days\": null,\n          \"usage_type\"\
+        : \"licensed\"\n        },\n        \"quantity\": 100,\n        \"subscription\"\
+        : \"sub_GyE9kSEbLkjEPg\",\n        \"tax_rates\": [\n\n        ]\n      },\n\
+        \      {\n        \"id\": \"si_GyE9A645q1l3Ow\",\n        \"object\": \"subscription_item\"\
+        ,\n        \"billing_thresholds\": null,\n        \"created\": 1585075304,\n\
+        \        \"metadata\": {\n        },\n        \"plan\": {\n          \"id\"\
+        : \"plan_GwOvSu4wEolMqF\",\n          \"object\": \"plan\",\n          \"\
+        active\": true,\n          \"aggregate_usage\": null,\n          \"amount\"\
+        : 0,\n          \"amount_decimal\": \"0\",\n          \"billing_scheme\":\
+        \ \"per_unit\",\n          \"created\": 1584654132,\n          \"currency\"\
+        : \"usd\",\n          \"interval\": \"year\",\n          \"interval_count\"\
+        : 1,\n          \"livemode\": false,\n          \"metadata\": {\n        \
+        \  },\n          \"nickname\": \"Standard Email Addon (Yearly)\",\n      \
+        \    \"product\": \"prod_GwOi2Tcxvn2pi7\",\n          \"tiers\": null,\n \
+        \         \"tiers_mode\": null,\n          \"transform_usage\": null,\n  \
+        \        \"trial_period_days\": null,\n          \"usage_type\": \"licensed\"\
+        \n        },\n        \"quantity\": 1,\n        \"subscription\": \"sub_GyE9kSEbLkjEPg\"\
+        ,\n        \"tax_rates\": [\n\n        ]\n      }\n    ],\n    \"has_more\"\
+        : false,\n    \"total_count\": 2,\n    \"url\": \"/v1/subscription_items?subscription=sub_GyE9kSEbLkjEPg\"\
+        \n  },\n  \"latest_invoice\": \"in_1GQHh6DGSmTJrpHgYf8ST840\",\n  \"livemode\"\
+        : false,\n  \"metadata\": {\n  },\n  \"next_pending_invoice_item_invoice\"\
+        : null,\n  \"pending_invoice_item_interval\": null,\n  \"pending_setup_intent\"\
+        : null,\n  \"pending_update\": null,\n  \"plan\": null,\n  \"quantity\": null,\n\
+        \  \"schedule\": null,\n  \"start\": 1585075303,\n  \"start_date\": 1585075299,\n\
+        \  \"status\": \"active\",\n  \"tax_percent\": null,\n  \"trial_end\": null,\n\
+        \  \"trial_start\": null\n}\n"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '4862'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 24 Mar 2020 18:41:47 GMT
+      Server:
+      - nginx
+      Strict-Transport-Security:
+      - max-age=31556926; includeSubDomains; preload
+      access-control-allow-credentials:
+      - 'true'
+      access-control-allow-methods:
+      - GET, POST, HEAD, OPTIONS, DELETE
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required
+      access-control-max-age:
+      - '300'
+      cache-control:
+      - no-cache, no-store
+      idempotency-key:
+      - 9e783717-fb67-40f3-a193-bdad0793db77
+      original-request:
+      - req_sCNGwQHr0t1kZH
+      request-id:
+      - req_sCNGwQHr0t1kZH
+      stripe-should-retry:
+      - 'false'
+      stripe-version:
+      - '2019-09-09'
+    status:
+      code: 200
+      message: OK
+version: 1

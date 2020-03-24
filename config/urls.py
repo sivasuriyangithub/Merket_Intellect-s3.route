@@ -31,7 +31,12 @@ urlpatterns = [
     path("stripe/", include("djstripe.urls", namespace="djstripe")),
     # path("accounts/", include("allauth.urls")),
     path("api/", include(router.urls)),
-    path("api/subscription/", SubscriptionRestView.as_view(), name="subscription"),
+    path("api/subscriptions/", SubscriptionRestView.as_view(), name="subscription",),
+    path(
+        "api/subscriptions/<str:billing_account_id>/",
+        SubscriptionRestView.as_view(),
+        name="subscription",
+    ),
     path(
         "api/payment_source/", AddPaymentSourceRestView.as_view(), name="paymentsource"
     ),

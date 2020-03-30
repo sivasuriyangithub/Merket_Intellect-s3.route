@@ -1,4 +1,7 @@
-from django.contrib import admin
+from admin_actions.admin import ActionsModelAdmin
+from django.contrib import admin, messages
+from django.shortcuts import redirect
+from django.urls import reverse
 from djstripe.models import Plan
 from organizations.base_admin import BaseOrganizationAdmin
 from organizations.base_admin import BaseOrganizationOwnerAdmin
@@ -89,13 +92,47 @@ class WKPlanAdmin(admin.ModelAdmin):
     )
 
 
-class StripePlanInline(admin.TabularInline):
-    model = WKPlanPreset.stripe_plans.through
+class StripePlanMonthlyInline(admin.TabularInline):
+    model = WKPlanPreset.stripe_plans_monthly.through
     extra = 1
 
+    verbose_name_plural = "Stripe Plans with Monthly Interval"
 
-class WKPlanPresetAdmin(WKPlanAdmin):
-    inlines = [StripePlanInline]
+
+class StripePlanYearlyInline(admin.TabularInline):
+    model = WKPlanPreset.stripe_plans_yearly.through
+    extra = 1
+
+    verbose_name_plural = "Stripe Plans with Yearly Interval"
+
+
+class WKPlanPresetAdmin(ActionsModelAdmin):
+    list_display = (
+        "pk",
+        "public_id",
+        "tag",
+        "credits_per_enrich",
+        "credits_per_work_email",
+        "credits_per_personal_email",
+        "credits_per_phone",
+    )
+    list_display_links = (
+        "pk",
+        "public_id",
+    )
+    filter_horizontal = ("stripe_plans_monthly", "stripe_plans_yearly")
+
+    actions_list = ("sync",)
+
+    def sync(self, request):
+        for plan_data in Plan.api_list():
+            plan = Plan.sync_from_stripe_data(plan_data)
+            self.message_user(
+                request, f"Synchronized plan  {plan.id}", level=messages.INFO
+            )
+        return redirect(reverse("admin:payments_wkplanpreset_changelist"))
+
+    sync.short_description = "Synchronize Stripe Plans"
 
 
 admin.site.register(BillingAccount, BillingAccountAdmin)

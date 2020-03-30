@@ -6,12 +6,14 @@ from .views import (
     BillingAccountViewSet,
     AdminBillingAccountViewSet,
     BillingAccountMemberViewSet,
+    PlanPresetViewSet,
 )
 
 app_name = "payments"
 
 router = routers.SimpleRouter()
 router.register(r"plans", PlanViewSet)
+router.register(r"plan_presets", PlanPresetViewSet)
 router.register(r"billing_accounts", BillingAccountViewSet)
 router.register(r"account_members", BillingAccountMemberViewSet)
 router.register(r"admin/seats", AdminBillingSeatViewSet, basename="seatadmin")

@@ -87,7 +87,7 @@ def test_new_signup_subscription_with_token(su_client):
     )
     plan_one.sync_from_stripe_data(plan_one.api_retrieve())
     plan_two.sync_from_stripe_data(plan_two.api_retrieve())
-    plan_preset = WKPlanPresetFactory(stripe_plans=(plan_one, plan_two))
+    plan_preset = WKPlanPresetFactory(stripe_plans_monthly=(plan_one, plan_two))
 
     assert billing_account.customer.can_charge() is False
 
@@ -132,7 +132,7 @@ def test_new_signup_subscription_without_token(su_client):
     stripe_plans = (plan_one, plan_two)
     plan_one.sync_from_stripe_data(plan_one.api_retrieve())
     plan_two.sync_from_stripe_data(plan_two.api_retrieve())
-    plan_preset = WKPlanPresetFactory(stripe_plans=stripe_plans)
+    plan_preset = WKPlanPresetFactory(stripe_plans_monthly=stripe_plans)
 
     assert billing_account.customer.can_charge() is False
 
@@ -181,8 +181,10 @@ def test_upgrade_subscription(su_client):
     base_credits_product = "prod_Gw6HrLt8HOhTju"
     email_std_product = "prod_GwOi2Tcxvn2pi7"
     email_adv_product = "prod_GwOiUYoDI3gJGX"
-    plan_preset = WKPlanPresetFactory(stripe_plans=(plan_one, plan_two))
-    plan_preset_upgrade = WKPlanPresetFactory(stripe_plans=(plan_one, plan_three))
+    plan_preset = WKPlanPresetFactory(stripe_plans_monthly=(plan_one, plan_two))
+    plan_preset_upgrade = WKPlanPresetFactory(
+        stripe_plans_monthly=(plan_one, plan_three)
+    )
     resp = su_client.post(
         "/ww/api/subscriptions/",
         {
@@ -252,8 +254,10 @@ def test_change_subscription_billing_cycle(su_client):
 
     base_credits_product = "prod_Gw6HrLt8HOhTju"
     email_std_product = "prod_GwOi2Tcxvn2pi7"
-    monthly_preset = WKPlanPresetFactory(stripe_plans=(monthly_one, monthly_two))
-    yearly_preset = WKPlanPresetFactory(stripe_plans=(yearly_one, yearly_two))
+    monthly_preset = WKPlanPresetFactory(
+        stripe_plans_monthly=(monthly_one, monthly_two)
+    )
+    yearly_preset = WKPlanPresetFactory(stripe_plans_yearly=(yearly_one, yearly_two))
     resp = su_client.post(
         "/ww/api/subscriptions/",
         {
@@ -290,6 +294,7 @@ def test_change_subscription_billing_cycle(su_client):
         },
         format="json",
     )
+    print(upgrade.content)
     assert upgrade.status_code == 200
     customer = billing_account.customer
     assert customer.has_active_subscription(yearly_one)
@@ -312,7 +317,7 @@ def test_get_subscription(su_client):
     )
     plan_one.sync_from_stripe_data(plan_one.api_retrieve())
     plan_two.sync_from_stripe_data(plan_two.api_retrieve())
-    plan_preset = WKPlanPresetFactory(stripe_plans=(plan_one, plan_two))
+    plan_preset = WKPlanPresetFactory(stripe_plans_monthly=(plan_one, plan_two))
 
     assert billing_account.customer.can_charge() is False
 

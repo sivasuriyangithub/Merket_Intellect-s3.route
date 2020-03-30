@@ -1,4 +1,4 @@
-from djstripe.models import Subscription, SubscriptionItem, Plan, Customer
+from djstripe.models import Subscription, SubscriptionItem, Plan, Customer, Product
 from djstripe.sync import sync_subscriber
 from djstripe import settings as djstripe_settings
 
@@ -9,7 +9,7 @@ from whoweb.contrib.graphene_django.fields import NodeRelatedField
 from whoweb.contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
 from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
 from whoweb.users.models import Seat, UserProfile, Group
-from .models import WKPlan, BillingAccount, BillingAccountMember
+from .models import WKPlan, BillingAccount, BillingAccountMember, WKPlanPreset
 
 
 class PlanSerializer(IdOrHyperlinkedModelSerializer):
@@ -23,6 +23,7 @@ class PlanSerializer(IdOrHyperlinkedModelSerializer):
             "url",
             "id",
             "graph_id",
+            "marketing_name",
             "credits_per_enrich",
             "credits_per_work_email",
             "credits_per_personal_email",
@@ -31,11 +32,19 @@ class PlanSerializer(IdOrHyperlinkedModelSerializer):
         read_only_fields = fields
 
 
+class StripeProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        """Model class options."""
+
+        model = Product
+        fields = ["id", "name", "metadata", "unit_label"]
+        read_only_fields = fields
+
+
 class StripePlanSerializer(serializers.ModelSerializer):
     """A serializer used for the Plan model."""
 
-    product_name = serializers.CharField(source="product.name", read_only=True)
-    product = serializers.CharField(source="product.id", read_only=True)
+    product = StripeProductSerializer(read_only=True)
 
     class Meta:
         """Model class options."""
@@ -48,10 +57,35 @@ class StripePlanSerializer(serializers.ModelSerializer):
             "interval",
             "interval_count",
             "product",
-            "product_name",
+            "metadata",
+            "tiers",
             "trial_period_days",
             "statement_descriptor",
         ]
+        read_only_fields = fields
+
+
+class PlanPresetSerializer(serializers.ModelSerializer):
+    stripe_plans_monthly = StripePlanSerializer(many=True)
+    stripe_plans_yearly = StripePlanSerializer(many=True)
+    id = serializers.CharField(source="public_id", read_only=True)
+
+    class Meta:
+        model = WKPlanPreset
+        depth = 3
+        fields = [
+            "id",
+            "tag",
+            "marketing_name",
+            "stripe_plans_monthly",
+            "stripe_plans_yearly",
+            "trial_days_allowed",
+            "credits_per_enrich",
+            "credits_per_work_email",
+            "credits_per_personal_email",
+            "credits_per_phone",
+        ]
+        read_only_fields = fields
 
 
 class SubscriptionItemSerializer(serializers.ModelSerializer):
@@ -72,13 +106,14 @@ class SubscriptionItemSerializer(serializers.ModelSerializer):
             "metadata",
             "description",
         ]
+        read_only_fields = fields
 
 
 class SubscriptionSerializer(serializers.ModelSerializer):
     """A serializer used for the Subscription model."""
 
     items = SubscriptionItemSerializer(many=True)
-    can_charge = serializers.BooleanField(read_only=True)
+    can_charge = serializers.BooleanField(source="customer.can_charge", read_only=True)
     is_valid = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -158,7 +193,7 @@ class CreateSubscriptionSerializer(serializers.Serializer):
         queryset=BillingAccount.objects.all(),
         required=True,
     )
-    plan = serializers.CharField(max_length=50)
+    plan = serializers.CharField(max_length=50, required=False)
     items = PlanQuantitySerializer(many=True)
     trial_days = serializers.IntegerField(required=False, default=None, allow_null=True)
     charge_immediately = serializers.NullBooleanField(required=False)
@@ -225,7 +260,7 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
     credits_per_phone = serializers.IntegerField(write_only=True, required=False)
     billing_account = IdOrHyperlinkedRelatedField(
         view_name="billingaccount-detail",
-        source="billing.account",
+        source="billing.organization",
         lookup_field="public_id",
         default=None,
         read_only=True,
@@ -358,7 +393,7 @@ class AdminBillingAccountSerializer(IdOrHyperlinkedModelSerializer):
     )
     billing_account = IdOrHyperlinkedRelatedField(
         view_name="billingaccount-detail",
-        source="billing.account",
+        source="billing.organization",
         lookup_field="public_id",
         default=None,
         read_only=True,
@@ -423,4 +458,5 @@ class AdminBillingAccountSerializer(IdOrHyperlinkedModelSerializer):
         billing_member, _ = billing_account.get_or_add_user(
             user=profile.user, seat=seat
         )
+        seat.refresh_from_db()
         return seat

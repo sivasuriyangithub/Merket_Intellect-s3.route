@@ -40,7 +40,7 @@ class WKPlanPresetFactory(DjangoModelFactory):
         model = WKPlanPreset
 
     @factory.post_generation
-    def stripe_plans(self, create, extracted, **kwargs):
+    def stripe_plans_monthly(self, create, extracted, **kwargs):
         if not create:
             # Simple build, do nothing.
             return
@@ -48,7 +48,18 @@ class WKPlanPresetFactory(DjangoModelFactory):
         if extracted:
             # A list of groups were passed in, use them
             for plan in extracted:
-                self.stripe_plans.add(plan)
+                self.stripe_plans_monthly.add(plan)
+
+    @factory.post_generation
+    def stripe_plans_yearly(self, create, extracted, **kwargs):
+        if not create:
+            # Simple build, do nothing.
+            return
+
+        if extracted:
+            # A list of groups were passed in, use them
+            for plan in extracted:
+                self.stripe_plans_yearly.add(plan)
 
 
 class BillingAccountFactory(DjangoModelFactory):

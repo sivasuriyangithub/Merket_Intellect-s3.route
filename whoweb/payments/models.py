@@ -10,7 +10,6 @@ from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import ugettext_lazy as _
-from djstripe import settings as djstripe_settings
 from djstripe.models import Plan, Customer, StripeModel
 from model_utils.models import SoftDeletableModel
 from organizations.abstract import (
@@ -59,6 +58,8 @@ Plan.create = classmethod(patched_create)
 class AbstractPlanModel(ObscureIdMixin, models.Model):
     class Meta:
         abstract = True
+
+    marketing_name = models.CharField(max_length=150, blank=True)
 
     credits_per_enrich = models.IntegerField(
         default=5,
@@ -131,7 +132,14 @@ class WKPlan(SoftDeletableModel, AbstractPlanModel):
 
 
 class WKPlanPreset(AbstractPlanModel):
-    stripe_plans = models.ManyToManyField(Plan, limit_choices_to={"active": True})
+    tag = models.CharField(max_length=50, unique=True, null=True, blank=True)
+    description = models.TextField(blank=True, default="")
+    stripe_plans_monthly = models.ManyToManyField(
+        Plan, limit_choices_to={"active": True}, related_name="monthly_presets"
+    )
+    stripe_plans_yearly = models.ManyToManyField(
+        Plan, limit_choices_to={"active": True}, related_name="yearly_presets"
+    )
     trial_days_allowed = models.PositiveSmallIntegerField(default=14)
 
     class Meta:
@@ -140,6 +148,7 @@ class WKPlanPreset(AbstractPlanModel):
 
     def create(self):
         return WKPlan.objects.create(
+            marketing_name=self.marketing_name,
             credits_per_enrich=self.credits_per_enrich,
             credits_per_work_email=self.credits_per_work_email,
             credits_per_personal_email=self.credits_per_personal_email,

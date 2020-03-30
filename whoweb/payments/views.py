@@ -4,18 +4,27 @@ from typing import Union
 
 from IPython.utils.tz import utcnow
 from django.db.models import Q
+from django.http import Http404
 from djstripe.enums import SubscriptionStatus
 from djstripe.models import Customer, Subscription
 from djstripe.settings import CANCELLATION_AT_PERIOD_END
 from rest_framework import viewsets, status
 from rest_framework.exceptions import ValidationError, MethodNotAllowed
+from rest_framework.generics import get_object_or_404
+from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.viewsets import GenericViewSet
 
 from whoweb.contrib.rest_framework.permissions import IsSuperUser
 from whoweb.users.models import Seat
 from .exceptions import SubscriptionError
-from .models import WKPlan, WKPlanPreset, BillingAccount, BillingAccountMember
+from .models import (
+    WKPlan,
+    WKPlanPreset,
+    BillingAccount,
+    BillingAccountMember,
+)
 from .serializers import (
     PlanSerializer,
     AdminBillingSeatSerializer,
@@ -26,6 +35,7 @@ from .serializers import (
     AdminBillingAccountSerializer,
     BillingAccountMemberSerializer,
     SubscriptionSerializer,
+    PlanPresetSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -36,6 +46,26 @@ class PlanViewSet(viewsets.ModelViewSet):
     queryset = WKPlan.objects.all()
     serializer_class = PlanSerializer
     permission_classes = [IsSuperUser]
+
+
+class PlanPresetViewSet(RetrieveModelMixin, GenericViewSet):
+    serializer_class = PlanPresetSerializer
+    permission_classes = [IsSuperUser]
+    queryset = WKPlanPreset.objects.all()
+
+    def get_object(self):
+        tag_or_public_id = self.kwargs["pk"]
+        if not tag_or_public_id:
+            raise Http404
+        try:
+            plan_preset = WKPlanPreset.objects.get(
+                Q(tag=tag_or_public_id) | Q(public_id=tag_or_public_id)
+            )
+        except WKPlanPreset.DoesNotExist:
+            raise Http404
+        # May raise a permission denied
+        self.check_object_permissions(self.request, plan_preset)
+        return plan_preset
 
 
 class BillingAccountViewSet(viewsets.ModelViewSet):
@@ -127,7 +157,10 @@ class SubscriptionRestView(APIView):
             )
         token = serializer.validated_data.get("stripe_token")
         trial_days = serializer.validated_data.get("trial_days", None)
+
         if trial_days is None:
+            trial_days = plan_preset.trial_days_allowed
+        if trial_days == 0:
             trial_end = "now"
         elif trial_days > plan_preset.trial_days_allowed:
             raise ValidationError(
@@ -201,19 +234,30 @@ class SubscriptionRestView(APIView):
     def _get_valid_items(
         self,
         serializer: Union[CreateSubscriptionSerializer, UpdateSubscriptionSerializer],
-    ) -> (dict, WKPlan):
-        plan_preset = WKPlanPreset.objects.get(
-            public_id=serializer.validated_data["plan"]
+    ) -> (dict, WKPlan, int):
+        tag_or_public_id = serializer.validated_data.get("plan")
+        plan_preset = WKPlanPreset.objects.filter(
+            Q(tag=tag_or_public_id) | Q(public_id=tag_or_public_id)
+        ).first()
+        if not plan_preset:
+            raise ValidationError("A valid plan id or tag must be specified.")
+        valid_monthly_plans = plan_preset.stripe_plans_monthly.all().values_list(
+            "id", flat=True
         )
-        valid_plans = plan_preset.stripe_plans.all().values_list("id", flat=True)
+        valid_yearly_plans = plan_preset.stripe_plans_yearly.all().values_list(
+            "id", flat=True
+        )
         valid_items = []
         total_credits = 0
         for item in serializer.validated_data["items"]:
             plan_id, quantity = item["stripe_id"], item["quantity"]
-            if plan_id in valid_plans:
+            if plan_id in valid_monthly_plans or plan_id in valid_yearly_plans:
                 total_credits += quantity
                 valid_items.append({"plan": plan_id, "quantity": quantity})
-        if len(valid_items) != len(valid_plans):
+        if not (
+            len(valid_items) == len(valid_monthly_plans)
+            or len(valid_items) == len(valid_yearly_plans)
+        ):
             raise ValidationError("Invalid items.")
         return valid_items, plan_preset, total_credits
 

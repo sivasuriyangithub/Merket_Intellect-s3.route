@@ -30,11 +30,40 @@ spec:
         chart: {{ template "jx.chart" . }}
         app: {{ template "jx.name" . }}
     spec:
-      {{- if .Values.preemptible }}
+      {{- if .Values.allowPreemptible }}
       tolerations:
-      - key: "key"
-        operator: "Exists"
-        effect: "NoSchedule"
+      - key: cloud.google.com/gke-preemptible
+        operator: Equal
+        value: "true"
+        effect: NoSchedule
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 50
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - {{ template "jx.name" . }}
+              topologyKey: "kubernetes.io/hostname"
+        {{- if .Values.preferPreemptible }}
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: cloud.google.com/gke-preemptible
+                operator: Exists
+            weight: 100
+        {{- else if .Values.onlyPreemptible }}
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: cloud.google.com/gke-preemptible
+                  operator: Exists
+        {{- end }}
       {{- end }}
       containers:
         - name: {{ .Chart.Name }}

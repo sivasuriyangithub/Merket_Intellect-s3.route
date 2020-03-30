@@ -5,6 +5,8 @@ image:
   repository: gcr.io/wkinfra-171623/wkpython/whoweb
   tag: 7.3.0
 basedomain: whoknows.com
+allowPreemptible: true
+preferPreemptible: true
 service:
   name: whoweb
   type: ClusterIP

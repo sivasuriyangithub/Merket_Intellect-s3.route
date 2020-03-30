@@ -57,8 +57,12 @@ EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 # djstripe
 # ------------------------------------------------------------------------------
 # useful if running tests under VCR
-STRIPE_TEST_PUBLIC_KEY = env("STRIPE_TEST_PUBLIC_KEY", default=None)
-STRIPE_TEST_SECRET_KEY = env("STRIPE_TEST_SECRET_KEY", default=None)
+STRIPE_TEST_PUBLIC_KEY = env(
+    "STRIPE_TEST_PUBLIC_KEY", default="pk_test_000000000000000000000000"
+)
+STRIPE_TEST_SECRET_KEY = env(
+    "STRIPE_TEST_SECRET_KEY", default="sk_test_000000000000000000000000"
+)
 DJSTRIPE_WEBHOOK_SECRET = env("DJSTRIPE_WEBHOOK_SECRET", default=None)
 STRIPE_LIVE_MODE = False
 DJSTRIPE_WEBHOOK_VALIDATION = "retrieve_event"

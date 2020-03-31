@@ -335,9 +335,9 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
         if existing_customer := validated_data.get("customer_id"):
             _, created = Customer.objects.get_or_create(
                 id=existing_customer,
+                livemode=djstripe_settings.STRIPE_LIVE_MODE,
                 defaults={
                     "subscriber": billing_account,
-                    "livemode": djstripe_settings.STRIPE_LIVE_MODE,
                     "balance": 0,
                     "delinquent": False,
                 },

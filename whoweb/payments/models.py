@@ -7,10 +7,13 @@ from django.db import models
 from django.db.models import F, Value
 from django.db.models.functions import Greatest
 from django.db.transaction import atomic
+from django.dispatch import receiver
 from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import ugettext_lazy as _
-from djstripe.models import Plan, Customer, StripeModel
+from djstripe.enums import PlanInterval
+from djstripe.models import Plan, Customer, StripeModel, InvoiceItem, Event
+from djstripe.signals import WEBHOOK_SIGNALS
 from model_utils.models import SoftDeletableModel
 from organizations.abstract import (
     AbstractOrganization,
@@ -24,6 +27,7 @@ from whoweb.accounting.ledgers import (
     wkcredits_liability_ledger,
     wkcredits_fulfilled_ledger,
     wkcredits_sold_ledger,
+    wkcredits_expired_ledger,
 )
 from whoweb.accounting.models import Ledger, LedgerEntry
 from whoweb.contrib.fields import ObscureIdMixin
@@ -135,10 +139,14 @@ class WKPlanPreset(AbstractPlanModel):
     tag = models.CharField(max_length=50, unique=True, null=True, blank=True)
     description = models.TextField(blank=True, default="")
     stripe_plans_monthly = models.ManyToManyField(
-        Plan, limit_choices_to={"active": True}, related_name="monthly_presets"
+        Plan,
+        limit_choices_to={"active": True, "interval": PlanInterval.month},
+        related_name="monthly_presets",
     )
     stripe_plans_yearly = models.ManyToManyField(
-        Plan, limit_choices_to={"active": True}, related_name="yearly_presets"
+        Plan,
+        limit_choices_to={"active": True, "interval": PlanInterval.year},
+        related_name="yearly_presets",
     )
     trial_days_allowed = models.PositiveSmallIntegerField(default=14)
 
@@ -286,6 +294,20 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
         )
 
     @atomic
+    def expire_all_remaining_credits(self, *args, evidence=(), **kwargs):
+        record_transaction_expire_credits(
+            amount=int(self.credit_pool), *args, evidence=evidence + (self,), **kwargs
+        )
+        self.credit_pool = 0
+        self.trial_credit_pool = 0
+        self.save()
+
+    @atomic
+    def replenish_credits(self, amount, *args, evidence=(), **kwargs):
+        self.expire_all_remaining_credits(*args, evidence=evidence, **kwargs)
+        self.add_credits(amount, *args, evidence=evidence, **kwargs)
+
+    @atomic
     def allocate_credits_to_member(
         self, member: "BillingAccountMember", amount: int, trial_amount=0
     ):
@@ -407,6 +429,14 @@ class BillingAccountOwner(AbstractOrganizationOwner):
         verbose_name_plural = _("billing account owners")
 
 
+@receiver(WEBHOOK_SIGNALS["invoice.payment_succeeded"], sender=Event)
+def on_payment_succeed_replenish_customer_credits(event: Event, **kwargs):
+    acct: BillingAccount = event.customer.subscriber
+    for item in event.customer.subscription.items:
+        if item.plan.product.metadata.get("product") == "credits":
+            acct.replenish_credits(amount=item.plan.quantity, evidence=(event,))
+
+
 def record_transaction_consume_credits(
     amount, initiated_by, evidence=(), notes="", transaction_kind=None, posted_at=None
 ):
@@ -440,13 +470,39 @@ def record_transaction_refund_credits(
 
 
 def record_transaction_sold_credits(
-    amount, initiated_by, evidence=(), notes="", transaction_kind=None, posted_at=None
+    amount,
+    initiated_by=None,
+    evidence=(),
+    notes="",
+    transaction_kind=None,
+    posted_at=None,
 ):
     create_transaction(
         user=initiated_by,
         ledger_entries=(
             LedgerEntry(ledger=wkcredits_sold_ledger(), amount=Debit(amount)),
             LedgerEntry(ledger=wkcredits_liability_ledger(), amount=Credit(amount)),
+        ),
+        evidence=evidence,
+        notes=notes,
+        kind=transaction_kind,
+        posted_timestamp=posted_at,
+    )
+
+
+def record_transaction_expire_credits(
+    amount,
+    initiated_by=None,
+    evidence=(),
+    notes="",
+    transaction_kind=None,
+    posted_at=None,
+):
+    create_transaction(
+        user=initiated_by,
+        ledger_entries=(
+            LedgerEntry(ledger=wkcredits_liability_ledger(), amount=Credit(amount)),
+            LedgerEntry(ledger=wkcredits_expired_ledger(), amount=Debit(amount)),
         ),
         evidence=evidence,
         notes=notes,

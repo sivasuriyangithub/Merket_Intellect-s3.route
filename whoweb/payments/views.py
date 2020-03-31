@@ -111,8 +111,6 @@ class AddPaymentSourceRestView(APIView):
         customer.add_card(serializer.validated_data["stripe_token"])
 
         if subscription := customer.subscription:
-            print(subscription.status)
-            print(subscription.trial_end)
             if (
                 subscription.status == SubscriptionStatus.trialing
                 and subscription.trial_end > datetime.utcnow()
@@ -241,19 +239,22 @@ class SubscriptionRestView(APIView):
         ).first()
         if not plan_preset:
             raise ValidationError("A valid plan id or tag must be specified.")
-        valid_monthly_plans = plan_preset.stripe_plans_monthly.all().values_list(
-            "id", flat=True
-        )
-        valid_yearly_plans = plan_preset.stripe_plans_yearly.all().values_list(
-            "id", flat=True
-        )
+        valid_monthly_plans = plan_preset.stripe_plans_monthly.in_bulk(field_name="id")
+        valid_yearly_plans = plan_preset.stripe_plans_yearly.in_bulk(field_name="id")
+
         valid_items = []
         total_credits = 0
         for item in serializer.validated_data["items"]:
             plan_id, quantity = item["stripe_id"], item["quantity"]
-            if plan_id in valid_monthly_plans or plan_id in valid_yearly_plans:
+            if plan_id in valid_monthly_plans:
+                plan = valid_monthly_plans[plan_id]
+            elif plan_id in valid_yearly_plans:
+                plan = valid_yearly_plans[plan_id]
+            else:
+                raise ValidationError("Invalid items.")
+            if plan.product.metadata.get("product") == "credits":
                 total_credits += quantity
-                valid_items.append({"plan": plan_id, "quantity": quantity})
+            valid_items.append({"plan": plan_id, "quantity": quantity})
         if not (
             len(valid_items) == len(valid_monthly_plans)
             or len(valid_items) == len(valid_yearly_plans)

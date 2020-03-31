@@ -346,6 +346,7 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
                 customer = sync_subscriber(billing_account)
                 subscriber_key = djstripe_settings.SUBSCRIBER_CUSTOMER_KEY
                 if subscriber_key not in ("", None):
+                    customer.metadata = customer.metadata or {}
                     customer.metadata[subscriber_key] = billing_account.pk
                     customer.save()
         seat.refresh_from_db()

@@ -10,8 +10,6 @@ pytestmark = pytest.mark.django_db
 
 def test_create_simple_campaign(su_client, query_contact_invites):
     seat = BillingAccountMemberFactory()
-    print(seat)
-    print(seat.public_id)
     msg0 = CampaignMessageFactory(billing_seat=seat)
     resp = su_client.post(
         "/ww/api/campaign/simple/",

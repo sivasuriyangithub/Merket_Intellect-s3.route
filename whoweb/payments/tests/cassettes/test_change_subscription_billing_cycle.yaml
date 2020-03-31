@@ -118,7 +118,7 @@ interactions:
       string: "{\n  \"id\": \"prod_Gw6HrLt8HOhTju\",\n  \"object\": \"product\",\n\
         \  \"active\": true,\n  \"attributes\": [\n\n  ],\n  \"created\": 1584584775,\n\
         \  \"description\": null,\n  \"images\": [\n\n  ],\n  \"livemode\": false,\n\
-        \  \"metadata\": {\n    \"is_addon\": \"false\"\n  },\n  \"name\": \"WhoKnows\
+        \  \"metadata\": {\n    \"is_addon\": \"false\",\n \"product\": \"credits\"\n  },\n  \"name\": \"WhoKnows\
         \ Credits\",\n  \"statement_descriptor\": \"WhoKnows Credits\",\n  \"type\"\
         : \"service\",\n  \"unit_label\": \"credit\",\n  \"updated\": 1584659955\n\
         }\n"

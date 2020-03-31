@@ -156,8 +156,6 @@ def test_new_signup_subscription_without_token(su_client):
     )
     customer = billing_account.customer
     assert customer.can_charge() is False
-    assert customer.has_active_subscription(plan_one)
-    assert customer.has_active_subscription(plan_two)
     assert sorted(
         [
             item.plan.product.id

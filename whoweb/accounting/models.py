@@ -203,7 +203,9 @@ class Transaction(models.Model):
     notes = models.TextField(
         help_text=_("Any notes to go along with this Transaction."), blank=True
     )
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True
+    )
     posted_timestamp = models.DateTimeField(
         help_text=_(
             "Time the transaction was posted.  Change this field to model retroactive ledger entries."

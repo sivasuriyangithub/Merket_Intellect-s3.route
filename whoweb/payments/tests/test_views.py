@@ -29,7 +29,6 @@ def test_create_billing_seat_for_passthrough(sync_mock, su_client):
         },
         format="json",
     )
-    print(resp.content)
     assert resp.status_code == 201
     assert resp.json()["url"].startswith("http://testserver/ww/api/seats/")
     assert sync_mock.call_count == 1
@@ -49,7 +48,6 @@ def test_passthrough_updates_credits(su_client):
         {"seat_credits": 100001,},
         format="json",
     )
-    print(resp.content)
     assert resp.status_code == 200
     seat.billing.refresh_from_db(fields=("seat_credits",))
     assert seat.billing.seat_credits == 100001

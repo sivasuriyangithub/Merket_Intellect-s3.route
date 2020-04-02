@@ -265,6 +265,13 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
         default=None,
         read_only=True,
     )
+    billing_seat = IdOrHyperlinkedRelatedField(
+        view_name="billingaccountmember-detail",
+        source="billing",
+        lookup_field="public_id",
+        default=None,
+        read_only=True,
+    )
 
     class Meta:
         model = Seat
@@ -279,6 +286,7 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
             "id",
             "graph_id",
             "billing_account",
+            "billing_seat",
             "user",
             "customer_id",
             "xperweb_id",
@@ -399,7 +407,13 @@ class AdminBillingAccountSerializer(IdOrHyperlinkedModelSerializer):
         default=None,
         read_only=True,
     )
-
+    billing_seat = IdOrHyperlinkedRelatedField(
+        view_name="billingaccountmember-detail",
+        source="billing",
+        lookup_field="public_id",
+        default=None,
+        read_only=True,
+    )
     xperweb_id = serializers.CharField(write_only=True, required=False)
     group_name = serializers.CharField(
         write_only=True, allow_null=True, allow_blank=True, required=False
@@ -424,6 +438,7 @@ class AdminBillingAccountSerializer(IdOrHyperlinkedModelSerializer):
             "id",
             "graph_id",
             "billing_account",
+            "billing_seat",
             "user",
             "xperweb_id",
             "group_name",

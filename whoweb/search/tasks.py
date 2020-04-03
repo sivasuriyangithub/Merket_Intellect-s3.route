@@ -4,15 +4,14 @@ from math import ceil
 from celery import group, shared_task
 from celery.exceptions import MaxRetriesExceededError
 from django.db.models import F
-from requests import HTTPError, Timeout, ConnectionError
+from kombu.exceptions import OperationalError
 from redis.exceptions import ConnectionError as RedisConnectionError
+from requests import HTTPError, Timeout, ConnectionError
 
-from whoweb.core.router import router
-from whoweb.search.events import ALERT_XPERWEB, PAGES_SPAWNED
+from whoweb.search.events import PAGES_SPAWNED
 from whoweb.search.models import SearchExport, ResultProfile
 from whoweb.search.models.export import MXDomain, SearchExportPage
 from whoweb.search.models.profile import VALIDATED, COMPLETE, FAILED, RETRY, WORK
-from kombu.exceptions import OperationalError
 
 logger = logging.getLogger(__name__)
 

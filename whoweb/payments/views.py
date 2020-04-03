@@ -244,6 +244,7 @@ class SubscriptionRestView(APIView):
 
         valid_items = []
         total_credits = 0
+        at_least_one_non_addon_product = False
         for item in serializer.validated_data["items"]:
             plan_id, quantity = item["stripe_id"], item["quantity"]
             if plan_id in valid_monthly_plans:
@@ -254,11 +255,10 @@ class SubscriptionRestView(APIView):
                 raise ValidationError("Invalid items.")
             if plan.product.metadata.get("product") == "credits":
                 total_credits += quantity
+            if plan.product.metadata.get("is_addon") == "false":
+                at_least_one_non_addon_product = True
             valid_items.append({"plan": plan_id, "quantity": quantity})
-        if not (
-            len(valid_items) == len(valid_monthly_plans)
-            or len(valid_items) == len(valid_yearly_plans)
-        ):
+        if not at_least_one_non_addon_product:
             raise ValidationError("Invalid items.")
         return valid_items, plan_preset, total_credits
 

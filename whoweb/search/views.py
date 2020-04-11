@@ -145,10 +145,7 @@ class SearchExportResultViewSet(
             serializer = self.get_serializer(
                 itertools.chain(
                     *[
-                        (
-                            ResultProfile.from_json(profile).to_json()
-                            for profile in page.data
-                        )
+                        (ResultProfile(**profile).dict() for profile in page.data)
                         for page in qs_page
                     ]
                 ),
@@ -159,10 +156,7 @@ class SearchExportResultViewSet(
         serializer = self.get_serializer(
             itertools.chain(
                 *(
-                    (
-                        ResultProfile.from_json(profile).to_json()
-                        for profile in page.data
-                    )
+                    (ResultProfile(**profile).dict() for profile in page.data)
                     for page in queryset
                 )
             ),

@@ -24,17 +24,17 @@ def search_results():
 
 @pytest.fixture
 def search_result_profiles(search_results):
-    return [ResultProfile.from_json(prof) for prof in search_results]
+    return [ResultProfile(**prof) for prof in search_results]
 
 
 @pytest.fixture
 def result_profile_derived():
-    return ResultProfile.from_json(done[0])
+    return ResultProfile(**done[0])
 
 
 @pytest.fixture
 def result_profile_derived_another():
-    return ResultProfile.from_json(done[1])
+    return ResultProfile(**done[1])
 
 
 @pytest.fixture

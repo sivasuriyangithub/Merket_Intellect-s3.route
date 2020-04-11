@@ -310,9 +310,7 @@ class BaseCampaignRunner(
         for page in export.pages.filter(data__isnull=False).iterator(chunk_size=1):
             profiles = self.get_profiles(raw=page.data)
             page.data = [
-                profile.to_json()
-                for profile in profiles
-                if profile.id not in responders
+                profile.dict() for profile in profiles if profile.id not in responders
             ]
             page.count = len(page.data)
             page.id = None

@@ -183,7 +183,7 @@ def process_derivation(
     :type omit_failures: boolean
     :rtype: boolean
     """
-    profile = ResultProfile.from_json(profile_data)
+    profile = ResultProfile(**profile_data)
     status = profile.derivation_status
     if not status in [VALIDATED, COMPLETE]:
         deferred = list(set(defer))  # copy, unique

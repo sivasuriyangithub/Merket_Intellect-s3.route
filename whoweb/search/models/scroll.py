@@ -101,7 +101,7 @@ class ScrollSearch(TimeStampedModel):
         if ids_only:
             return [result["profile_id"] for result in results]
         else:
-            return [ResultProfile.from_json(profile) for profile in results]
+            return [ResultProfile(**profile) for profile in results]
 
     def send_scroll_search(self) -> typing.List[str]:
         filters = self.query.serialize()["filters"]
@@ -192,10 +192,7 @@ class ScrollSearch(TimeStampedModel):
                 "defer": ["degree_levels", "company_counts"],
             }
             result = router.unified_search(json=id_query, timeout=90)
-            result = [
-                ResultProfile.from_json(profile)
-                for profile in result.get("results", [])
-            ]
+            result = [ResultProfile(**profile) for profile in result.get("results", [])]
             results.extend(result)
         return results
 

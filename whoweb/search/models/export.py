@@ -360,7 +360,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             raw = self.get_raw()
         for profile in raw:
             if profile:
-                yield ResultProfile.from_json(profile)
+                yield ResultProfile(**profile)
 
     def get_profiles_by_page(
         self, raw_by_page=None
@@ -763,7 +763,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         for page in self.pages.filter(data__isnull=False).iterator(chunk_size=1):
             profiles = self.get_profiles(raw=page.data)
             page.data = [
-                profile.update_validation(registry).to_json() for profile in profiles
+                profile.update_validation(registry).dict() for profile in profiles
             ]
             page.save()
 
@@ -983,10 +983,10 @@ class SearchExportPage(TimeStampedModel):
         page = cls.objects.get(pk=page_pk)
         if profile.id:
             _, created = WorkingExportRow.objects.update_or_create(
-                page=page, profile_id=profile.id, defaults={"data": profile.to_json()},
+                page=page, profile_id=profile.id, defaults={"data": profile.dict()},
             )
         else:
-            WorkingExportRow.objects.create(page=page, data=profile.to_json())
+            WorkingExportRow.objects.create(page=page, data=profile.dict())
             created = True
         if page:
             page.pending_count = F("pending_count") - int(created)
@@ -1008,7 +1008,7 @@ class SearchExportPage(TimeStampedModel):
         self.save()
         scroll = self.export.scroll
         ids = scroll.get_ids_for_page(self.page_num)
-        profiles = [p.to_json() for p in scroll.get_profiles_for_page(self.page_num)]
+        profiles = [p.dict() for p in scroll.get_profiles_for_page(self.page_num)]
         self.count = len(profiles)
         self.data = profiles
         self.status = self.STATUS.complete
@@ -1050,9 +1050,7 @@ class SearchExportPage(TimeStampedModel):
         )
         priority = self.export.queue_priority
         derivation_sigs = [
-            process_derivation.si(self.pk, profile.to_json(), *args).set(
-                priority=priority
-            )
+            process_derivation.si(self.pk, profile.dict(), *args).set(priority=priority)
             for profile in profiles
         ]
         return derivation_sigs

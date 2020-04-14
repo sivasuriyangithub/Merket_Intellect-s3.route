@@ -2,7 +2,6 @@ import csv
 import itertools
 
 from django.http import StreamingHttpResponse, Http404, HttpResponseBadRequest
-from django.shortcuts import redirect
 from django.views.decorators.http import require_GET
 from rest_framework import mixins
 from rest_framework.pagination import PageNumberPagination
@@ -45,8 +44,6 @@ def download(request, uuid, filetype="csv", *args, **kwargs):
 
     pseudo_buffer = Echo()
     if filetype == "csv":
-        if export.csv and export.csv.url:
-            return redirect(export.csv.url)
         writer = csv.writer(pseudo_buffer)
         response = StreamingHttpResponse(
             (writer.writerow(row) for row in export.generate_csv_rows()),
@@ -91,12 +88,11 @@ def validate(request, uuid):
         export = SearchExport.objects.get(uuid=uuid)
     except SearchExport.DoesNotExist:
         raise Http404("Export not found")
+
     export.log_event(
         evt=DOWNLOAD_VALIDATION,
         data={"request": repr(request), "headers": repr(request.headers)},
     )
-    if export.pre_validation_file and export.pre_validation_file.url:
-        return redirect(export.pre_validation_file.url)
     pseudo_buffer = Echo()
     writer = csv.writer(pseudo_buffer)
     response = StreamingHttpResponse(

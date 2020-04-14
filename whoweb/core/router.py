@@ -109,7 +109,4 @@ router = Router()
 
 
 def external_link(uri):
-    if uri.startswith("http"):
-        return uri
-    else:
-        return f"{settings.PUBLIC_ORIGIN}{uri}"
+    return f"{settings.PUBLIC_ORIGIN}{uri}"

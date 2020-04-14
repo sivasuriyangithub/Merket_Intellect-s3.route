@@ -17,9 +17,6 @@ SECRET_KEY = env(
 # https://docs.djangoproject.com/en/dev/ref/settings/#test-runner
 TEST_RUNNER = "django.test.runner.DiscoverRunner"
 
-MEDIA_URL = f"https://storage.googleapis.com/test/media/"
-MEDIA_ROOT = f"https://storage.googleapis.com/test/media/"
-
 # CACHES
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#caches

@@ -8,7 +8,6 @@ from math import ceil
 from typing import Optional, List, Iterable, Dict, Iterator, Tuple
 
 from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
 
 import requests
 from celery import group, chain
@@ -699,7 +698,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         writer = csv.writer(buffer)
         for row in self.get_ungraded_email_rows():
             writer.writerow(row)
-        export_file = ContentFile(buffer.getvalue())
+        export_file = ContentFile(buffer.getvalue().encode("utf-8"))
         self.pre_validation_file.save(f"wk_validation_{self.uuid.hex}.csv", export_file)
         self.save()
 
@@ -715,7 +714,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             ),
         )
         r.raise_for_status()
-        # self.validation_list_id = r.json()
+        self.validation_list_id = r.json()
         self.save()
 
     def get_validation_status(self, task_context=None):
@@ -844,7 +843,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         writer = csv.writer(buffer)
         for row in self.generate_csv_rows():
             writer.writerow(row)
-        export_file = ContentFile(buffer.getvalue())
+        export_file = ContentFile(buffer.getvalue().encode("utf-8"))
         if self.uploadable:
             filename = f"{self.uuid.hex}__fetch.csv"
         else:

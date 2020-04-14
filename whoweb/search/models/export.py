@@ -3,9 +3,12 @@ import logging
 import uuid as uuid
 import zipfile
 from datetime import timedelta
-from io import TextIOWrapper
+from io import TextIOWrapper, StringIO
 from math import ceil
 from typing import Optional, List, Iterable, Dict, Iterator, Tuple
+
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 
 import requests
 from celery import group, chain
@@ -49,6 +52,7 @@ from whoweb.search.events import (
     FINALIZING_LOCKED,
     VALIDATION_COMPLETE_LOCKED,
     COMPRESSING_PAGES,
+    UPLOAD_TO_BUCKET,
 )
 from whoweb.users.models import Seat
 from .profile import ResultProfile, WORK, PERSONAL, SOCIAL, PROFILE, VALIDATED
@@ -57,6 +61,14 @@ from .scroll import FilteredSearchQuery, ScrollSearch
 logger = logging.getLogger(__name__)
 User = get_user_model()
 DATAVALIDATION_URL = "https://dv3.datavalidation.com/api/v2/user/me"
+
+
+def validation_file_location(instance, filename):
+    return f"exports/{instance.uuid.hex}/validate/{filename}"
+
+
+def download_file_location(instance, filename):
+    return f"exports/{instance.uuid.hex}/download/{filename}"
 
 
 class SubscriptionError(Exception):
@@ -129,7 +141,12 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     query = EmbeddedModelField(
         FilteredSearchQuery, blank=False, default=FilteredSearchQuery
     )
+    pre_validation_file = models.FileField(
+        upload_to=validation_file_location, null=True, blank=True, editable=False,
+    )
     validation_list_id = models.CharField(max_length=50, null=True, blank=True)
+    csv = models.FileField(upload_to=download_file_location, null=True, blank=True)
+
     status = models.IntegerField(
         _("status"), db_index=True, choices=STATUS, blank=True, default=STATUS.created
     )
@@ -678,11 +695,19 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             self.save()
             return
 
+        buffer = StringIO()
+        writer = csv.writer(buffer)
+        for row in self.get_ungraded_email_rows():
+            writer.writerow(row)
+        export_file = ContentFile(buffer.getvalue())
+        self.pre_validation_file.save(f"wk_validation_{self.uuid.hex}.csv", export_file)
+        self.save()
+
         r = requests.post(
             url=f"{DATAVALIDATION_URL}/list/create_from_url/",
             headers={"Authorization": f"Bearer {settings.DATAVALIDATION_KEY}"},
             data=dict(
-                url=external_link(self.get_validation_url()),
+                url=self.pre_validation_file.url,
                 name=self.uuid.hex,
                 email_column_index=0,
                 has_header=0,
@@ -690,7 +715,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             ),
         )
         r.raise_for_status()
-        self.validation_list_id = r.json()
+        # self.validation_list_id = r.json()
         self.save()
 
     def get_validation_status(self, task_context=None):
@@ -813,6 +838,20 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     def push_to_webhooks(self, rows):
         pass
 
+    def upload_to_static_bucket(self, task_context=None):
+        self.log_event(UPLOAD_TO_BUCKET, task=task_context)
+        buffer = StringIO()
+        writer = csv.writer(buffer)
+        for row in self.generate_csv_rows():
+            writer.writerow(row)
+        export_file = ContentFile(buffer.getvalue())
+        if self.uploadable:
+            filename = f"{self.uuid.hex}__fetch.csv"
+        else:
+            filename = f"whoknows_search_results_{self.created.date()}.csv"
+        self.csv.save(filename, export_file)
+        self.save()
+
     #   TODO
     #     for hook in self.query.export.webhooks:
     #         results = []
@@ -890,6 +929,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             send_notification,
             do_post_validation_completion,
             spawn_mx_group,
+            upload_to_static_bucket,
             alert_xperweb,
         )
 
@@ -925,6 +965,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             sigs |= send_notification.si(export_id=self.pk).set(priority=3)
         if self.uploadable:
             sigs |= spawn_mx_group.si(export_id=self.pk)
+        sigs |= upload_to_static_bucket.si(export_id=self.pk)
         sigs |= (
             alert_xperweb.si(export_id=self.pk)
             .on_error(alert_xperweb.si(export_id=self.pk))
@@ -932,16 +973,9 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         )
         return sigs
 
-    def get_validation_url(self):
-        return reverse("search:validate_export", kwargs={"uuid": self.uuid})
-
-    def get_named_fetch_url(self):
-        return reverse(
-            "search:download_export_with_named_file_ext",
-            kwargs={"uuid": self.uuid, "same_uuid": self.uuid, "filetype": "csv"},
-        )
-
     def get_absolute_url(self, filetype="csv"):
+        if filetype == "csv":
+            return self.csv.url
         return reverse(
             "search:download_export", kwargs={"uuid": self.uuid, "filetype": filetype}
         )

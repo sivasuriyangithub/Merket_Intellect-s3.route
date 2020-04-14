@@ -75,8 +75,7 @@ class CampaignList(ColdemailBaseModel):
         if self.is_published:
             return
         self.log_event(UPLOAD_CAMPAIGN_LIST_URL, task=task_context)
-        url = external_link(self.export.get_named_fetch_url())
-        created = self.api_class.create_by_url(url=url)
+        created = self.api_class.create_by_url(url=self.export.csv.url)
         self.coldemail_id = created.id
         self.status = self.STATUS.published
         self.save()

@@ -1,5 +1,7 @@
 import os
+from datetime import datetime
 from unittest.mock import patch, Mock, PropertyMock
+from uuid import uuid4
 
 import pytest
 from pytest_cases import fixture_ref, pytest_parametrize_plus
@@ -23,6 +25,18 @@ def validation_result_generator(only_valid=True):
         if only_valid and row[2][0] not in ["A", "B"]:
             continue
         yield {"email": row[0], "profile_id": row[1], "grade": row[2]}
+
+
+def pre_validation_generator():
+    results = [
+        ("a@a.com", "wp:1"),
+        ("b@b.com", "wp:2"),
+        ("c@c.com", "wp:3"),
+        ("d@d.com", "wp:4"),
+        ("f@af.com", "wp:5"),
+    ] * 201
+    for row in results:
+        yield (row[0], row[1])
 
 
 @patch("whoweb.core.router.Router.update_validations")
@@ -258,11 +272,56 @@ def test_do_post_validation_completion(
     assert export.status == 16
 
 
-def test_upload_validation():
+def test_upload_validation_skip():
     export: SearchExport = SearchExportFactory()
     assert export.upload_validation() is None
     assert export.status == 8
     assert export.validation_list_id == SearchExport.SKIP_CODE
+
+
+@patch("requests.post")
+@patch(
+    "whoweb.search.models.SearchExport.get_ungraded_email_rows",
+    side_effect=pre_validation_generator,
+)
+def test_upload_validation(_, upload_mock):
+    export: SearchExport = SearchExportFactory()
+    export.upload_validation()
+    export.refresh_from_db()
+    assert export.status == 8
+    assert (
+        export.pre_validation_file.url
+        == f"https://storage.googleapis.com/test/media/exports/{export.uuid.hex}/validate/wk_validation_{export.uuid.hex}.csv"
+    )
+    assert upload_mock.call_count == 1
+
+
+@patch(
+    "whoweb.search.models.SearchExport.generate_csv_rows",
+    side_effect=pre_validation_generator,
+)
+def test_upload_to_static_bucket(_):
+    export: SearchExport = SearchExportFactory(csv=None)
+    export.upload_to_static_bucket()
+    export.refresh_from_db()
+    assert (
+        export.csv.url
+        == f"https://storage.googleapis.com/test/media/exports/{export.uuid.hex}/download/whoknows_search_results_2020-04-13.csv"
+    )
+
+
+@patch(
+    "whoweb.search.models.SearchExport.generate_csv_rows",
+    side_effect=pre_validation_generator,
+)
+def test_upload_to_static_bucket_for_coldemail_system(_):
+    export: SearchExport = SearchExportFactory(uploadable=True, csv=None)
+    export.upload_to_static_bucket()
+    export.refresh_from_db()
+    assert (
+        export.csv.url
+        == f"https://storage.googleapis.com/test/media/exports/{export.uuid.hex}/download/{export.uuid.hex}__fetch.csv"
+    )
 
 
 def test_get_validation_status(requests_mock):
@@ -365,10 +424,13 @@ def test_get_validation_results(
 
 
 def test_get_named_fetch_url():
-    export: SearchExport = SearchExportFactory()
+    uuid = uuid4()
+    export: SearchExport = SearchExportFactory(
+        csv__filename=f"{uuid.hex}__fetch.csv", uuid=uuid, uploadable=True
+    )
     assert (
-        export.get_named_fetch_url()
-        == f"/ww/search/exports/{str(export.uuid)}/download/{str(export.uuid)}__fetch.csv"
+        export.csv.url
+        == f"https://storage.googleapis.com/test/media/exports/{str(export.uuid.hex)}/download/{str(export.uuid.hex)}__fetch.csv"
     )
 
 
@@ -376,5 +438,5 @@ def test_get_absolute_url():
     export: SearchExport = SearchExportFactory()
     assert (
         export.get_absolute_url()
-        == f"/ww/search/exports/{str(export.uuid)}/download/results.csv"
+        == f"https://storage.googleapis.com/test/media/exports/{str(export.uuid.hex)}/download/whoknows_search_results_2020-04-13.csv"
     )

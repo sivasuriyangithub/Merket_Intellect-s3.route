@@ -10,7 +10,7 @@ FETCH_VALIDATION = 550, "Fetching post-export validation."
 VALIDATION_COMPLETE_LOCKED = 551, "Failed to get lock to perform post-validation tasks."
 REFUNDING_INVALID = 560, "Refunding user credits for invalid emails."
 SPAWN_MX = 600, "Generated mx-domain task group."
-
+UPLOAD_TO_BUCKET = 850, "Uploading completed export as csv to static bucket."
 ALERT_XPERWEB = 750, "Notified xperweb of export completion."
 
 POPULATE_DATA = 400, "Populating page directly from search data."

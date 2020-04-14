@@ -43479,7 +43479,38 @@ PENDING = r"""
         "seniority_level" : "Entry",
         "group_id" : null,
         "is_connection" : false
-    }
+    },
+    {
+"business_function": "Engineering",
+"education_history":[
+{
+"degree": "",
+"degree_level": null,
+"end": "2016-01-00",
+"major": "",
+"school": "Underscore",
+"start": "2015-01-00",
+"summary": null
+},
+{
+"degree": "Bachelor's Degree",
+"degree_level": "Bachelors",
+"end": "1990-01-00",
+"major": "",
+"school": "University of Maryland College Park",
+"start": "1986-01-00",
+"summary": "I completed my degree with the Asian Division of University of Maryland while living and working in Japan. I also attended Jochi Daigaku in Tokyo, Japan for select senior year courses on Japan."
+}
+],
+"last_name": "Funk",
+"last_updated": "2018-01-16",
+"list_status": "",
+"locale": "Placida, Florida",
+"patents":[],
+"profile_id": "wp:961siZ9cRwgDppk73tWU9S9pDyQ8qEJf64kViz8M5U2J",
+"relevance_score": 0.5,
+"search_skills":[]
+}
 ]
 """
 
@@ -50490,4 +50521,8 @@ DONE = r"""
     "is_connection" : false
 }
 ]
+"""
+
+SAMPLE_PROFILE = """
+
 """

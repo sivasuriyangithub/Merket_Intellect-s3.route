@@ -36,7 +36,7 @@ spec:
           effect: "NoSchedule"
       {{- end }}
       volumes:
-        - name: service_account
+        - name: service-account
           secret:
             secretName: static-bucket-account
       containers:
@@ -46,7 +46,7 @@ spec:
             - "/app/start-celeryworker-lowQ"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           volumeMounts:
-            - name: service_account
+            - name: service-account
               mountPath: "/etc/service_account_credentials"
               readOnly: true
           env:

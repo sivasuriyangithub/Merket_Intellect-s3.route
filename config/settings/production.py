@@ -3,7 +3,6 @@ import logging
 import sentry_sdk
 from google.auth import compute_engine
 from google.cloud import logging as stackdriver
-from google.oauth2 import service_account
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration

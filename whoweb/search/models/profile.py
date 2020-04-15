@@ -4,6 +4,7 @@ from enum import Enum
 from typing import Optional, List, Dict
 
 import requests
+import six
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import JSONField
@@ -326,6 +327,28 @@ class ResultProfile(BaseModel):
     )
     def set_str_none_to_emptystring(cls, v):
         return v or ""
+
+    @root_validator(pre=True)
+    def adapt_email_search_result_to_graded_format(cls, values):
+        email = values.get("email")
+        if isinstance(email, list) and "graded_emails" not in values:
+            graded_emails = sorted(
+                [
+                    GradedEmail(
+                        email=e.get("address", ""),
+                        grade=e.get("grade", ""),
+                        email_type=e.get("email_type", ""),
+                    )
+                    for e in email
+                ],
+                key=lambda g: GRADE_VALUES.get(g.grade, 0),
+                reverse=True,
+            )
+            if graded_emails:
+                values["graded_emails"] = graded_emails
+                values["email"] = graded_emails[0].email
+                values["grade"] = graded_emails[0].grade
+        return values
 
     def __str__(self):
         return f"<ResultProfile {self.id} email: {self.email}>"

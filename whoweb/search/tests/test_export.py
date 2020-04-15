@@ -279,13 +279,16 @@ def test_upload_validation_skip():
     assert export.validation_list_id == SearchExport.SKIP_CODE
 
 
-@patch("requests.post")
 @patch(
     "whoweb.search.models.SearchExport.get_ungraded_email_rows",
     side_effect=pre_validation_generator,
 )
-def test_upload_validation(_, upload_mock):
+def test_upload_validation(_, requests_mock):
     export: SearchExport = SearchExportFactory()
+    DATAVALIDATION_URL = "https://dv3.datavalidation.com/api/v2/user/me"
+    requests_mock.register_uri(
+        "POST", f"{DATAVALIDATION_URL}/list/create_from_url/", json="lst_1234",
+    )
     export.upload_validation()
     export.refresh_from_db()
     assert export.status == 8
@@ -293,7 +296,7 @@ def test_upload_validation(_, upload_mock):
         export.pre_validation_file.url
         == f"https://storage.googleapis.com/test/media/exports/{export.uuid.hex}/validate/wk_validation_{export.uuid.hex}.csv"
     )
-    assert upload_mock.call_count == 1
+    assert requests_mock.call_count == 1
 
 
 @patch(

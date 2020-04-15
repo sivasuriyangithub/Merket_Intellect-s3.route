@@ -23,12 +23,14 @@ from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from django_celery_results.models import TaskResult
 from dns import resolver
+from google.cloud import storage
 from model_utils import Choices
 from model_utils.fields import MonitorField
 from model_utils.managers import QueryManagerMixin
 from model_utils.models import TimeStampedModel, SoftDeletableModel
 from requests_cache import CachedSession
 from six import BytesIO
+from storages.backends.gcloud import GoogleCloudStorage
 
 from whoweb.accounting.ledgers import wkcredits_fulfilled_ledger
 from whoweb.accounting.models import Transaction, MatchType
@@ -850,6 +852,18 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             filename = f"whoknows_search_results_{self.created.date()}.csv"
         self.csv.save(filename, export_file)
         self.save()
+        # Update metadata to ensure download on link-click for users.
+        if isinstance(self.csv.storage, GoogleCloudStorage):
+            client = storage.Client()
+            bucket = client.get_bucket(settings.GS_BUCKET_NAME)
+            blob_name = self.csv.url.split(settings.GS_BUCKET_NAME + "/", maxsplit=1)[
+                -1
+            ]
+            blob = bucket.get_blob(blob_name)
+            blob.content_disposition = "attachment"
+            blob.content_type = "text/csv"
+            blob.patch()
+        return self.csv.url
 
     #   TODO
     #     for hook in self.query.export.webhooks:

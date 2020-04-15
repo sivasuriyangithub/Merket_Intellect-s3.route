@@ -221,9 +221,9 @@ class ResultProfileSerializer(serializers.Serializer):
             results = search.get("results")
             if not results:
                 raise Http404("Unable to find a profile matching the supplied id.")
-            profile = ResultProfile.from_json(results[0])
+            profile = ResultProfile(**results[0])
         else:
-            profile = ResultProfile.from_json(validated_data)
+            profile = ResultProfile(**validated_data)
         profile.derive_contact(filters=filters, timeout=timeout)
         billing_seat = validated_data["billing_seat"]
         cache_obj, charge = DerivationCache.get_or_charge(
@@ -233,7 +233,7 @@ class ResultProfileSerializer(serializers.Serializer):
             billing_seat.consume_credits(
                 amount=charge, evidence=(cache_obj,), initiated_by=initiated_by
             )
-        data = profile.to_json()
+        data = profile.dict()
         data["credits_used"] = charge
         data["credits_remaining"] = billing_seat.credits
         return data

@@ -314,9 +314,7 @@ class BaseCampaignRunner(
         for page in export.pages.filter(data__isnull=False).iterator(chunk_size=1):
             profiles = self.get_profiles(raw=page.data)
             page.data = [
-                profile.to_json()
-                for profile in profiles
-                if profile.id not in responders
+                profile.dict() for profile in profiles if profile.id not in responders
             ]
             page.count = len(page.data)
             page.id = None
@@ -434,7 +432,7 @@ class BaseCampaignRunner(
         """
         :rtype: (celery.canvas.Signature | celery.result.AsyncResult | None,  Campaign | None)
         """
-        from whoweb.campaigns.tasks import set_published
+        from whoweb.campaigns.tasks import set_published, ensure_stats
 
         self.log_event(PUBLISH_CAMPAIGN, task=task_context)
         if with_campaign:
@@ -454,6 +452,34 @@ class BaseCampaignRunner(
                 root_campaign=campaign, following=campaign, run_id=self.run_id
             ):
                 publish_sigs |= drip_sigs
+            else:
+                publish_sigs |= ensure_stats.signature(
+                    args=(self.pk,),
+                    immutable=True,
+                    eta=campaign.send_time + timedelta(hours=12),
+                ) | ensure_stats.signature(
+                    args=(self.pk,),
+                    immutable=True,
+                    eta=campaign.send_time + timedelta(days=1),
+                )
+            # Also get updated stats periodically as more respondent interactions occur.
+            publish_sigs |= (
+                ensure_stats.signature(
+                    args=(self.pk,),
+                    immutable=True,
+                    eta=campaign.send_time + timedelta(days=2),
+                )
+                | ensure_stats.signature(
+                    args=(self.pk,),
+                    immutable=True,
+                    eta=campaign.send_time + timedelta(days=3),
+                )
+                | ensure_stats.signature(
+                    args=(self.pk,),
+                    immutable=True,
+                    eta=campaign.send_time + timedelta(days=6),
+                )
+            )
 
             if apply_tasks:
                 self.log_event(

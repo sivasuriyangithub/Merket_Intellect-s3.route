@@ -9,7 +9,6 @@ from whoweb.search.models import ResultProfile
 from .json_data import PENDING, DONE
 
 done = json.loads(DONE, object_hook=object_hook, strict=False)
-pending = json.loads(PENDING, object_hook=object_hook, strict=False)
 
 
 @pytest.fixture(scope="session")
@@ -19,22 +18,22 @@ def raw_derived():
 
 @pytest.fixture(scope="session")
 def search_results():
-    return pending
+    return json.loads(PENDING, object_hook=object_hook, strict=False)
 
 
 @pytest.fixture
 def search_result_profiles(search_results):
-    return [ResultProfile.from_json(prof) for prof in search_results]
+    return [ResultProfile(**prof) for prof in search_results]
 
 
 @pytest.fixture
-def result_profile_derived():
-    return ResultProfile.from_json(done[0])
+def result_profile_derived(raw_derived):
+    return ResultProfile(**raw_derived[0])
 
 
 @pytest.fixture
-def result_profile_derived_another():
-    return ResultProfile.from_json(done[1])
+def result_profile_derived_another(raw_derived):
+    return ResultProfile(**raw_derived[1])
 
 
 @pytest.fixture

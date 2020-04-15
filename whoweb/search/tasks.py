@@ -154,6 +154,12 @@ def spawn_mx_group(self, export_id):
     return self.replace(group_signature)
 
 
+@shared_task(bind=True, autoretry_for=NETWORK_ERRORS)
+def upload_to_static_bucket(self, export_id):
+    export = SearchExport.objects.get(pk=export_id)
+    return export.upload_to_static_bucket(task_context=self.request)
+
+
 def process_derivation(
     task, page_pk, profile_data, defer, omit_failures, add_invite_key, filters
 ):
@@ -165,7 +171,7 @@ def process_derivation(
     :type omit_failures: boolean
     :rtype: boolean
     """
-    profile = ResultProfile.from_json(profile_data)
+    profile = ResultProfile(**profile_data)
     status = profile.derivation_status
     if not status in [VALIDATED, COMPLETE]:
         deferred = list(set(defer))  # copy, unique

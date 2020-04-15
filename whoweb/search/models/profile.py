@@ -1,17 +1,17 @@
 import json
 import re
-from dataclasses import dataclass, asdict, field
 from enum import Enum
 from typing import Optional, List, Dict
 
-import dacite
 import requests
+import six
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import JSONField
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from model_utils.models import TimeStampedModel
+from pydantic import BaseModel, Extra, parse_obj_as, validator, root_validator
 
 from whoweb.payments.models import BillingAccountMember
 from whoweb.core.router import router
@@ -28,6 +28,7 @@ PERSONAL = "personal"
 SOCIAL = "social"
 PHONE = "phone"
 PROFILE = "profile"
+GRADE_VALUES = {"A+": 100, "A": 90, "B+": 75, "B": 60}
 
 User = get_user_model()
 
@@ -53,37 +54,49 @@ class SocialTypeName(Enum):
         return self.value
 
 
-@dataclass(frozen=True)
-class SocialLink:
+class SocialLink(BaseModel):
     typeName: str
     url: str
 
 
-@dataclass
-class ResultExperience:
+class ResultExperience(BaseModel):
     company_name: str = ""
     title: str = ""
 
+    @validator(
+        "*", pre=True, always=True,
+    )
+    def set_str_none_to_emptystring(cls, v):
+        return v or ""
 
-@dataclass
-class ResultEducation:
+
+class ResultEducation(BaseModel):
     school: str = ""
     degree: str = ""
 
+    @validator(
+        "*", pre=True, always=True,
+    )
+    def set_str_none_to_emptystring(cls, v):
+        return v or ""
 
-@dataclass
-class Skill:
+
+class Skill(BaseModel):
     tag: str = ""
 
+    @validator(
+        "*", pre=True, always=True,
+    )
+    def set_str_none_to_emptystring(cls, v):
+        return v or ""
 
-@dataclass
-class GenderDiversity:
+
+class GenderDiversity(BaseModel):
     male: float = None
     female: float = None
 
 
-@dataclass
-class EthnicDiversity:
+class EthnicDiversity(BaseModel):
     multiple: Optional[float] = None
     hispanic: Optional[float] = None
     black: Optional[float] = None
@@ -92,21 +105,31 @@ class EthnicDiversity:
     native: Optional[float] = None
 
 
-@dataclass
-class Diversity:
+class Diversity(BaseModel):
     gender: Optional[GenderDiversity] = None
     ethnic: Optional[EthnicDiversity] = None
 
 
-@dataclass
-class GradedEmail:
+class GradedEmail(BaseModel):
     email: str = ""
     grade: str = ""
     email_type: str = ""
 
-    def __post_init__(self):
-        if not self.email_type:
-            self.email_type = PERSONAL if self.is_personal else WORK
+    @root_validator(pre=True)
+    def populate_email_type(cls, vals):
+        if not vals.get("email_type"):
+            vals["email_type"] = (
+                PERSONAL
+                if vals.get("email", "").lower().split("@")[1] in PERSONAL_DOMAINS
+                else WORK
+            )
+        return vals
+
+    @validator(
+        "*", pre=True, always=True,
+    )
+    def set_str_none_to_emptystring(cls, v):
+        return v or ""
 
     @property
     def is_passing(self):
@@ -124,13 +147,8 @@ class GradedEmail:
     def is_work(self):
         return self.email_type == WORK or self.domain not in PERSONAL_DOMAINS
 
-    @classmethod
-    def from_json(cls, data):
-        return dacite.from_dict(data_class=cls, data=data, config=profile_load_config)
 
-
-@dataclass
-class GradedPhone:
+class GradedPhone(BaseModel):
     status: str = ""
     phone_type: str = ""
     number: str = ""
@@ -142,57 +160,69 @@ class GradedPhone:
     def status_value(self):
         return self._status_order.get(self.status, 0)
 
+    @validator(
+        "*", pre=True, always=True,
+    )
+    def set_str_none_to_emptystring(cls, v):
+        return v or ""
+
     def __lt__(self, other):
         return self.status_value < other.status_value
 
     def __gt__(self, other):
         return self.status_value > other.status_value
 
-    @classmethod
-    def from_json(cls, data):
-        return dacite.from_dict(data_class=cls, data=data, config=profile_load_config)
 
-
-@dataclass
-class GoogleCSEExtra:
+class GoogleCSEExtra(BaseModel):
     company: str = ""
     title: str = ""
 
+    @validator(
+        "*", pre=True, always=True,
+    )
+    def set_str_none_to_emptystring(cls, v):
+        return v or ""
 
-@dataclass
-class SocialProfile:
+
+class SocialProfile(BaseModel):
     url: Optional[str] = None
     typeId: Optional[str] = None
 
 
-@dataclass
-class DerivedContact:
+class DerivedContact(BaseModel):
     status: str
     email: Optional[str] = None
-    emails: List[str] = field(default_factory=list)
+    emails: List[str] = []
     grade: Optional[str] = None
-    graded_emails: List[GradedEmail] = field(default_factory=list)
+    graded_emails: List[GradedEmail] = []
     extra: Optional[GoogleCSEExtra] = None
-    fc: Optional[Dict] = field(default_factory=dict)
+    fc: Optional[Dict] = dict()
     linkedin_url: Optional[str] = ""
     facebook: Optional[str] = ""
     twitter: Optional[str] = ""
-    phone: List[str] = field(default_factory=list)
-    graded_phones: Dict = field(default_factory=dict)
-    phone_details: List[GradedPhone] = field(default_factory=list)
-    social_links: List[SocialLink] = field(default_factory=list)
-    filters: List[str] = field(default_factory=list)
+    phone: List[str] = []
+    graded_phones: Dict = dict()
+    phone_details: List[GradedPhone] = []
+    social_links: List[SocialLink] = []
+    filters: List[str] = []
 
-    def __post_init__(self):
+    class Config:
+        extra = Extra.allow
+
+    @root_validator(pre=True)
+    def set_primary_social_links(cls, values):
+        social_links = parse_obj_as(List[SocialLink], values.get("social_links", []))
         social_profiles_by_type = {
-            social.typeName: social.url for social in self.social_links
+            social.typeName: social.url for social in social_links
         }
-        if not self.linkedin_url:
-            self.linkedin_url = social_profiles_by_type.get("linkedin")
-        if not self.facebook:
-            self.facebook = social_profiles_by_type.get("facebook")
-        if not self.twitter:
-            self.twitter = social_profiles_by_type.get("twitter")
+        values.setdefault("linkedin_url", social_profiles_by_type.get("linkedin"))
+        values.setdefault("facebook", social_profiles_by_type.get("facebook"))
+        values.setdefault("twitter", social_profiles_by_type.get("twitter"))
+        return values
+
+    @validator("graded_emails", pre=True)
+    def fix_graded_emails(cls, val):
+        return DerivedContact.parse_graded_emails(val)
 
     @staticmethod
     def parse_graded_emails(potentially_unparsed_graded_emails):
@@ -211,18 +241,14 @@ class DerivedContact:
     def requested_phone(self):
         return bool(set(self.filters).intersection([PHONE]))
 
-    @classmethod
-    def from_dict(self, data):
-        return dacite.from_dict(DerivedContact, data=data, config=profile_load_config)
 
-
-@dataclass
-class ResultProfile:
-    _id: Optional[str] = field(default=None)
-    user_id: Optional[str] = field(default=None, repr=False)
-    profile_id: Optional[str] = field(default=None, repr=False)
-    primary_alias: Optional[str] = field(default=None, repr=False)
-    web_profile_id: Optional[str] = field(default=None, repr=False)
+class ResultProfile(BaseModel):
+    _id: Optional[str] = None
+    web_id: Optional[str] = None
+    user_id: Optional[str] = None
+    profile_id: Optional[str] = None
+    primary_alias: Optional[str] = None
+    web_profile_id: Optional[str] = None
     derivation_status: Optional[str] = None
 
     first_name: str = ""
@@ -234,9 +260,9 @@ class ResultProfile:
     state: str = ""
     country: str = ""
     relevance_score: str = ""
-    experience: List[ResultExperience] = field(default_factory=list)
-    education_history: List[ResultEducation] = field(default_factory=list)
-    skills: List[Skill] = field(default_factory=list)
+    experience: List[ResultExperience] = []
+    education_history: List[ResultEducation] = []
+    skills: List[Skill] = []
 
     geo_loc: Optional[List[float]] = None
     picture_url: str = ""
@@ -248,29 +274,82 @@ class ResultProfile:
     diversity: Optional[Diversity] = None
 
     email: Optional[str] = None
-    emails: List[str] = field(default_factory=list)
+    emails: List[str] = []
     grade: Optional[str] = None
-    graded_emails: List[GradedEmail] = field(default_factory=list)
-    graded_phones: List[GradedPhone] = field(default_factory=list)
-    social_links: List[SocialLink] = field(default_factory=list)
+    graded_emails: List[GradedEmail] = []
+    graded_phones: List[GradedPhone] = []
+    social_links: List[SocialLink] = []
     li_url: str = ""
     facebook: str = ""
     twitter: str = ""
     invite_key: Optional[str] = None
-    mx_domain: Optional[str] = field(default=None, init=False)
+    mx_domain: Optional[str] = None
 
     derivation_requested_email: bool = False
     derivation_requested_phone: bool = False
     returned_status: str = ""
 
-    GRADE_VALUES = {"A+": 100, "A": 90, "B+": 75, "B": 60}
+    class Config:
+        extra = Extra.allow
 
-    def __post_init__(self):
-        #  dacite fails to create instances with InitVar types, for now,
-        #  so attrs will be on self
-        self._id = self._id or self.user_id or self.profile_id
-        primary = self.primary_alias or self._id
-        self.web_id = primary if primary.startswith("wp:") else self.web_profile_id
+    @root_validator(pre=True)
+    def set_id_field(cls, values):
+        values.setdefault(
+            "_id",
+            values.get("_id") or values.get("user_id") or values.get("profile_id"),
+        )
+
+        primary = values.get("primary_alias") or values["_id"]
+        values.setdefault(
+            "web_id",
+            primary if primary.startswith("wp:") else values.get("web_profile_id"),
+        )
+        return values
+
+    @validator(
+        "first_name",
+        "last_name",
+        "title",
+        "company",
+        "industry",
+        "city",
+        "state",
+        "country",
+        "relevance_score",
+        "picture_url",
+        "seniority_level",
+        "business_function",
+        "li_url",
+        "facebook",
+        "twitter",
+        "returned_status",
+        pre=True,
+        always=True,
+    )
+    def set_str_none_to_emptystring(cls, v):
+        return v or ""
+
+    @root_validator(pre=True)
+    def adapt_email_search_result_to_graded_format(cls, values):
+        email = values.get("email")
+        if isinstance(email, list) and "graded_emails" not in values:
+            graded_emails = sorted(
+                [
+                    GradedEmail(
+                        email=e.get("address", ""),
+                        grade=e.get("grade", ""),
+                        email_type=e.get("email_type", ""),
+                    )
+                    for e in email
+                ],
+                key=lambda g: GRADE_VALUES.get(g.grade, 0),
+                reverse=True,
+            )
+            if graded_emails:
+                values["graded_emails"] = graded_emails
+                values["email"] = graded_emails[0].email
+                values["grade"] = graded_emails[0].grade
+        return values
 
     def __str__(self):
         return f"<ResultProfile {self.id} email: {self.email}>"
@@ -305,6 +384,10 @@ class ResultProfile:
             self.mx_domain = mx_registry.get(self.domain, None)
         return self
 
+    @validator("graded_emails", pre=True)
+    def parse_graded_emails(cls, val):
+        return DerivedContact.parse_graded_emails(val)
+
     def graded_addresses(self):
         return [graded.email for graded in self.graded_emails]
 
@@ -313,7 +396,7 @@ class ResultProfile:
         self.emails = derived.emails
         self.graded_emails = sorted(
             derived.graded_emails,
-            key=lambda g: ResultProfile.GRADE_VALUES.get(g.grade, 0),
+            key=lambda g: GRADE_VALUES.get(g.grade, 0),
             reverse=True,
         )
         if self.email:
@@ -359,9 +442,7 @@ class ResultProfile:
                 graded.append((email, grade))
 
         if graded:
-            self.email, self.grade = max(
-                graded, key=lambda x: ResultProfile.GRADE_VALUES.get(x[1])
-            )
+            self.email, self.grade = max(graded, key=lambda x: GRADE_VALUES.get(x[1]))
             # self.normalize_email_grades()
             self.set_status()
         return self
@@ -407,14 +488,14 @@ class ResultProfile:
             except requests.Timeout:
                 return RETRY
             else:
-                derived = DerivedContact.from_dict(data=derivation)
+                derived = DerivedContact(**derivation)
                 if not hasattr(derivation, "filters"):
                     derived.filters = filters
                 self.set_derived_contact(derived)
                 return self.derivation_status
         else:
             try:
-                email = User.objects.get(self.id).email
+                email = User.objects.get(username=self.id).email
             except User.DoesNotExist:
                 email = None
 
@@ -465,49 +546,47 @@ class ResultProfile:
             ]
         )
 
-    def to_json(self):
-        return asdict(self)
-
     def to_version(self, version="2019-12-05"):
-        fields = {}
+        data = {}
         if version == "2019-12-05":
-            fields = {
-                "profile_id": self.id or self.web_id,
-                "first_name": self.first_name,
-                "last_name": self.last_name,
-                "company": self.company,
-                "geo_loc": self.geo_loc,
-                "total_experience": self.total_experience,
-                "time_at_current_company": self.time_at_current_company,
-                "time_at_current_position": self.time_at_current_position,
-                "seniority_level": self.seniority_level,
-                "business_function": self.business_function,
-                "diversity": asdict(self.diversity),
-                "title": self.title,
-                "industry": self.industry,
-                "city": self.city,
-                "state": self.state,
-                "country": self.country,
-                "email": [asdict(email) for email in self.graded_emails],
-                "phone": [asdict(p) for p in self.graded_phones],
-                "experience": [asdict(e) for e in self.experience],
-                "education_history": [asdict(edu) for edu in self.education_history],
-                "skills": [asdict(skill) for skill in self.skills],
-                "social_links": [asdict(link) for link in self.social_links],
-            }
-        return json.dumps(fields, cls=DjangoJSONEncoder)
+            data = self.dict(
+                include={
+                    "first_name",
+                    "last_name",
+                    "company",
+                    "geo_loc",
+                    "total_experience",
+                    "time_at_current_company",
+                    "time_at_current_position",
+                    "seniority_level",
+                    "business_function",
+                    "diversity",
+                    "title",
+                    "industry",
+                    "city",
+                    "state",
+                    "country",
+                    "graded_emails",
+                    "graded_phones",
+                    "experience",
+                    "education_history",
+                    "skills",
+                    "social_links",
+                }
+            )
+            data["profile_id"] = self.id or self.web_id
+            data["email"] = data.pop("graded_emails", [])
+            data["phone"] = data.pop("graded_phones", [])
+        return json.dumps(data, cls=DjangoJSONEncoder)
 
-    @classmethod
-    def from_json(cls, data):
-        return dacite.from_dict(data_class=cls, data=data, config=profile_load_config)
 
-
-profile_load_config = dacite.Config(
-    type_hooks={
-        str: lambda s: str(s) if s else "",
-        List[GradedEmail]: DerivedContact.parse_graded_emails,
-    }
-)
+#
+# profile_load_config = dacite.Config(
+#     type_hooks={
+#         str: lambda s: str(s) if s else "",
+#         List[GradedEmail]: DerivedContact.parse_graded_emails,
+#     }
+# )
 
 
 class DerivationCache(TimeStampedModel):
@@ -525,15 +604,15 @@ class DerivationCache(TimeStampedModel):
             billing_seat=billing_seat,
             profile_id=profile.id,
             defaults={
-                "emails": [asdict(email) for email in profile.graded_emails],
-                "phones": [asdict(phone) for phone in profile.graded_phones],
+                "emails": [email.dict() for email in profile.graded_emails],
+                "phones": [phone.dict() for phone in profile.graded_phones],
             },
         )
         if created:
             charge = billing_seat.plan.compute_contact_credit_use(profile=profile)
         else:
-            emails = [GradedEmail.from_json(email) for email in obj.emails]
-            phones = [GradedPhone.from_json(phone) for phone in obj.phones]
+            emails = [GradedEmail(**email) for email in obj.emails]
+            phones = [GradedPhone(**phone) for phone in obj.phones]
             charge = billing_seat.plan.compute_additional_contact_info_credit_use(
                 cached_emails=emails, cached_phones=phones, profile=profile
             )

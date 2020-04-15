@@ -65,12 +65,20 @@ spec:
                   operator: Exists
         {{- end }}
       {{- end }}
+      volumes:
+        - name: service-account
+          secret:
+            secretName: static-bucket-account
       containers:
         - name: {{ .Chart.Name }}
           args:
             - "/start"
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          volumeMounts:
+            - name: service-account
+              mountPath: "/etc/service_account_credentials"
+              readOnly: true
           env:
           - name: IMAGE
             value: {{ .Values.image.repository }}
@@ -84,6 +92,8 @@ spec:
             value: "{{- template "ingress.url" . -}},{{ .Values.service.name }}"
           - name: DJANGO_SETTINGS_MODULE
             value: {{ .Values.deployment.settingsModule }}
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: "/etc/service_account_credentials/key.json"
           envFrom:
           {{- range .Values.deployment.envConfigMapRef }}
           - configMapRef:

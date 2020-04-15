@@ -1,13 +1,15 @@
+import datetime
+
 from factory import (
     DjangoModelFactory,
     SubFactory,
     Sequence,
-    LazyAttribute,
     Iterator,
     Factory,
     Faker,
     List,
 )
+from factory.django import FileField
 from faker import Faker as NonFactoryFaker
 from faker.providers import internet
 
@@ -23,6 +25,8 @@ fake.add_provider(internet)
 
 class SearchExportFactory(DjangoModelFactory):
     billing_seat = SubFactory(BillingAccountMemberFactory)
+    csv = FileField(filename=f"whoknows_search_results_2020-04-13.csv")
+    created = datetime.datetime(2020, 4, 13)
 
     class Meta:
         model = SearchExport

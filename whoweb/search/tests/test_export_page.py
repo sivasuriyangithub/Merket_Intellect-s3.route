@@ -193,7 +193,7 @@ def test_get_profiles(raw_derived):
 @patch("whoweb.search.models.SearchExport.get_profiles")
 def test_get_ungraded_email_rows(get_profile_mock, raw_derived):
     get_profile_mock.return_value = (
-        ResultProfile.from_json(profile) for profile in raw_derived
+        ResultProfile(**profile) for profile in raw_derived
     )
     export: SearchExport = SearchExportFactory()
     rows = export.get_ungraded_email_rows()
@@ -224,7 +224,7 @@ def test_get_ungraded_email_rows(get_profile_mock, raw_derived):
 def test_generate_email_id_pairs(get_profile_mock, validation_mock, raw_derived):
     validation_mock.return_value = []
     get_profile_mock.return_value = (
-        ResultProfile.from_json(profile) for profile in raw_derived
+        ResultProfile(**profile) for profile in raw_derived
     )
     export: SearchExport = SearchExportFactory()
     rows = export.generate_email_id_pairs()
@@ -268,7 +268,7 @@ def test_save_profile(result_profile_derived):
     page: SearchExportPage = SearchExportPageFactory()
     SearchExportPage.save_profile(page.pk, result_profile_derived)
     assert page.working_rows.count() == 1
-    assert page.working_rows.first().data == result_profile_derived.to_json()
+    assert page.working_rows.first().data == result_profile_derived.dict()
 
 
 def test_save_profile_idempotent(result_profile_derived):

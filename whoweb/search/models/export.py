@@ -960,11 +960,11 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
                 | fetch_validation_results.si(export_id=self.pk)
                 | do_post_validation_completion.si(export_id=self.pk)
             )
-        if self.notify:
-            sigs |= send_notification.si(export_id=self.pk).set(priority=3)
         if self.uploadable:
             sigs |= spawn_mx_group.si(export_id=self.pk)
         sigs |= upload_to_static_bucket.si(export_id=self.pk)
+        if self.notify:
+            sigs |= send_notification.si(export_id=self.pk).set(priority=3)
         sigs |= (
             alert_xperweb.si(export_id=self.pk)
             .on_error(alert_xperweb.si(export_id=self.pk))

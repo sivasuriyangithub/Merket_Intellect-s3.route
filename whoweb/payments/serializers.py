@@ -68,6 +68,7 @@ class StripePlanSerializer(serializers.ModelSerializer):
 class PlanPresetSerializer(serializers.ModelSerializer):
     stripe_plans_monthly = StripePlanSerializer(many=True)
     stripe_plans_yearly = StripePlanSerializer(many=True)
+    defaults = StripePlanSerializer(many=True)
     id = serializers.CharField(source="public_id", read_only=True)
 
     class Meta:
@@ -77,6 +78,7 @@ class PlanPresetSerializer(serializers.ModelSerializer):
             "id",
             "tag",
             "marketing_name",
+            "defaults",
             "stripe_plans_monthly",
             "stripe_plans_yearly",
             "trial_days_allowed",

@@ -120,7 +120,7 @@ class WKPlanPresetAdmin(ActionsModelAdmin):
         "pk",
         "public_id",
     )
-    filter_horizontal = ("stripe_plans_monthly", "stripe_plans_yearly")
+    filter_horizontal = ("stripe_plans_monthly", "stripe_plans_yearly", "defaults")
 
     actions_list = ("sync",)
 

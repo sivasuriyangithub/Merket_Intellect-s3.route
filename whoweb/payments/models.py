@@ -148,6 +148,9 @@ class WKPlanPreset(AbstractPlanModel):
         limit_choices_to={"active": True, "interval": PlanInterval.year},
         related_name="yearly_presets",
     )
+    defaults = models.ManyToManyField(
+        Plan, limit_choices_to={"active": True,}, related_name="+", blank=True
+    )
     trial_days_allowed = models.PositiveSmallIntegerField(default=14)
 
     class Meta:

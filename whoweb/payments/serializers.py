@@ -336,7 +336,7 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
             credits_per_personal_email=validated_data["credits_per_personal_email"],
             credits_per_phone=validated_data["credits_per_phone"],
         )
-        billing_account_name = f"xp:{xperweb_id} Primary Billing Account"
+        billing_account_name = f"{email} Primary ({xperweb_id})"
         billing_account, _ = BillingAccount.objects.update_or_create(
             name=billing_account_name,
             slug=slugify(billing_account_name),
@@ -473,7 +473,7 @@ class AdminBillingAccountSerializer(IdOrHyperlinkedModelSerializer):
         seat, _ = group.get_or_add_user(
             user=profile.user, display_name=profile.user.get_full_name()
         )
-        billing_account_name = f"xp:{xperweb_id} Primary Billing Account"
+        billing_account_name = f"{email} Primary ({xperweb_id})"
         billing_account, _ = BillingAccount.objects.get_or_create(
             name=billing_account_name, slug=slugify(billing_account_name), group=group,
         )

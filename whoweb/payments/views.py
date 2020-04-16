@@ -10,15 +10,14 @@ from djstripe.models import Customer, Subscription
 from djstripe.settings import CANCELLATION_AT_PERIOD_END
 from rest_framework import viewsets, status
 from rest_framework.exceptions import ValidationError, MethodNotAllowed
-from rest_framework.generics import get_object_or_404
-from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
+from rest_framework.mixins import RetrieveModelMixin
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet
 
+from whoweb.core.utils import IdempotentRequest
 from whoweb.contrib.rest_framework.permissions import IsSuperUser
 from whoweb.users.models import Seat
-from .exceptions import SubscriptionError
 from .models import (
     WKPlan,
     WKPlanPreset,
@@ -36,6 +35,7 @@ from .serializers import (
     BillingAccountMemberSerializer,
     SubscriptionSerializer,
     PlanPresetSerializer,
+    CreditChargeSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -290,3 +290,31 @@ class SubscriptionRestView(APIView):
         customer, _created = Customer.get_or_create(subscriber=billing_account)
         customer.subscription.cancel(at_period_end=CANCELLATION_AT_PERIOD_END)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CreditChargeRestView(APIView):
+    def post(self, request, **kwargs):
+        serializer = CreditChargeSerializer(
+            data=request.data, context={"request": request}
+        )
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        billing_account: BillingAccount = serializer.validated_data.pop(
+            "billing_account"
+        )
+
+        idempotency = IdempotentRequest(request)
+        if idempotency.is_idempotent():
+            try:
+                success = billing_account.consume_credits(**serializer.validated_data)
+            except:
+                idempotency.rewind()
+                raise
+        else:
+            success = True
+        if success:
+            return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+        else:
+            return Response(serializer.data, status=status.HTTP_402_PAYMENT_REQUIRED)

@@ -15,7 +15,11 @@ from whoweb.users.urls import router as user_router
 from whoweb.campaigns.urls import router as campaign_router
 from whoweb.coldemail.urls import router as coldemail_router
 from whoweb.payments.urls import router as payments_router
-from whoweb.payments.views import SubscriptionRestView, AddPaymentSourceRestView
+from whoweb.payments.views import (
+    SubscriptionRestView,
+    AddPaymentSourceRestView,
+    CreditChargeRestView,
+)
 
 router = ExtendedDefaultRouter()
 router.root_view_name = "home"
@@ -40,6 +44,7 @@ urlpatterns = [
     path(
         "api/payment_source/", AddPaymentSourceRestView.as_view(), name="paymentsource"
     ),
+    path("api/charge/", CreditChargeRestView.as_view(), name="creditcharge"),
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("graphql", csrf_exempt(GraphQLView.as_view(graphiql=True))),

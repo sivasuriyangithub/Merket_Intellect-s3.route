@@ -1,3 +1,25 @@
+from django.core.cache import cache
+
+
+class IdempotentRequest(object):
+    YES = "yes"
+
+    def __init__(self, request, timeout=6000):
+        if ival := request.META.get("HTTP_X_IDEMPOTENCY_KEY"):
+            ival = ival[:128]
+            self.key = "idemp-{}-{}".format(request.user.pk, ival)
+        else:
+            self.key = None
+        self.timeout = timeout
+
+    def is_idempotent(self):
+        is_idempotent = bool(cache.add(self.key, self.YES, self.timeout))
+        return is_idempotent
+
+    def rewind(self):
+        cache.delete(self.key)
+
+
 PERSONAL_DOMAINS = {
     "aol.com",
     "att.net",

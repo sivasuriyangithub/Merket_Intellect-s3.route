@@ -178,6 +178,18 @@ class BillingAccountMemberSerializer(IdOrHyperlinkedModelSerializer):
         read_only_fields = fields
 
 
+class CreditChargeSerializer(serializers.Serializer):
+    initiated_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    amount = serializers.IntegerField(min_value=0)
+    billing_account = IdOrHyperlinkedRelatedField(
+        source="organization",
+        view_name="billingaccount-detail",
+        lookup_field="public_id",
+        read_only=True,
+    )
+    notes = serializers.CharField(allow_blank=True, required=False, default="")
+
+
 class PlanQuantitySerializer(serializers.Serializer):
     stripe_id = serializers.CharField()
     quantity = serializers.IntegerField()

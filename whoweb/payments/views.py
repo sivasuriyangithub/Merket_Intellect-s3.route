@@ -217,6 +217,8 @@ class SubscriptionRestView(APIView):
 
         stripe_subscription = subscription.api_retrieve()
         setattr(stripe_subscription, "items", settable_items)
+        if token:
+            setattr(stripe_subscription, "trial_end", "now")
         Subscription.sync_from_stripe_data(stripe_subscription.save())
         for item in items_for_manual_deletion:
             item.delete()

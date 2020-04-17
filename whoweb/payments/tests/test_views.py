@@ -8,7 +8,7 @@ from whoweb.payments.tests.factories import BillingAccountMemberFactory
 pytestmark = pytest.mark.django_db
 
 
-@patch("whoweb.payments.serializers.sync_subscriber")
+@patch("whoweb.payments.serializers.su_passthrough.sync_subscriber")
 def test_create_billing_seat_for_passthrough(sync_mock, su_client):
     resp = su_client.post(
         "/ww/api/admin/seats/",

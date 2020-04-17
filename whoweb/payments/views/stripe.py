@@ -1,99 +1,29 @@
-import logging
 from datetime import datetime, timedelta
 from typing import Union
 
 from IPython.utils.tz import utcnow
 from django.db.models import Q
-from django.http import Http404
 from djstripe.enums import SubscriptionStatus
 from djstripe.models import Customer, Subscription
 from djstripe.settings import CANCELLATION_AT_PERIOD_END
-from rest_framework import viewsets, status
+from rest_framework import status
 from rest_framework.exceptions import ValidationError, MethodNotAllowed
-from rest_framework.mixins import RetrieveModelMixin
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.viewsets import GenericViewSet
 
 from whoweb.core.utils import IdempotentRequest
-from whoweb.contrib.rest_framework.permissions import IsSuperUser
-from whoweb.users.models import Seat
-from .models import (
+from ..models import (
     WKPlan,
     WKPlanPreset,
     BillingAccount,
-    BillingAccountMember,
 )
-from .serializers import (
-    PlanSerializer,
-    AdminBillingSeatSerializer,
+from ..serializers import (
     CreateSubscriptionSerializer,
     UpdateSubscriptionSerializer,
-    BillingAccountSerializer,
     AddPaymentSourceSerializer,
-    AdminBillingAccountSerializer,
-    BillingAccountMemberSerializer,
     SubscriptionSerializer,
-    PlanPresetSerializer,
     CreditChargeSerializer,
 )
-
-logger = logging.getLogger(__name__)
-
-
-class PlanViewSet(viewsets.ModelViewSet):
-    lookup_field = "public_id"
-    queryset = WKPlan.objects.all()
-    serializer_class = PlanSerializer
-    permission_classes = [IsSuperUser]
-
-
-class PlanPresetViewSet(RetrieveModelMixin, GenericViewSet):
-    serializer_class = PlanPresetSerializer
-    permission_classes = [IsSuperUser]
-    queryset = WKPlanPreset.objects.all()
-
-    def get_object(self):
-        tag_or_public_id = self.kwargs["pk"]
-        if not tag_or_public_id:
-            raise Http404
-        try:
-            plan_preset = WKPlanPreset.objects.get(
-                Q(tag=tag_or_public_id) | Q(public_id=tag_or_public_id)
-            )
-        except WKPlanPreset.DoesNotExist:
-            raise Http404
-        # May raise a permission denied
-        self.check_object_permissions(self.request, plan_preset)
-        return plan_preset
-
-
-class BillingAccountViewSet(viewsets.ModelViewSet):
-    lookup_field = "public_id"
-    queryset = BillingAccount.objects.all()
-    serializer_class = BillingAccountSerializer
-    permission_classes = [IsSuperUser]
-
-
-class BillingAccountMemberViewSet(viewsets.ModelViewSet):
-    lookup_field = "public_id"
-    queryset = BillingAccountMember.objects.all()
-    serializer_class = BillingAccountMemberSerializer
-    permission_classes = [IsSuperUser]
-
-
-class AdminBillingSeatViewSet(viewsets.ModelViewSet):
-    lookup_field = "public_id"
-    queryset = Seat.objects.all()
-    serializer_class = AdminBillingSeatSerializer
-    permission_classes = [IsSuperUser]
-
-
-class AdminBillingAccountViewSet(viewsets.ModelViewSet):
-    lookup_field = "public_id"
-    queryset = Seat.objects.all()
-    serializer_class = AdminBillingAccountSerializer
-    permission_classes = [IsSuperUser]
 
 
 class AddPaymentSourceRestView(APIView):

@@ -192,6 +192,9 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
         self.plan = new_plan
         self.save()
 
+    def set_pool_for_all_members(self):
+        return self.organization_users.update(pool_credits=True)
+
 
 class BillingAccountMember(ObscureIdMixin, AbstractOrganizationUser):
     seat = models.OneToOneField(

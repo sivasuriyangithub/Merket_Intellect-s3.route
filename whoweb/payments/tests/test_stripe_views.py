@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from unittest.mock import patch, PropertyMock
 
 import pytest
+from django.utils.timezone import now
 from djstripe.enums import SubscriptionStatus
 
 from whoweb.payments.models import BillingAccount, MultiPlanCustomer
@@ -43,7 +44,7 @@ def test_add_card_has_existing_subscription_on_trial(sub_mock, su_client):
     assert billing_account.customer.can_charge() is False
 
     sub_mock.return_value.status = SubscriptionStatus.trialing
-    sub_mock.return_value.trial_end = datetime.utcnow() + timedelta(1)
+    sub_mock.return_value.trial_end = now() + timedelta(1)
     resp = su_client.post(
         "/ww/api/payment_source/",
         {"stripe_token": "tok_visa", "billing_account": billing_account.public_id,},

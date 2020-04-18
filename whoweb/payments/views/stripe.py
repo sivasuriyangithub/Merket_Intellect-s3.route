@@ -3,6 +3,7 @@ from typing import Union
 
 from IPython.utils.tz import utcnow
 from django.db.models import Q
+from django.utils.timezone import now
 from djstripe.enums import SubscriptionStatus
 from djstripe.models import Customer, Subscription
 from djstripe.settings import CANCELLATION_AT_PERIOD_END
@@ -41,7 +42,7 @@ class AddPaymentSourceRestView(APIView):
         if subscription := customer.subscription:
             if (
                 subscription.status == SubscriptionStatus.trialing
-                and subscription.trial_end > datetime.utcnow()
+                and subscription.trial_end > now()
             ):
                 subscription.update(trial_end="now")
             elif subscription.status == SubscriptionStatus.unpaid:
@@ -112,6 +113,8 @@ class SubscriptionRestView(APIView):
             new_plan=plan_preset.create(),
             with_credits=with_credits,
         )
+        # TODO: another endpoint for managing pool
+        billing_account.set_pool_for_all_members()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def patch(self, request, **kwargs):
@@ -144,7 +147,8 @@ class SubscriptionRestView(APIView):
             new_plan=plan_preset.create(),
             with_credits=with_credits,
         )
-
+        # TODO: another endpoint for managing pool
+        billing_account.set_pool_for_all_members()
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def _get_valid_items(

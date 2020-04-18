@@ -55,6 +55,6 @@ Plan.create = classmethod(patched_create)
 @receiver(WEBHOOK_SIGNALS["invoice.payment_succeeded"], sender=Event)
 def on_payment_succeed_replenish_customer_credits(event: Event, **kwargs):
     acct: BillingAccount = event.customer.subscriber
-    for item in event.customer.subscription.items:
+    for item in event.customer.subscription.items.all():
         if item.plan.product.metadata.get("product") == "credits":
             acct.replenish_credits(amount=item.plan.quantity, evidence=(event,))

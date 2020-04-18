@@ -6,17 +6,15 @@ from django.db.models import Q
 from djstripe.enums import SubscriptionStatus
 from djstripe.models import Customer, Subscription
 from djstripe.settings import CANCELLATION_AT_PERIOD_END
+from django.core.exceptions import ValidationError as CoreValidationError
+
 from rest_framework import status
 from rest_framework.exceptions import ValidationError, MethodNotAllowed
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from whoweb.core.utils import IdempotentRequest
-from ..models import (
-    WKPlan,
-    WKPlanPreset,
-    BillingAccount,
-)
+from ..models import WKPlan, WKPlanPreset, BillingAccount, MultiPlanCustomer
 from ..serializers import (
     CreateSubscriptionSerializer,
     UpdateSubscriptionSerializer,
@@ -72,13 +70,8 @@ class SubscriptionRestView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         valid_items, plan_preset, total_credits = self._get_valid_items(serializer)
-        wkplan = plan_preset.create()
         billing_account: BillingAccount = serializer.validated_data["billing_account"]
-        billing_account.update_plan(
-            initiated_by=self.request.user, new_plan=wkplan, with_credits=total_credits,
-        )
-
-        customer, _created = Customer.get_or_create(subscriber=billing_account)
+        customer = billing_account.customer
         if customer.valid_subscriptions:
             raise MethodNotAllowed(
                 method="POST", detail="Customer already subscribed, use PATCH instead."
@@ -88,7 +81,7 @@ class SubscriptionRestView(APIView):
 
         if trial_days is None:
             trial_days = plan_preset.trial_days_allowed
-        if trial_days == 0:
+        if trial_days == 0 or token:
             trial_end = "now"
         elif trial_days > plan_preset.trial_days_allowed:
             raise ValidationError(
@@ -100,17 +93,25 @@ class SubscriptionRestView(APIView):
         if token:
             customer.add_card(token)
 
-        stripe_subscription = Subscription._api_create(
-            items=valid_items, customer=customer.id, trial_end=trial_end,
+        subscription = customer.subscribe(
+            items=valid_items,
+            trial_end=trial_end,
+            charge_immediately=serializer.validated_data.get(
+                "charge_immediately", False
+            ),
         )
-        Subscription.sync_from_stripe_data(stripe_subscription)
 
-        charge_immediately = serializer.validated_data.get("charge_immediately")
-        if charge_immediately is None or not token:
-            charge_immediately = False
-        if charge_immediately:
-            customer.send_invoice()
-
+        if subscription.status == SubscriptionStatus.trialing:
+            with_credits = min(total_credits, 1000)
+            billing_account.trial_credit_pool = with_credits
+            billing_account.save()
+        else:
+            with_credits = total_credits
+        billing_account.update_plan(
+            initiated_by=self.request.user,
+            new_plan=plan_preset.create(),
+            with_credits=with_credits,
+        )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def patch(self, request, **kwargs):
@@ -121,43 +122,28 @@ class SubscriptionRestView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         billing_account: BillingAccount = serializer.validated_data["billing_account"]
-        customer, _created = Customer.get_or_create(subscriber=billing_account)
+        customer = billing_account.customer
         token = serializer.validated_data.get("stripe_token")
         if token:
             customer.add_card(token)
 
-        valid_items, preset, total_credits = self._get_valid_items(serializer)
+        valid_items, plan_preset, total_credits = self._get_valid_items(serializer)
 
-        subscription = customer.subscription
-        patch_items_by_id = {item["plan"]: item for item in valid_items}
-        current_items_by_id = {item.plan.id: item for item in subscription.items.all()}
+        subscription = customer.subscription.update(
+            items=valid_items, trial_end="now" if token else None
+        )
 
-        settable_items = []
-        items_for_manual_deletion = []
-        for plan_id, patch_item in patch_items_by_id.items():
-            if plan_id in current_items_by_id:
-                patch_item["id"] = current_items_by_id[plan_id].id
-            settable_items.append(patch_item)
-        for plan_id, existing_item in current_items_by_id.items():
-            if plan_id not in patch_items_by_id:
-                settable_items.append(
-                    {"plan": plan_id, "id": existing_item.id, "deleted": True}
-                )
-                items_for_manual_deletion.append(existing_item)
-
-        stripe_subscription = subscription.api_retrieve()
-        setattr(stripe_subscription, "items", settable_items)
-        if token:
-            setattr(stripe_subscription, "trial_end", "now")
-        Subscription.sync_from_stripe_data(stripe_subscription.save())
-        for item in items_for_manual_deletion:
-            item.delete()
-
-        charge_immediately = serializer.validated_data.get("charge_immediately")
-        if charge_immediately is None or not token:
-            charge_immediately = False
-        if charge_immediately:
-            customer.send_invoice()
+        if subscription.status == SubscriptionStatus.trialing:
+            with_credits = min(total_credits, 1000, billing_account.trial_credit_pool)
+            billing_account.trial_credit_pool = with_credits
+            billing_account.save()
+        else:
+            with_credits = total_credits
+        billing_account.update_plan(
+            initiated_by=self.request.user,
+            new_plan=plan_preset.create(),
+            with_credits=with_credits,
+        )
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -171,28 +157,13 @@ class SubscriptionRestView(APIView):
         ).first()
         if not plan_preset:
             raise ValidationError("A valid plan id or tag must be specified.")
-        valid_monthly_plans = plan_preset.stripe_plans_monthly.in_bulk(field_name="id")
-        valid_yearly_plans = plan_preset.stripe_plans_yearly.in_bulk(field_name="id")
-
-        valid_items = []
-        total_credits = 0
-        at_least_one_non_addon_product = False
-        for item in serializer.validated_data["items"]:
-            plan_id, quantity = item["stripe_id"], item["quantity"]
-            if plan_id in valid_monthly_plans:
-                plan = valid_monthly_plans[plan_id]
-            elif plan_id in valid_yearly_plans:
-                plan = valid_yearly_plans[plan_id]
-            else:
-                raise ValidationError("Invalid items.")
-            if plan.product.metadata.get("product") == "credits":
-                total_credits += quantity
-            if plan.product.metadata.get("is_addon") == "false":
-                at_least_one_non_addon_product = True
-            valid_items.append({"plan": plan_id, "quantity": quantity})
-        if not at_least_one_non_addon_product:
-            raise ValidationError("Invalid items.")
-        return valid_items, plan_preset, total_credits
+        try:
+            valid_items, total_credits = plan_preset.validate_items(
+                serializer.validated_data["items"]
+            )
+            return valid_items, plan_preset, total_credits
+        except CoreValidationError as e:
+            raise ValidationError(e)
 
     def get(self, request, billing_account_id, **kwargs):
         """

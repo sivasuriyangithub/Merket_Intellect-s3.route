@@ -1,5 +1,6 @@
-from copy import copy
-from typing import Optional
+from copy import copy, deepcopy
+from datetime import datetime
+from typing import Optional, Union
 
 from django.contrib.postgres.fields import JSONField
 from django.db import models
@@ -9,13 +10,15 @@ from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import ugettext_lazy as _
-from djstripe.models import Customer, StripeModel
+from djstripe import settings as djstripe_settings
+from djstripe.models import Customer, StripeModel, Subscription
 from organizations.abstract import (
     AbstractOrganization,
     AbstractOrganizationUser,
     AbstractOrganizationOwner,
 )
 from organizations.signals import user_added
+from proxy_overrides.related import ProxyForeignKey
 
 from whoweb.accounting.actions import create_transaction, Debit, Credit
 from whoweb.accounting.ledgers import (
@@ -28,41 +31,6 @@ from whoweb.accounting.models import LedgerEntry
 from whoweb.contrib.fields import ObscureIdMixin
 from whoweb.users.models import Seat, Group
 from .plans import WKPlan
-
-
-class MultiPlanCustomer(Customer):
-    class Meta:
-        proxy = True
-
-    def has_active_subscription(self, plan=None):
-        """
-        Checks to see if this customer has an active subscription to the given plan.
-
-        :param plan: The plan for which to check for an active subscription.
-            If plan is None and there exists only one active subscription,
-            this method will check if that subscription is valid.
-            Calling this method with no plan and multiple valid subscriptions
-            for this customer will throw an exception.
-        :type plan: Plan or string (plan ID)
-
-        :returns: True if there exists an active subscription, False otherwise.
-        :throws: TypeError if ``plan`` is None and more than one active subscription
-            exists for this customer.
-        """
-
-        if plan is None:
-            return super().has_active_subscription()
-
-        else:
-            # Convert Plan to id
-            if isinstance(plan, StripeModel):
-                plan = plan.id
-            return any(
-                [
-                    subscription.is_valid()
-                    for subscription in self.subscriptions.filter(items__plan__id=plan)
-                ]
-            )
 
 
 class BillingAccount(ObscureIdMixin, AbstractOrganization):
@@ -93,11 +61,9 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
         )
 
     @property
-    def customer(self) -> MultiPlanCustomer:
+    def customer(self) -> "MultiPlanCustomer":
         customer, created = MultiPlanCustomer.get_or_create(subscriber=self)
-        if not created:
-            customer = MultiPlanCustomer.objects.get(pk=customer.pk)
-        return customer
+        return MultiPlanCustomer.objects.get(pk=customer.pk)
 
     def subscription(self):
         return self.customer.subscription
@@ -293,6 +259,150 @@ class BillingAccountOwner(AbstractOrganizationOwner):
     class Meta:
         verbose_name = _("billing account owner")
         verbose_name_plural = _("billing account owners")
+
+
+class MultiPlanCustomer(Customer):
+    class Meta:
+        proxy = True
+
+    def has_active_subscription(self, plan=None):
+        """
+        Checks to see if this customer has an active subscription to the given plan.
+
+        :param plan: The plan for which to check for an active subscription.
+            If plan is None and there exists only one active subscription,
+            this method will check if that subscription is valid.
+            Calling this method with no plan and multiple valid subscriptions
+            for this customer will throw an exception.
+        :type plan: Plan or string (plan ID)
+
+        :returns: True if there exists an active subscription, False otherwise.
+        :throws: TypeError if ``plan`` is None and more than one active subscription
+            exists for this customer.
+        """
+
+        if plan is None:
+            return super().has_active_subscription()
+
+        else:
+            # Convert Plan to id
+            if isinstance(plan, StripeModel):
+                plan = plan.id
+            return any(
+                [
+                    subscription.is_valid()
+                    for subscription in self.subscriptions.filter(items__plan__id=plan)
+                ]
+            )
+
+    def subscribe(
+        self,
+        plan=None,
+        items=None,
+        charge_immediately=True,
+        application_fee_percent=None,
+        coupon=None,
+        quantity=None,
+        metadata=None,
+        tax_percent=None,
+        billing_cycle_anchor=None,
+        trial_end: Union[str, None, datetime] = None,
+        trial_from_plan=None,
+        trial_period_days=None,
+    ):
+        kwargs = dict(
+            customer=self.id,
+            application_fee_percent=application_fee_percent,
+            coupon=coupon,
+            quantity=quantity,
+            metadata=metadata,
+            billing_cycle_anchor=billing_cycle_anchor,
+            tax_percent=tax_percent,
+            trial_end=trial_end,
+            trial_from_plan=trial_from_plan,
+            trial_period_days=trial_period_days,
+        )
+        # Convert Plan to id
+        if plan is not None and isinstance(plan, StripeModel):
+            plan = plan.id
+        if plan:
+            kwargs["plan"] = plan
+        if items:
+            kwargs["items"] = items
+        stripe_subscription = Subscription._api_create(**kwargs)
+
+        if charge_immediately:
+            self.send_invoice()
+
+        return Subscription.sync_from_stripe_data(stripe_subscription)
+
+
+class MultiPlanSubscription(Subscription):
+    class Meta:
+        proxy = True
+
+    customer = ProxyForeignKey(
+        MultiPlanCustomer,
+        on_delete=models.CASCADE,
+        related_name="subscriptions",
+        help_text="The customer associated with this subscription.",
+    )
+
+    def update(
+        self,
+        plan=None,
+        items=None,
+        application_fee_percent=None,
+        billing_cycle_anchor=None,
+        coupon=None,
+        prorate=djstripe_settings.PRORATION_POLICY,
+        proration_date=None,
+        metadata=None,
+        quantity=None,
+        tax_percent=None,
+        trial_end=None,
+    ):
+        """
+        See `MultiPlanCustomer.subscribe()`
+        """
+
+        # Convert Plan to id
+        if plan is not None and isinstance(plan, StripeModel):
+            plan = plan.id
+
+        kwargs = deepcopy(locals())
+        del kwargs["self"]
+
+        items_for_manual_deletion = []
+        if items is not None:
+            patch_items_by_id = {item["plan"]: item for item in items}
+            current_items_by_id = {item.plan.id: item for item in self.items.all()}
+
+            settable_items = []
+            for plan_id, patch_item in patch_items_by_id.items():
+                if plan_id in current_items_by_id:
+                    patch_item["id"] = current_items_by_id[plan_id].id
+                settable_items.append(patch_item)
+            for plan_id, existing_item in current_items_by_id.items():
+                if plan_id not in patch_items_by_id:
+                    settable_items.append(
+                        {"plan": plan_id, "id": existing_item.id, "deleted": True}
+                    )
+                    items_for_manual_deletion.append(existing_item)
+            kwargs["items"] = settable_items
+
+        stripe_subscription = self.api_retrieve()
+
+        for kwarg, value in kwargs.items():
+            if value is not None:
+                setattr(stripe_subscription, kwarg, value)
+
+        subscription = Subscription.sync_from_stripe_data(stripe_subscription.save())
+
+        for item in items_for_manual_deletion:
+            item.delete()
+
+        return MultiPlanSubscription.objects.get(pk=subscription.pk)
 
 
 def record_transaction_consume_credits(

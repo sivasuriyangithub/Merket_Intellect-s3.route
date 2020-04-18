@@ -4,6 +4,7 @@ from djstripe.signals import WEBHOOK_SIGNALS
 
 from .billing_accounts import (
     MultiPlanCustomer,
+    MultiPlanSubscription,
     BillingAccount,
     BillingAccountMember,
     BillingAccountOwner,
@@ -16,6 +17,7 @@ from .plans import WKPlan, WKPlanPreset
 
 __all__ = [
     "MultiPlanCustomer",
+    "MultiPlanSubscription",
     "BillingAccount",
     "BillingAccountMember",
     "BillingAccountOwner",

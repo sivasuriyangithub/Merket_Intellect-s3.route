@@ -19,8 +19,8 @@ service:
   paths: "/ww/"
 deployment:
   replicas: 1
-  cpuRequest: "2"
-  memoryRequest: "4.2Gi"
+  cpuRequest: "4"
+  memoryRequest: "4Gi"
   cpuLimit: "6"
   memoryLimit: "8Gi"
   postgresqlInNamespace: false

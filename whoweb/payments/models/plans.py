@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from djstripe.enums import PlanInterval
@@ -118,3 +119,27 @@ class WKPlanPreset(AbstractPlanModel):
             credits_per_personal_email=self.credits_per_personal_email,
             credits_per_phone=self.credits_per_phone,
         )
+
+    def validate_items(self, items):
+        valid_monthly_plans = self.stripe_plans_monthly.in_bulk(field_name="id")
+        valid_yearly_plans = self.stripe_plans_yearly.in_bulk(field_name="id")
+
+        valid_items = []
+        total_credits = 0
+        at_least_one_non_addon_product = False
+        for item in items:
+            plan_id, quantity = item["stripe_id"], item["quantity"]
+            if plan_id in valid_monthly_plans:
+                plan = valid_monthly_plans[plan_id]
+            elif plan_id in valid_yearly_plans:
+                plan = valid_yearly_plans[plan_id]
+            else:
+                raise ValidationError("Invalid items.")
+            if plan.product.metadata.get("product") == "credits":
+                total_credits += quantity
+            if plan.product.metadata.get("is_addon") == "false":
+                at_least_one_non_addon_product = True
+            valid_items.append({"plan": plan_id, "quantity": quantity})
+        if not at_least_one_non_addon_product:
+            raise ValidationError("Invalid items.")
+        return valid_items, total_credits

@@ -42,7 +42,6 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
     plan = models.OneToOneField(WKPlan, on_delete=models.SET_NULL, null=True)
     plan_history = JSONField(null=True, blank=True, default=dict)
     credit_pool = models.IntegerField(default=0, blank=True)
-    trial_credit_pool = models.IntegerField(default=0, blank=True)
 
     class Meta:
         verbose_name = _("billing account")
@@ -99,10 +98,7 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
     def consume_credits(self, amount, *args, evidence=(), **kwargs):
         updated = BillingAccount.objects.filter(
             pk=self.pk, credit_pool__gte=amount
-        ).update(
-            credit_pool=F("credit_pool") - amount,
-            trial_credit_pool=Greatest(F("trial_credit_pool") - amount, Value(0)),
-        )
+        ).update(credit_pool=F("credit_pool") - amount,)
         if updated:
             record_transaction_consume_credits(
                 amount, *args, evidence=evidence + (self,), **kwargs
@@ -131,7 +127,6 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
             amount=int(self.credit_pool), *args, evidence=evidence + (self,), **kwargs
         )
         self.credit_pool = 0
-        self.trial_credit_pool = 0
         self.save()
 
     @atomic
@@ -149,7 +144,6 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
         if updated:
             member.pool_credits = False
             member.seat_credits = F("seat_credits") + amount
-            member.seat_trial_credits = F("seat_trial_credits") + trial_amount
             member.save()
         return bool(updated)
 
@@ -157,10 +151,7 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
     def revoke_credits_from_member(self, member: "BillingAccountMember", amount: int):
         updated = BillingAccountMember.objects.filter(
             pk=member.pk, seat_credits__gte=amount
-        ).update(
-            seat_credits=F("seat_credits") - amount,
-            seat_trial_credits=Greatest(F("seat_trial_credits") - amount, Value(0)),
-        )
+        ).update(seat_credits=F("seat_credits") - amount,)
         if updated:
             self.credit_pool = F("credit_pool") + amount
             self.save()
@@ -204,7 +195,6 @@ class BillingAccountMember(ObscureIdMixin, AbstractOrganizationUser):
         on_delete=models.PROTECT,
     )
     seat_credits = models.IntegerField(default=0)
-    seat_trial_credits = models.IntegerField(default=0)
     pool_credits = models.BooleanField(default=False)
 
     class Meta:
@@ -218,12 +208,6 @@ class BillingAccountMember(ObscureIdMixin, AbstractOrganizationUser):
         return self.seat_credits
 
     @property
-    def trial_credits(self) -> int:
-        if self.pool_credits:
-            return self.organization.trial_credit_pool
-        return self.seat_trial_credits
-
-    @property
     def plan(self) -> Optional[WKPlan]:
         return self.organization.plan
 
@@ -235,10 +219,7 @@ class BillingAccountMember(ObscureIdMixin, AbstractOrganizationUser):
             )
         updated = BillingAccountMember.objects.filter(
             pk=self.pk, seat_credits__gte=amount
-        ).update(
-            seat_credits=F("seat_credits") - amount,
-            seat_trial_credits=Greatest(F("seat_trial_credits") - amount, Value(0)),
-        )
+        ).update(seat_credits=F("seat_credits") - amount,)
         if updated:
             record_transaction_consume_credits(
                 amount, *args, evidence=evidence + (self,), **kwargs

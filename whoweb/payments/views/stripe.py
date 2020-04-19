@@ -104,8 +104,6 @@ class SubscriptionRestView(APIView):
 
         if subscription.status == SubscriptionStatus.trialing:
             with_credits = min(total_credits, 1000)
-            billing_account.trial_credit_pool = with_credits
-            billing_account.save()
         else:
             with_credits = total_credits
         billing_account.update_plan(
@@ -137,9 +135,7 @@ class SubscriptionRestView(APIView):
         )
 
         if subscription.status == SubscriptionStatus.trialing:
-            with_credits = min(total_credits, 1000, billing_account.trial_credit_pool)
-            billing_account.trial_credit_pool = with_credits
-            billing_account.save()
+            with_credits = min(total_credits, 1000)
         else:
             with_credits = total_credits
         billing_account.update_plan(

@@ -71,7 +71,6 @@ class BillingAccountSerializer(IdOrHyperlinkedModelSerializer):
             "graph_id",
             "plan",
             "credit_pool",
-            "trial_credit_pool",
             "subscription",
         )
         read_only_fields = fields
@@ -101,7 +100,6 @@ class BillingAccountMemberSerializer(IdOrHyperlinkedModelSerializer):
             "seat",
             "pool_credits",
             "credits",
-            "trial_credits",
         )
         read_only_fields = fields
 

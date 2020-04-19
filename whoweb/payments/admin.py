@@ -28,7 +28,7 @@ class OwnerInline(BaseOwnerInline):
 class MemberInline(admin.TabularInline):
     model = BillingAccountMember
     form = BillingAccountMemberAdminInlineForm
-    fields = ("is_admin", "seat", "seat_credits", "seat_trial_credits", "pool_credits")
+    fields = ("is_admin", "seat", "seat_credits", "pool_credits")
     extra = 1
 
 
@@ -49,14 +49,15 @@ class BillingAccountMemberAdmin(BaseOrganizationUserAdmin):
         if obj and obj.pool_credits:
             try:
                 fields.remove("seat_credits")
-                fields.remove("seat_trial_credits")
             except ValueError:
                 pass
         return fields
 
     def get_readonly_fields(self, request, obj=None):
         if obj and obj.pool_credits:
-            return ["credits", "trial_credits"]
+            return [
+                "credits",
+            ]
 
         return super().get_readonly_fields(request, obj=obj)
 

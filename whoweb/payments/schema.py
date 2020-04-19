@@ -35,7 +35,7 @@ class BillingAccountNode(GuardedObjectType):
         filter_fields = []
         permission_classes = [IsSuperUser | ObjectPermissions]
         filter_backends = (ObjectPermissionsFilter,)
-        fields = ("seats", "plan", "credit_pool", "trial_credit_pool")
+        fields = ("seats", "plan", "credit_pool")
 
 
 class BillingAccountMemberNode(GuardedObjectType):
@@ -50,7 +50,6 @@ class BillingAccountMemberNode(GuardedObjectType):
         fields = (
             "seat",
             "seat_credits",
-            "seat_trial_credits",
             "pool_credits",
         )
 

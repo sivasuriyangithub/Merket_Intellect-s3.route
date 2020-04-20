@@ -19,7 +19,8 @@ from .models import SearchExport
 from .serializers import (
     SearchExportSerializer,
     SearchExportDataSerializer,
-    ResultProfileSerializer,
+    DeriveContactSerializer,
+    ProfileEnrichmentSerializer,
 )
 
 
@@ -169,6 +170,11 @@ class SearchExportResultViewSet(
         return Response(serializer.data)
 
 
-class DeriveProfileViewSet(mixins.CreateModelMixin, GenericViewSet):
-    serializer_class = ResultProfileSerializer
+class DeriveProfileContactViewSet(mixins.CreateModelMixin, GenericViewSet):
+    serializer_class = DeriveContactSerializer
+    permission_classes = [IsSuperUser]
+
+
+class EnrichProfileViewSet(mixins.CreateModelMixin, GenericViewSet):
+    serializer_class = ProfileEnrichmentSerializer
     permission_classes = [IsSuperUser]

@@ -165,6 +165,43 @@ class SearchExportDataSerializer(serializers.Serializer):
 
 
 class ResultProfileSerializer(serializers.Serializer):
+    id = serializers.CharField(source="_id", allow_null=True)
+    relevance_score = serializers.CharField(allow_null=True)
+    first_name = serializers.CharField(allow_null=True)
+    last_name = serializers.CharField(allow_null=True)
+    company = serializers.CharField(allow_null=True)
+    title = serializers.CharField(allow_null=True)
+    business_function = serializers.CharField(allow_null=True)
+    seniority_level = serializers.CharField(allow_null=True)
+    industry = serializers.CharField(allow_null=True)
+    picture_url = serializers.CharField(allow_null=True)
+    city = serializers.CharField(allow_null=True)
+    state = serializers.CharField(allow_null=True)
+    country = serializers.CharField(allow_null=True)
+    geo_loc = serializers.JSONField(allow_null=True)
+    email = serializers.EmailField(allow_null=True)
+    grade = serializers.CharField(allow_null=True)
+    emails = serializers.ListField(child=serializers.EmailField(), allow_null=True)
+    graded_emails = serializers.JSONField(allow_null=True)
+    graded_phones = serializers.JSONField(allow_null=True)
+    social_links = serializers.JSONField(allow_null=True)
+    li_url = serializers.CharField(allow_null=True)
+    twitter = serializers.CharField(allow_null=True)
+    facebook = serializers.CharField(allow_null=True)
+    current_experience = serializers.JSONField(allow_null=True)
+    experience = serializers.JSONField(allow_null=True)
+    education_history = serializers.JSONField(allow_null=True)
+    diversity = serializers.JSONField(allow_null=True)
+    total_experience = serializers.IntegerField(allow_null=True)
+    time_at_current_company = serializers.IntegerField(allow_null=True)
+    time_at_current_position = serializers.IntegerField(allow_null=True)
+    skills = serializers.JSONField(allow_null=True)
+    attenuated_skills = serializers.JSONField(allow_null=True)
+
+    status = serializers.CharField(source="derivation_status", allow_null=True)
+
+
+class DeriveContactSerializer(serializers.Serializer):
     id = serializers.CharField(source="_id")
     initiated_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
     billing_seat = IdOrHyperlinkedRelatedField(
@@ -186,24 +223,12 @@ class ResultProfileSerializer(serializers.Serializer):
         default=[WORK, SOCIAL, PERSONAL, PROFILE],
         write_only=True,
     )
-    title = serializers.CharField(read_only=True)
-    email = serializers.EmailField(read_only=True)
-    graded_emails = serializers.JSONField(read_only=True)
-    emails = serializers.ListField(
-        child=serializers.EmailField(read_only=True), read_only=True
-    )
-    grade = serializers.CharField(read_only=True)
-    graded_phones = serializers.JSONField(read_only=True)
-    social_links = serializers.JSONField(read_only=True)
-    li_url = serializers.CharField(read_only=True)
-    twitter = serializers.CharField(read_only=True)
-    facebook = serializers.CharField(read_only=True)
-    status = serializers.CharField(source="derivation_status", read_only=True)
     credits_used = serializers.IntegerField(read_only=True)
     credits_remaining = serializers.IntegerField(read_only=True)
+    profile = ResultProfileSerializer(read_only=True)
 
     class Meta:
-        read_only_fields = ("emails",)
+        read_only_fields = ("emails", "profile")
 
     def create(self, validated_data):
 
@@ -233,7 +258,49 @@ class ResultProfileSerializer(serializers.Serializer):
             billing_seat.consume_credits(
                 amount=charge, evidence=(cache_obj,), initiated_by=initiated_by
             )
-        data = profile.dict()
-        data["credits_used"] = charge
-        data["credits_remaining"] = billing_seat.credits
-        return data
+
+        validated_data["profile"] = profile.dict()
+        validated_data["credits_used"] = charge
+        validated_data["credits_remaining"] = billing_seat.credits
+        return validated_data
+
+
+class ProfileEnrichmentSerializer(serializers.Serializer):
+    initiated_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    billing_seat = IdOrHyperlinkedRelatedField(
+        view_name="billingaccountmember-detail",
+        lookup_field="public_id",
+        queryset=BillingAccountMember.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    email = serializers.EmailField(allow_null=True, required=False)
+    user_id = serializers.CharField(allow_null=True, required=False)
+    linkedin_url = serializers.URLField(allow_null=True, required=False)
+    profile_id = serializers.CharField(allow_null=True, required=False)
+    get_web_profile = serializers.NullBooleanField(required=False)
+    no_cache = serializers.NullBooleanField(required=False)
+    min_confidence = serializers.FloatField(allow_null=True, required=False)
+
+    profile = ResultProfileSerializer(read_only=True)
+    status = serializers.CharField(read_only=True)
+
+    def create(self, validated_data):
+        initiated_by = validated_data.pop("initiated_by")
+        billing_seat = validated_data.pop("billing_seat")
+
+        linkedin_url = validated_data.get("linkedin_url")
+        if linkedin_url and linkedin_url.endswith("/"):
+            validated_data["linkedin_url"] = linkedin_url[:-1]
+        profile = ResultProfile.enrich(**validated_data)
+
+        charge = billing_seat.plan.credits_per_enrich
+        if charge > 0:
+            billing_seat.consume_credits(
+                amount=charge, evidence=(), initiated_by=initiated_by
+            )
+
+        validated_data["profile"] = profile.to_dict()
+        validated_data["status"] = profile.returned_status
+        validated_data["credits_used"] = charge
+        validated_data["credits_remaining"] = billing_seat.credits

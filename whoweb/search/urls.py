@@ -9,7 +9,10 @@ router.register(
     r"export-results", views.SearchExportResultViewSet, basename="exportresult"
 )
 router.register(
-    r"profiles/derive", views.DeriveProfileViewSet, basename="derive_profile"
+    r"profiles/derive", views.DeriveProfileContactViewSet, basename="derive_profile"
+)
+router.register(
+    r"profiles/enrich", views.EnrichProfileViewSet, basename="enrich_profile"
 )
 
 app_name = "search"

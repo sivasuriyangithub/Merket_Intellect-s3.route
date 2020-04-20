@@ -62,7 +62,7 @@ def test_derive_profile(derive_mock, su_client, raw_derived):
         format="json",
     )
     assert resp.status_code == 201
-    assert resp.json()["email"] == "patrick@beast.vc"
+    assert resp.json()["profile"]["email"] == "patrick@beast.vc"
     assert resp.json()["credits_used"] == 100
 
 

@@ -1,7 +1,7 @@
 import json
 import re
 from enum import Enum
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 
 import requests
 import six
@@ -10,6 +10,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import JSONField
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
+from django.http import Http404
 from model_utils.models import TimeStampedModel
 from pydantic import BaseModel, Extra, parse_obj_as, validator, root_validator
 
@@ -263,6 +264,7 @@ class ResultProfile(BaseModel):
     experience: List[ResultExperience] = []
     education_history: List[ResultEducation] = []
     skills: List[Skill] = []
+    attenuated_skills: Any = None
 
     geo_loc: Optional[List[float]] = None
     picture_url: str = ""
@@ -510,6 +512,85 @@ class ResultProfile(BaseModel):
                 )
             )
         return self.derivation_status
+
+    @classmethod
+    def enrich(
+        cls,
+        email=None,
+        linkedin_url=None,
+        user_id=None,
+        profile_id=None,
+        min_confidence=None,
+        get_web_profile=True,
+        no_cache=None,
+    ):
+        search = router.profile_lookup(
+            json={
+                "email": email,
+                "linked_in": linkedin_url,
+                "user_id": user_id,
+                "profile_id": profile_id,
+                "no_cache": no_cache,
+                "min_confidence": min_confidence,
+                "get_web_profile": get_web_profile,
+            }
+        )
+        results = search.get("results")
+        if not results:
+            raise Http404("Unable to find a profile matching the provided input.")
+        profile_data = results[0]
+
+        if status := profile_data.pop("status", None):
+            profile_data["returned_status"] = status
+
+        profile = ResultProfile(**profile_data)
+        if email and not profile.email:
+            profile.email = email
+        if linkedin_url and not profile.li_url:
+            profile.li_url = linkedin_url
+
+        if "profile_id" not in profile_data:
+            profile = profile._search_for_this()
+
+        if linkedin_url and not filter(
+            lambda x: x.typeName == "linkedin", profile.social_links
+        ):
+            profile.social_links.append(
+                SocialLink(typeName="linkedin", url=linkedin_url)
+            )
+        return profile
+
+    def _search_for_this(self):
+        required = []
+        desired = []
+
+        if self.first_name:
+            required.append(
+                {"field": "first_name", "value": self.first_name, "truth": True,}
+            )
+
+        if self.last_name:
+            required.append(
+                {"field": "last_name", "value": self.last_name, "truth": True}
+            )
+
+        if self.company:
+            desired.append({"field": "company", "value": self.company, "truth": True})
+
+        if self.title:
+            desired.append({"field": "title", "value": self.title, "truth": True})
+
+        if len(required) > 0:
+            query = {
+                "filters": {"required": required, "desired": desired},
+                "limit": 1,
+                "skip": 0,
+            }
+            if profiles := router.unified_search(json=query).get("results"):
+                for key, val in profiles[0]:
+                    if hasattr(self, key):
+                        setattr(self, key, val)
+        return self
 
     @staticmethod
     def clean_proper_name(name):

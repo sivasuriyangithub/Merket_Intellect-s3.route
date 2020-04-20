@@ -139,6 +139,7 @@ class SearchExportSerializer(IdOrHyperlinkedModelSerializer):
             or billing_seat.organization.customer().has_any_active_subscription()
         ):
             raise PaymentRequired()
+        return attrs
 
     def create(self, validated_data):
         try:

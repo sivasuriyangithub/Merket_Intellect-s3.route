@@ -175,11 +175,10 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
         if self.plan is not None:
             old_plan = copy(self.plan.pk)
             self.plan_history[old_plan] = now().isoformat()
-            if with_credits is not None:
-                if with_credits > self.credits:
-                    self.add_credits(
-                        amount=with_credits - self.credits, initiated_by=initiated_by
-                    )
+        if with_credits is not None and with_credits > self.credits:
+            self.add_credits(
+                amount=with_credits - self.credits, initiated_by=initiated_by
+            )
         self.plan = new_plan
         self.save()
 

@@ -2,6 +2,7 @@ import json
 import re
 from enum import Enum
 from typing import Optional, List, Dict, Any
+from uuid import uuid4
 
 import requests
 import six
@@ -13,6 +14,7 @@ from django.db import models
 from django.http import Http404
 from model_utils.models import TimeStampedModel
 from pydantic import BaseModel, Extra, parse_obj_as, validator, root_validator
+from rest_framework.reverse import reverse
 
 from whoweb.payments.models import BillingAccountMember
 from whoweb.core.router import router
@@ -703,3 +705,15 @@ class DerivationCache(TimeStampedModel):
                 obj.phones = profile.graded_phones
             obj.save()
         return obj, charge
+
+
+class BatchProfileActionResult(TimeStampedModel):
+    billing_seat = models.ForeignKey(BillingAccountMember, on_delete=models.CASCADE)
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    group_task_id = models.CharField(max_length=255)
+    results = JSONField()
+    size = models.IntegerField(default=0)
+
+    @property
+    def status_url(self):
+        return reverse("batch_result-detail", kwargs={"id": self.id.hex})

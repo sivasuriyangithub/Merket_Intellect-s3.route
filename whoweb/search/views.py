@@ -21,6 +21,9 @@ from .serializers import (
     SearchExportDataSerializer,
     DeriveContactSerializer,
     ProfileEnrichmentSerializer,
+    BatchDeriveContactSerializer,
+    BatchResultSerializer,
+    BatchProfileEnrichmentSerializer,
 )
 
 
@@ -175,6 +178,21 @@ class DeriveProfileContactViewSet(mixins.CreateModelMixin, GenericViewSet):
     permission_classes = [IsSuperUser]
 
 
+class BatchDeriveProfileContactViewSet(mixins.CreateModelMixin, GenericViewSet):
+    serializer_class = BatchDeriveContactSerializer
+    permission_classes = [IsSuperUser]
+
+
 class EnrichProfileViewSet(mixins.CreateModelMixin, GenericViewSet):
     serializer_class = ProfileEnrichmentSerializer
     permission_classes = [IsSuperUser]
+
+
+class BatchEnrichProfileViewSet(mixins.CreateModelMixin, GenericViewSet):
+    serializer_class = BatchProfileEnrichmentSerializer
+    permission_classes = [IsSuperUser]
+
+
+class BatchResultViewSet(mixins.RetrieveModelMixin, GenericViewSet):
+    serializer_class = BatchResultSerializer
+    permission_classes = []

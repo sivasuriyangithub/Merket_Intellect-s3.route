@@ -12,7 +12,17 @@ router.register(
     r"profiles/derive", views.DeriveProfileContactViewSet, basename="derive_profile"
 )
 router.register(
+    r"profiles/derive/batch",
+    views.BatchDeriveProfileContactViewSet,
+    basename="derive_profile_batch",
+)
+router.register(
     r"profiles/enrich", views.EnrichProfileViewSet, basename="enrich_profile"
+)
+router.register(
+    r"profiles/enrich/batch",
+    views.BatchEnrichProfileViewSet,
+    basename="enrich_profile_batch",
 )
 
 app_name = "search"

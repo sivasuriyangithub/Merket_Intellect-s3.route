@@ -20,7 +20,14 @@ from whoweb.search.models import (
     ResultProfile,
     DerivationCache,
 )
-from whoweb.search.models.profile import WORK, PERSONAL, SOCIAL, PROFILE, PHONE
+from whoweb.search.models.profile import (
+    WORK,
+    PERSONAL,
+    SOCIAL,
+    PROFILE,
+    PHONE,
+    BatchProfileActionResult,
+)
 
 
 class ExportOptionsSerializer(serializers.ModelSerializer):
@@ -202,8 +209,14 @@ class ResultProfileSerializer(serializers.Serializer):
     status = serializers.CharField(source="derivation_status", allow_null=True)
 
 
+class BatchResultSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BatchProfileActionResult
+        fields = ("id", "size", "status_url")
+        read_only_fields = fields
+
+
 class DeriveContactSerializer(serializers.Serializer):
-    id = serializers.CharField(source="_id")
     initiated_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
     billing_seat = IdOrHyperlinkedRelatedField(
         view_name="billingaccountmember-detail",
@@ -212,9 +225,10 @@ class DeriveContactSerializer(serializers.Serializer):
         required=False,
         allow_null=True,
     )
-    first_name = serializers.CharField(required=False)
-    last_name = serializers.CharField(required=False)
-    company = serializers.CharField(required=False)
+    id = serializers.CharField(source="_id", write_only=True)
+    first_name = serializers.CharField(required=False, write_only=True)
+    last_name = serializers.CharField(required=False, write_only=True)
+    company = serializers.CharField(required=False, write_only=True)
     timeout = serializers.IntegerField(
         required=False, initial=28, default=28, write_only=True
     )
@@ -230,6 +244,12 @@ class DeriveContactSerializer(serializers.Serializer):
 
     class Meta:
         read_only_fields = ("emails", "profile")
+
+    def validate(self, attrs):
+        assert "id" in attrs or all(
+            ["first_name" in attrs, "last_name" in attrs, "company" in attrs]
+        )
+        return attrs
 
     def create(self, validated_data):
 
@@ -266,14 +286,46 @@ class DeriveContactSerializer(serializers.Serializer):
         return validated_data
 
 
+class DeriveContactBatchInputEntitySerializer(serializers.Serializer):
+    id = serializers.CharField(write_only=True)
+    first_name = serializers.CharField(required=False, write_only=True)
+    last_name = serializers.CharField(required=False, write_only=True)
+    company = serializers.CharField(required=False, write_only=True)
+    filters = serializers.MultipleChoiceField(
+        choices=[WORK, SOCIAL, PERSONAL, PROFILE, PHONE],
+        initial=[WORK, SOCIAL, PERSONAL, PROFILE],
+        default=[WORK, SOCIAL, PERSONAL, PROFILE],
+        write_only=True,
+    )
+
+    def validate(self, attrs):
+        assert "id" in attrs or all(
+            ["first_name" in attrs, "last_name" in attrs, "company" in attrs]
+        )
+        return attrs
+
+
+class BatchDeriveContactSerializer(serializers.Serializer):
+    initiated_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    billing_seat = IdOrHyperlinkedRelatedField(
+        view_name="billingaccountmember-detail",
+        lookup_field="public_id",
+        queryset=BillingAccountMember.objects.all(),
+    )
+    input = DeriveContactBatchInputEntitySerializer(many=True)
+    webhooks = serializers.ListSerializer(child=serializers.URLField())
+    batch = BatchResultSerializer()
+
+    class Meta:
+        depth = 1
+
+
 class ProfileEnrichmentSerializer(serializers.Serializer):
     initiated_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
     billing_seat = IdOrHyperlinkedRelatedField(
         view_name="billingaccountmember-detail",
         lookup_field="public_id",
         queryset=BillingAccountMember.objects.all(),
-        required=False,
-        allow_null=True,
     )
     email = serializers.EmailField(allow_null=True, required=False)
     user_id = serializers.CharField(allow_null=True, required=False)
@@ -305,3 +357,34 @@ class ProfileEnrichmentSerializer(serializers.Serializer):
         validated_data["status"] = profile.returned_status
         validated_data["credits_used"] = charge
         validated_data["credits_remaining"] = billing_seat.credits
+
+
+class ProfileEnrichmentBatchInputEntitySerializer(serializers.Serializer):
+    email = serializers.EmailField(allow_null=True, required=False)
+    user_id = serializers.CharField(allow_null=True, required=False)
+    linkedin_url = serializers.URLField(allow_null=True, required=False)
+    profile_id = serializers.CharField(allow_null=True, required=False)
+    get_web_profile = serializers.NullBooleanField(required=False)
+    no_cache = serializers.NullBooleanField(required=False)
+    min_confidence = serializers.FloatField(allow_null=True, required=False)
+
+    def validate(self, attrs):
+        linkedin_url = attrs.get("linkedin_url")
+        if linkedin_url and linkedin_url.endswith("/"):
+            attrs["linkedin_url"] = linkedin_url[:-1]
+        return attrs
+
+
+class BatchProfileEnrichmentSerializer(serializers.Serializer):
+    initiated_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    billing_seat = IdOrHyperlinkedRelatedField(
+        view_name="billingaccountmember-detail",
+        lookup_field="public_id",
+        queryset=BillingAccountMember.objects.all(),
+    )
+    input = ProfileEnrichmentBatchInputEntitySerializer(many=True)
+    webhooks = serializers.ListSerializer(child=serializers.URLField())
+    batch = BatchResultSerializer()
+
+    class Meta:
+        depth = 1

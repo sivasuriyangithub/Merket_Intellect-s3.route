@@ -105,7 +105,7 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
         seat, _ = group.get_or_add_user(
             user=profile.user, display_name=profile.user.get_full_name()
         )
-        plan, _ = WKPlan.objects.get_or_create(
+        plan = WKPlan.objects.create(
             credits_per_enrich=validated_data["credits_per_enrich"],
             credits_per_work_email=validated_data["credits_per_work_email"],
             credits_per_personal_email=validated_data["credits_per_personal_email"],
@@ -157,7 +157,7 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
                 "credits_per_phone" in validated_data,
             ]
         ):
-            plan, _ = WKPlan.objects.get_or_create(
+            plan = WKPlan.objects.create(
                 credits_per_enrich=validated_data["credits_per_enrich"],
                 credits_per_work_email=validated_data["credits_per_work_email"],
                 credits_per_personal_email=validated_data["credits_per_personal_email"],

@@ -1,5 +1,6 @@
 from django.http import Http404
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from whoweb.accounting.serializers import TransactionSerializer
 from whoweb.contrib.rest_framework.fields import (
@@ -225,7 +226,7 @@ class DeriveContactSerializer(serializers.Serializer):
         required=False,
         allow_null=True,
     )
-    id = serializers.CharField(source="_id", write_only=True)
+    id = serializers.CharField(source="_id", write_only=True, required=False)
     first_name = serializers.CharField(required=False, write_only=True)
     last_name = serializers.CharField(required=False, write_only=True)
     company = serializers.CharField(required=False, write_only=True)
@@ -246,9 +247,14 @@ class DeriveContactSerializer(serializers.Serializer):
         read_only_fields = ("emails", "profile")
 
     def validate(self, attrs):
-        assert "id" in attrs or all(
-            ["first_name" in attrs, "last_name" in attrs, "company" in attrs]
-        )
+        if not (
+            "_id" in attrs
+            or all(["first_name" in attrs, "last_name" in attrs, "company" in attrs])
+        ):
+            raise ValidationError(
+                "Must provide an id or all of first_name, last_name, and company."
+            )
+
         return attrs
 
     def create(self, validated_data):
@@ -299,9 +305,14 @@ class DeriveContactBatchInputEntitySerializer(serializers.Serializer):
     )
 
     def validate(self, attrs):
-        assert "id" in attrs or all(
-            ["first_name" in attrs, "last_name" in attrs, "company" in attrs]
-        )
+        if not (
+            "_id" in attrs
+            or all(["first_name" in attrs, "last_name" in attrs, "company" in attrs])
+        ):
+            raise ValidationError(
+                "Must provide an id or all of first_name, last_name, and company."
+            )
+
         return attrs
 
 

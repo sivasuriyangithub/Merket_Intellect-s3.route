@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Union
 
-from IPython.utils.tz import utcnow
 from django.db.models import Q
 from django.utils.timezone import now
 from djstripe.enums import SubscriptionStatus
@@ -89,7 +88,7 @@ class SubscriptionRestView(APIView):
                 f"Invalid number of trial days. Must be less than {plan_preset.trial_days_allowed}."
             )
         else:
-            trial_end = str(round((utcnow() + timedelta(days=trial_days)).timestamp()))
+            trial_end = str(round((now() + timedelta(days=trial_days)).timestamp()))
 
         if token:
             customer.add_card(token)

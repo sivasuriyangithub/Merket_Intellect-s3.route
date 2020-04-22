@@ -4,6 +4,7 @@ from math import ceil
 from celery import group, shared_task
 from celery.exceptions import MaxRetriesExceededError
 from django.db.models import F
+from google.api_core.exceptions import GoogleAPICallError
 from kombu.exceptions import OperationalError
 from redis.exceptions import ConnectionError as RedisConnectionError
 from requests import HTTPError, Timeout, ConnectionError
@@ -21,6 +22,7 @@ NETWORK_ERRORS = [
     ConnectionError,
     OperationalError,
     RedisConnectionError,
+    GoogleAPICallError,
 ]
 MAX_DERIVE_RETRY = 3
 

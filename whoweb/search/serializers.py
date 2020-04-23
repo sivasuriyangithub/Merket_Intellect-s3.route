@@ -223,7 +223,7 @@ class DeriveContactSerializer(serializers.Serializer):
         view_name="billingaccountmember-detail",
         lookup_field="public_id",
         queryset=BillingAccountMember.objects.all(),
-        allow_null=True,
+        write_only=True,
     )
     id = serializers.CharField(source="_id", required=False, write_only=True)
     first_name = serializers.CharField(required=False, write_only=True)
@@ -319,6 +319,7 @@ class ProfileEnrichmentSerializer(serializers.Serializer):
         view_name="billingaccountmember-detail",
         lookup_field="public_id",
         queryset=BillingAccountMember.objects.all(),
+        write_only=True,
     )
     email = serializers.EmailField(allow_null=True, required=False)
     user_id = serializers.CharField(allow_null=True, required=False)
@@ -328,6 +329,8 @@ class ProfileEnrichmentSerializer(serializers.Serializer):
     no_cache = serializers.NullBooleanField(required=False)
     min_confidence = serializers.FloatField(allow_null=True, required=False)
 
+    credits_used = serializers.IntegerField(read_only=True)
+    credits_remaining = serializers.IntegerField(read_only=True)
     profile = ResultProfileSerializer(read_only=True)
     status = serializers.CharField(read_only=True)
 
@@ -350,6 +353,7 @@ class ProfileEnrichmentSerializer(serializers.Serializer):
         validated_data["status"] = profile.returned_status
         validated_data["credits_used"] = charge
         validated_data["credits_remaining"] = billing_seat.credits
+        return validated_data
 
 
 class ProfileEnrichmentBatchInputEntitySerializer(serializers.Serializer):

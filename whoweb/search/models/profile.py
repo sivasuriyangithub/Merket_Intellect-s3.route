@@ -532,6 +532,7 @@ class ResultProfile(BaseModel):
         profile = ResultProfile(
             _id=_id, first_name=first_name, last_name=last_name, company=company
         )
+        print(_id, first_name, last_name, company)
         if _id and all([first_name, last_name, company]):
             pass
         elif _id and not all([first_name, last_name, company]):
@@ -541,7 +542,7 @@ class ResultProfile(BaseModel):
                 raise Http404("Unable to find a profile matching the supplied id.")
             profile = ResultProfile(**profiles[0])
         else:
-            profile._search_for_this()
+            profile = profile._search_for_this()
         profile.derive_contact(defer=defer, filters=filters, timeout=timeout)
         return profile
 
@@ -619,9 +620,8 @@ class ResultProfile(BaseModel):
                 "skip": 0,
             }
             if profiles := router.unified_search(json=query).get("results"):
-                for key, val in profiles[0]:
-                    if hasattr(self, key):
-                        setattr(self, key, val)
+                found_profile = ResultProfile(**profiles[0])
+                return found_profile
         return self
 
     @staticmethod

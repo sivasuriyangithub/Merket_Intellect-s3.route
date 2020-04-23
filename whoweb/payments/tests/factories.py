@@ -13,7 +13,7 @@ from whoweb.users.tests.factories import SeatFactory
 
 
 class WKPlanFactory(DjangoModelFactory):
-    credits_per_enrich = 100
+    credits_per_enrich = 25
     credits_per_work_email = 100
     credits_per_personal_email = 200
     credits_per_phone = 400
@@ -31,7 +31,7 @@ class PlanFactory(DjangoModelFactory):
 
 
 class WKPlanPresetFactory(DjangoModelFactory):
-    credits_per_enrich = 100
+    credits_per_enrich = 25
     credits_per_work_email = 100
     credits_per_personal_email = 200
     credits_per_phone = 400

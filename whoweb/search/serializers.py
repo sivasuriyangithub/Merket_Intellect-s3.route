@@ -223,10 +223,9 @@ class DeriveContactSerializer(serializers.Serializer):
         view_name="billingaccountmember-detail",
         lookup_field="public_id",
         queryset=BillingAccountMember.objects.all(),
-        required=False,
         allow_null=True,
     )
-    id = serializers.CharField(source="_id", write_only=True, required=False)
+    id = serializers.CharField(source="_id", required=False, write_only=True)
     first_name = serializers.CharField(required=False, write_only=True)
     last_name = serializers.CharField(required=False, write_only=True)
     company = serializers.CharField(required=False, write_only=True)
@@ -258,26 +257,9 @@ class DeriveContactSerializer(serializers.Serializer):
         return attrs
 
     def create(self, validated_data):
-
-        filters = validated_data.pop("filters")
-        timeout = validated_data.pop("timeout")
         initiated_by = validated_data.pop("initiated_by")
-        if not all(
-            [
-                "first_name" in validated_data,
-                "last_name" in validated_data,
-                "company" in validated_data,
-            ]
-        ):
-            search = router.profile_lookup(json={"profile_id": validated_data["_id"]})
-            results = search.get("results")
-            if not results:
-                raise Http404("Unable to find a profile matching the supplied id.")
-            profile = ResultProfile(**results[0])
-        else:
-            profile = ResultProfile(**validated_data)
-        profile.derive_contact(filters=filters, timeout=timeout)
-        billing_seat = validated_data["billing_seat"]
+        billing_seat = validated_data.pop("billing_seat")
+        profile = ResultProfile.derive(**validated_data)
         cache_obj, charge = DerivationCache.get_or_charge(
             billing_seat=billing_seat, profile=profile
         )
@@ -364,7 +346,7 @@ class ProfileEnrichmentSerializer(serializers.Serializer):
                 amount=charge, evidence=(), initiated_by=initiated_by
             )
 
-        validated_data["profile"] = profile.to_dict()
+        validated_data["profile"] = profile.dict()
         validated_data["status"] = profile.returned_status
         validated_data["credits_used"] = charge
         validated_data["credits_remaining"] = billing_seat.credits

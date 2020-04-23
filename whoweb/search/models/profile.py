@@ -519,6 +519,33 @@ class ResultProfile(BaseModel):
         return self.derivation_status
 
     @classmethod
+    def derive(
+        cls,
+        _id=None,
+        first_name=None,
+        last_name=None,
+        company=None,
+        defer=(),
+        filters=(),
+        timeout=28,
+    ) -> "ResultProfile":
+        profile = ResultProfile(
+            _id=_id, first_name=first_name, last_name=last_name, company=company
+        )
+        if _id and all([first_name, last_name, company]):
+            pass
+        elif _id and not all([first_name, last_name, company]):
+            lookup_by_id = router.profile_lookup(json={"profile_id": _id})
+            profiles = lookup_by_id.get("results")
+            if not profiles:
+                raise Http404("Unable to find a profile matching the supplied id.")
+            profile = ResultProfile(**profiles[0])
+        else:
+            profile._search_for_this()
+        profile.derive_contact(defer=defer, filters=filters, timeout=timeout)
+        return profile
+
+    @classmethod
     def enrich(
         cls,
         email=None,
@@ -528,7 +555,7 @@ class ResultProfile(BaseModel):
         min_confidence=None,
         get_web_profile=True,
         no_cache=None,
-    ):
+    ) -> "ResultProfile":
         search = router.profile_lookup(
             json={
                 "email": email,
@@ -681,26 +708,30 @@ class DerivationCache(TimeStampedModel):
 
     @classmethod
     def get_or_charge(cls, billing_seat: BillingAccountMember, profile: ResultProfile):
+        graded_emails_serializable = [email.dict() for email in profile.graded_emails]
+        graded_phones_serializable = [phone.dict() for phone in profile.graded_phones]
         obj, created = DerivationCache.objects.get_or_create(
             billing_seat=billing_seat,
             profile_id=profile.id,
             defaults={
-                "emails": [email.dict() for email in profile.graded_emails],
-                "phones": [phone.dict() for phone in profile.graded_phones],
+                "emails": graded_emails_serializable,
+                "phones": graded_phones_serializable,
             },
         )
         if created:
             charge = billing_seat.plan.compute_contact_credit_use(profile=profile)
         else:
-            emails = [GradedEmail(**email) for email in obj.emails]
-            phones = [GradedPhone(**phone) for phone in obj.phones]
+            cached_emails = [GradedEmail(**email) for email in obj.emails]
+            cached_phones = [GradedPhone(**phone) for phone in obj.phones]
             charge = billing_seat.plan.compute_additional_contact_info_credit_use(
-                cached_emails=emails, cached_phones=phones, profile=profile
+                cached_emails=cached_emails,
+                cached_phones=cached_phones,
+                profile=profile,
             )
-            if len(profile.graded_emails) > len(obj.emails):
-                obj.emails = profile.graded_emails
-            if len(profile.graded_phones) > len(obj.phones):
-                obj.phones = profile.graded_phones
+            if len(graded_emails_serializable) > len(cached_emails):
+                obj.emails = graded_emails_serializable
+            if len(graded_phones_serializable) > len(cached_phones):
+                obj.phones = graded_phones_serializable
             obj.save()
         return obj, charge
 

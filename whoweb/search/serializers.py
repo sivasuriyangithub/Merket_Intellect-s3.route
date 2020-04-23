@@ -324,7 +324,7 @@ class BatchDeriveContactSerializer(serializers.Serializer):
         queryset=BillingAccountMember.objects.all(),
     )
     input = DeriveContactBatchInputEntitySerializer(many=True)
-    webhooks = serializers.ListSerializer(child=serializers.URLField())
+    webhooks = serializers.ListField(child=serializers.URLField())
     batch = BatchResultSerializer()
 
     class Meta:
@@ -394,7 +394,7 @@ class BatchProfileEnrichmentSerializer(serializers.Serializer):
         queryset=BillingAccountMember.objects.all(),
     )
     input = ProfileEnrichmentBatchInputEntitySerializer(many=True)
-    webhooks = serializers.ListSerializer(child=serializers.URLField())
+    webhooks = serializers.ListField(child=serializers.URLField())
     batch = BatchResultSerializer()
 
     class Meta:

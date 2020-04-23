@@ -359,6 +359,7 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAdminUser",  # temporary
         "rest_framework.permissions.IsAuthenticated",
     ],
+    "DEFAULT_SCHEMA_CLASS": "whoweb.contrib.rest_framework.schemas.VerboseAutoSchema",
     # "DEFAULT_RENDERER_CLASSES": [
     #     "rest_framework.renderers.JSONRenderer",
     #     "whoweb.contrib.rest_framework.renderers.CustomBrowsableAPIRenderer",

@@ -151,17 +151,18 @@ class GradedEmail(BaseModel):
         return self.email_type == WORK or self.domain not in PERSONAL_DOMAINS
 
 
+PASSING_STATUSES = ["connected", "connected-75"]
+STATUS_ORDER = {"connected": 100, "connected-75": 75}
+
+
 class GradedPhone(BaseModel):
     status: str = ""
     phone_type: str = ""
     number: str = ""
 
-    PASSING_STATUSES = ["connected", "connected-75"]
-    _status_order = {"connected": 100, "connected-75": 75}
-
     @property
     def status_value(self):
-        return self._status_order.get(self.status, 0)
+        return STATUS_ORDER.get(self.status, 0)
 
     @validator(
         "*", pre=True, always=True,
@@ -306,7 +307,9 @@ class ResultProfile(BaseModel):
         primary = values.get("primary_alias") or values["_id"]
         values.setdefault(
             "web_id",
-            primary if primary.startswith("wp:") else values.get("web_profile_id"),
+            primary
+            if primary and primary.startswith("wp:")
+            else values.get("web_profile_id"),
         )
         return values
 
@@ -622,12 +625,7 @@ class ResultProfile(BaseModel):
 
     @property
     def passing_phone(self):
-        return bool(
-            [
-                phone.status in GradedPhone.PASSING_STATUSES
-                for phone in self.graded_phones
-            ]
-        )
+        return bool([phone.status in PASSING_STATUSES for phone in self.graded_phones])
 
     def to_version(self, version="2019-12-05"):
         data = {}
@@ -716,4 +714,4 @@ class BatchProfileActionResult(TimeStampedModel):
 
     @property
     def status_url(self):
-        return reverse("batch_result-detail", kwargs={"id": self.id.hex})
+        return reverse("batch_result-detail", kwargs={"pk": self.id.hex})

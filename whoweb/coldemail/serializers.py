@@ -1,7 +1,11 @@
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
-from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
+from whoweb.contrib.rest_framework.fields import TagulousField
+from whoweb.contrib.rest_framework.serializers import (
+    IdOrHyperlinkedModelSerializer,
+    TaggableMixin,
+)
 from .models import (
     CampaignMessage,
     ColdCampaign,
@@ -12,25 +16,10 @@ from .models import (
 from whoweb.search.serializers import FilteredSearchQuerySerializer
 
 
-class TaggableMixin(object):
-    def update(self, instance, validated_data):
-        if tags := validated_data.pop("tags", None) is not None:
-            instance.tags = tags
-        return super().update(instance, validated_data)
-
-    def create(self, validated_data):
-        tags = validated_data.pop("tags", None)
-        instance = super().create(validated_data)
-        if tags is not None:
-            instance.tags = tags
-            instance.save()
-        return instance
-
-
 class CampaignMessageSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
     status_name = serializers.CharField(source="get_status_display", read_only=True)
     id = serializers.CharField(source="public_id", read_only=True)
-    tags = serializers.ListSerializer(child=serializers.CharField(), required=False)
+    tags = TagulousField(required=False)
 
     class Meta:
         model = CampaignMessage
@@ -58,7 +47,7 @@ class CampaignMessageSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
 
 class CampaignMessageTemplateSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
     id = serializers.CharField(source="public_id", read_only=True)
-    tags = serializers.ListSerializer(child=serializers.CharField(), required=False)
+    tags = TagulousField(required=False)
 
     class Meta:
         model = CampaignMessageTemplate
@@ -83,7 +72,7 @@ class CampaignListSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
     query = FilteredSearchQuerySerializer()
     status_name = serializers.CharField(source="get_status_display", read_only=True)
     id = serializers.CharField(source="public_id", read_only=True)
-    tags = serializers.ListSerializer(child=serializers.CharField(), required=False)
+    tags = TagulousField(required=False)
 
     class Meta:
         model = CampaignList
@@ -139,7 +128,7 @@ class CampaignSerializer(serializers.ModelSerializer):
 
 
 class SingleColdEmailSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
-    tags = serializers.ListSerializer(child=serializers.CharField(), required=False)
+    tags = TagulousField(required=False)
 
     class Meta:
         model = SingleColdEmail

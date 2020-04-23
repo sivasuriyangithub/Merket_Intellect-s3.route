@@ -2,43 +2,7 @@ from djstripe.models import Subscription, SubscriptionItem, Plan, Product
 from rest_framework import serializers
 
 from whoweb.contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
-from ..models import BillingAccount, WKPlanPreset
-
-
-class PlanQuantitySerializer(serializers.Serializer):
-    stripe_id = serializers.CharField()
-    quantity = serializers.IntegerField()
-
-
-class CreateSubscriptionSerializer(serializers.Serializer):
-    """A serializer used to create a Subscription."""
-
-    stripe_token = serializers.CharField(max_length=200, required=False)
-    billing_account = IdOrHyperlinkedRelatedField(
-        view_name="billingaccount-detail",
-        lookup_field="public_id",
-        queryset=BillingAccount.objects.all(),
-        required=True,
-    )
-    plan = serializers.CharField(max_length=50, required=False)
-    items = PlanQuantitySerializer(many=True)
-    trial_days = serializers.IntegerField(required=False, default=None, allow_null=True)
-    charge_immediately = serializers.NullBooleanField(required=False)
-
-
-class UpdateSubscriptionSerializer(serializers.Serializer):
-    """A serializer used to create a Subscription."""
-
-    stripe_token = serializers.CharField(max_length=200, required=False)
-    billing_account = IdOrHyperlinkedRelatedField(
-        view_name="billingaccount-detail",
-        lookup_field="public_id",
-        queryset=BillingAccount.objects.all(),
-        required=True,
-    )
-    plan = serializers.CharField(max_length=50)
-    items = PlanQuantitySerializer(many=True)
-    charge_immediately = serializers.NullBooleanField(required=False)
+from ..models import BillingAccount
 
 
 class AddPaymentSourceSerializer(serializers.Serializer):
@@ -95,8 +59,6 @@ class SubscriptionItemSerializer(serializers.ModelSerializer):
         model = SubscriptionItem
         fields = [
             "created",
-            "id",
-            "created",
             "plan",
             "quantity",
             "metadata",
@@ -117,4 +79,27 @@ class SubscriptionSerializer(serializers.ModelSerializer):
 
         depth = 2
         model = Subscription
-        exclude = ["default_tax_rates"]
+        fields = [
+            "created",
+            "description",
+            "metadata",
+            "billing",
+            "billing_cycle_anchor",
+            "cancel_at_period_end",
+            "canceled_at",
+            "current_period_end",
+            "current_period_start",
+            "days_until_due",
+            "default_tax_rates",
+            "ended_at",
+            "plan",
+            "quantity",
+            "start",
+            "status",
+            "tax_percent",
+            "trial_end",
+            "trial_start",
+            "items",
+            "can_charge",
+            "is_valid",
+        ]

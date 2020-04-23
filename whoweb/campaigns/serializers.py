@@ -2,10 +2,15 @@ from rest_framework import serializers
 
 from whoweb.payments.models import BillingAccountMember
 from whoweb.accounting.serializers import TransactionSerializer
-from whoweb.contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
-from whoweb.users.models import Seat
-from whoweb.coldemail.serializers import CampaignSerializer, TaggableMixin
-from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
+from whoweb.contrib.rest_framework.fields import (
+    IdOrHyperlinkedRelatedField,
+    TagulousField,
+)
+from whoweb.coldemail.serializers import CampaignSerializer
+from whoweb.contrib.rest_framework.serializers import (
+    IdOrHyperlinkedModelSerializer,
+    TaggableMixin,
+)
 from whoweb.search.serializers import FilteredSearchQuerySerializer
 from .models import (
     SendingRule,
@@ -69,7 +74,7 @@ class SimpleDripCampaignRunnerSerializer(
     drips = DripRecordSerializer(many=True, read_only=True)
     sending_rules = SendingRuleSerializer(many=True)
     status_name = serializers.CharField(source="get_status_display", read_only=True)
-    tags = serializers.ListSerializer(child=serializers.CharField(), required=False)
+    tags = TagulousField(required=False)
     transactions = TransactionSerializer(many=True, read_only=True)
 
     class Meta:
@@ -123,7 +128,7 @@ class IntervalCampaignRunnerSerializer(
         required=False,
         allow_null=True,
     )
-    tags = serializers.ListSerializer(child=serializers.CharField(), required=False)
+    tags = TagulousField(required=False)
     transactions = TransactionSerializer(many=True, read_only=True)
 
     class Meta:

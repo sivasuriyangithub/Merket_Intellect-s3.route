@@ -93,10 +93,9 @@ def test_new_signup_subscription_with_token(su_client):
     assert billing_account.customer.can_charge() is False
 
     resp = su_client.post(
-        "/ww/api/subscriptions/",
+        f"/ww/api/billing_accounts/{billing_account.public_id}/subscription/",
         {
             "stripe_token": "tok_visa",
-            "billing_account": billing_account.public_id,
             "plan": plan_preset.public_id,
             "items": [
                 {"stripe_id": plan_one.id, "quantity": 100,},
@@ -105,9 +104,9 @@ def test_new_signup_subscription_with_token(su_client):
         },
         format="json",
     )
-    assert resp.status_code == 201
+    assert resp.status_code == 200
     assert (
-        resp.json()["billing_account"]
+        resp.json()["url"]
         == f"http://testserver/ww/api/billing_accounts/{billing_account.public_id}/"
     )
     customer = billing_account.customer
@@ -138,9 +137,8 @@ def test_new_signup_subscription_without_token(su_client):
     assert billing_account.customer.can_charge() is False
 
     resp = su_client.post(
-        "/ww/api/subscriptions/",
+        f"/ww/api/billing_accounts/{billing_account.public_id}/subscription/",
         {
-            "billing_account": billing_account.public_id,
             "plan": plan_preset.public_id,
             "items": [
                 {"stripe_id": plan_one.id, "quantity": 100,},
@@ -150,9 +148,9 @@ def test_new_signup_subscription_without_token(su_client):
         },
         format="json",
     )
-    assert resp.status_code == 201
+    assert resp.status_code == 200
     assert (
-        resp.json()["billing_account"]
+        resp.json()["url"]
         == f"http://testserver/ww/api/billing_accounts/{billing_account.public_id}/"
     )
     customer = billing_account.customer
@@ -185,10 +183,9 @@ def test_upgrade_subscription(su_client):
         stripe_plans_monthly=(plan_one, plan_three)
     )
     resp = su_client.post(
-        "/ww/api/subscriptions/",
+        f"/ww/api/billing_accounts/{billing_account.public_id}/subscription/",
         {
             "stripe_token": "tok_visa",
-            "billing_account": billing_account.public_id,
             "plan": plan_preset.public_id,
             "items": [
                 {"stripe_id": plan_one.id, "quantity": 100,},
@@ -197,7 +194,7 @@ def test_upgrade_subscription(su_client):
         },
         format="json",
     )
-    assert resp.status_code == 201
+    assert resp.status_code == 200
     customer = billing_account.customer
     assert customer.has_active_subscription(plan_one)
     assert customer.has_active_subscription(plan_two)
@@ -209,9 +206,8 @@ def test_upgrade_subscription(su_client):
     ) == sorted([base_credits_product, email_std_product])
 
     upgrade = su_client.patch(
-        "/ww/api/subscriptions/",
+        f"/ww/api/billing_accounts/{billing_account.public_id}/subscription/",
         {
-            "billing_account": billing_account.public_id,
             "plan": plan_preset_upgrade.public_id,
             "items": [
                 {"stripe_id": plan_one.id, "quantity": 100,},
@@ -258,10 +254,9 @@ def test_change_subscription_billing_cycle(su_client):
     )
     yearly_preset = WKPlanPresetFactory(stripe_plans_yearly=(yearly_one, yearly_two))
     resp = su_client.post(
-        "/ww/api/subscriptions/",
+        f"/ww/api/billing_accounts/{billing_account.public_id}/subscription/",
         {
             "stripe_token": "tok_visa",
-            "billing_account": billing_account.public_id,
             "plan": monthly_preset.public_id,
             "items": [
                 {"stripe_id": monthly_one.id, "quantity": 100,},
@@ -270,7 +265,7 @@ def test_change_subscription_billing_cycle(su_client):
         },
         format="json",
     )
-    assert resp.status_code == 201
+    assert resp.status_code == 200
     customer = billing_account.customer
     assert customer.has_active_subscription(monthly_one)
     assert customer.has_active_subscription(monthly_two)
@@ -282,9 +277,8 @@ def test_change_subscription_billing_cycle(su_client):
     ) == sorted([base_credits_product, email_std_product])
 
     upgrade = su_client.patch(
-        "/ww/api/subscriptions/",
+        f"/ww/api/billing_accounts/{billing_account.public_id}/subscription/",
         {
-            "billing_account": billing_account.public_id,
             "plan": yearly_preset.public_id,
             "items": [
                 {"stripe_id": yearly_one.id, "quantity": 100,},
@@ -304,39 +298,3 @@ def test_change_subscription_billing_cycle(su_client):
             for item in customer.subscription.items.select_related("plan__product")
         ]
     ) == sorted([base_credits_product, email_std_product])
-
-
-@pytest.mark.vcr()
-def test_get_subscription(su_client):
-    billing = BillingAccountOwnerFactory(organization_user__seat_credits=0)
-    billing_account: BillingAccount = billing.organization
-    plan_one, plan_two = (
-        PlanFactory(id="plan_GwOROprh1UPdQL"),  # Base Credits
-        PlanFactory(id="plan_GwOvKvoNibwMK4"),  # Std Email Addon
-    )
-    plan_one.sync_from_stripe_data(plan_one.api_retrieve())
-    plan_two.sync_from_stripe_data(plan_two.api_retrieve())
-    plan_preset = WKPlanPresetFactory(stripe_plans_monthly=(plan_one, plan_two))
-
-    assert billing_account.customer.can_charge() is False
-
-    su_client.post(
-        "/ww/api/subscriptions/",
-        {
-            "stripe_token": "tok_visa",
-            "billing_account": billing_account.public_id,
-            "plan": plan_preset.public_id,
-            "items": [
-                {"stripe_id": plan_one.id, "quantity": 100,},
-                {"stripe_id": plan_two.id, "quantity": 1,},
-            ],
-        },
-        format="json",
-    )
-    get = su_client.get(
-        f"/ww/api/subscriptions/{billing_account.public_id}/", format="json",
-    )
-    assert get.json()["status"] == "active"
-    items = sorted(get.json()["items"], key=lambda x: x["plan"]["id"])
-    assert items[0]["plan"]["id"] == plan_one.id
-    assert items[1]["plan"]["id"] == plan_two.id

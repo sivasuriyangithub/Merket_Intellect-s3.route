@@ -1,8 +1,4 @@
-from .stripe import (
-    AddPaymentSourceRestView,
-    SubscriptionRestView,
-    CreditChargeRestView,
-)
+from .stripe import PaymentSourceAPIView
 from .views import (
     PlanViewSet,
     PlanPresetViewSet,
@@ -15,9 +11,7 @@ from .su_passthrough import (
 )
 
 __all__ = [
-    "AddPaymentSourceRestView",
-    "SubscriptionRestView",
-    "CreditChargeRestView",
+    "PaymentSourceAPIView",
     "PlanViewSet",
     "PlanPresetViewSet",
     "BillingAccountViewSet",

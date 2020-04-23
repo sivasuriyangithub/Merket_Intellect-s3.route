@@ -1,16 +1,19 @@
 from copy import copy, deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Union
 
 from django.contrib.postgres.fields import JSONField
+from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import F, Value
+from django.db.models import F, Value, Q
 from django.db.models.functions import Greatest
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import ugettext_lazy as _
 from djstripe import settings as djstripe_settings
+from djstripe.enums import SubscriptionStatus
+from djstripe.exceptions import MultipleSubscriptionException
 from djstripe.models import Customer, StripeModel, Subscription
 from organizations.abstract import (
     AbstractOrganization,
@@ -30,7 +33,7 @@ from whoweb.accounting.ledgers import (
 from whoweb.accounting.models import LedgerEntry
 from whoweb.contrib.fields import ObscureIdMixin
 from whoweb.users.models import Seat, Group
-from .plans import WKPlan
+from .plans import WKPlan, WKPlanPreset
 
 
 class BillingAccount(ObscureIdMixin, AbstractOrganization):
@@ -135,9 +138,7 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
         self.add_credits(amount, *args, evidence=evidence, **kwargs)
 
     @atomic
-    def allocate_credits_to_member(
-        self, member: "BillingAccountMember", amount: int, trial_amount=0
-    ):
+    def allocate_credits_to_member(self, member: "BillingAccountMember", amount: int):
         updated = BillingAccount.objects.filter(
             pk=self.pk, credit_pool__gte=amount
         ).update(credit_pool=F("credit_pool") - amount,)
@@ -184,6 +185,90 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
 
     def set_pool_for_all_members(self):
         return self.organization_users.update(pool_credits=True)
+
+    def subscribe(
+        self,
+        plan_id,
+        items,
+        initiated_by,
+        stripe_token=None,
+        trial_days=None,
+        charge_immediately=False,
+        **kwargs,
+    ):
+        valid_items, plan_preset, total_credits = self._get_valid_items(
+            plan_id=plan_id, items=items
+        )
+        customer = self.customer
+        if customer.valid_subscriptions:
+            raise MultipleSubscriptionException()
+
+        if trial_days is None:
+            trial_days = plan_preset.trial_days_allowed
+        if trial_days == 0 or stripe_token:
+            trial_end = "now"
+        elif trial_days > plan_preset.trial_days_allowed:
+            raise ValidationError(
+                f"Invalid number of trial days. Must be less than {plan_preset.trial_days_allowed}."
+            )
+        else:
+            trial_end = str(round((now() + timedelta(days=trial_days)).timestamp()))
+
+        if stripe_token:
+            customer.add_card(stripe_token)
+
+        subscription = customer.subscribe(
+            items=valid_items,
+            trial_end=trial_end,
+            charge_immediately=charge_immediately,
+        )
+
+        if subscription.status == SubscriptionStatus.trialing:
+            with_credits = min(total_credits, 1000)
+        else:
+            with_credits = total_credits
+        self.update_plan(
+            initiated_by=initiated_by,
+            new_plan=plan_preset.create(),
+            with_credits=with_credits,
+        )
+        return subscription
+
+    def update_subscription(
+        self, plan_id, items, initiated_by, stripe_token=None, **kwargs
+    ):
+        customer = self.customer
+        if stripe_token:
+            customer.add_card(stripe_token)
+
+        valid_items, plan_preset, total_credits = self._get_valid_items(
+            plan_id=plan_id, items=items
+        )
+
+        subscription = customer.subscription.update(
+            items=valid_items, trial_end="now" if stripe_token else None
+        )
+
+        if subscription.status == SubscriptionStatus.trialing:
+            with_credits = min(total_credits, 1000)
+        else:
+            with_credits = total_credits
+        self.update_plan(
+            initiated_by=initiated_by,
+            new_plan=plan_preset.create(),
+            with_credits=with_credits,
+        )
+        return subscription
+
+    def _get_valid_items(self, plan_id, items) -> (dict, WKPlan, int):
+        tag_or_public_id = plan_id
+        plan_preset = WKPlanPreset.objects.filter(
+            Q(tag=tag_or_public_id) | Q(public_id=tag_or_public_id)
+        ).first()
+        if not plan_preset:
+            raise ValidationError("A valid plan id or tag must be specified.")
+        valid_items, total_credits = plan_preset.validate_items(items)
+        return valid_items, plan_preset, total_credits
 
 
 class BillingAccountMember(ObscureIdMixin, AbstractOrganizationUser):

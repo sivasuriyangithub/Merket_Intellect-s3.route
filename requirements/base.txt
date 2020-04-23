@@ -45,6 +45,8 @@ Pygments==2.5.2
 django-guardian==2.2.0 # http://github.com/django-guardian/django-guardian
 djangorestframework-guardian==0.3.0 # https://github.com/rpkilby/django-rest-framework-guardian
 djangorestframework_simplejwt==4.4.0 # https://github.com/davesque/django-rest-framework-simplejwt
+pyyaml==5.3.1 # https://www.django-rest-framework.org/api-guide/schemas/
+uritemplate==3.0.1 # https://www.django-rest-framework.org/api-guide/schemas/
 
 # GraphQL
 graphene-django==2.8.0 # https://github.com/graphql-python/graphene-django

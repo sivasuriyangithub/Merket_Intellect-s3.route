@@ -4,22 +4,25 @@ from rest_framework.utils.field_mapping import get_nested_relation_kwargs
 from .fields import IdOrHyperlinkedRelatedField
 
 
+class TaggableMixin(object):
+    def update(self, instance, validated_data):
+        if tags := validated_data.pop("tags", None) is not None:
+            instance.tags = tags
+        return super().update(instance, validated_data)
+
+    def create(self, validated_data):
+        tags = validated_data.pop("tags", None)
+        instance = super().create(validated_data)
+        if tags is not None:
+            instance.tags = tags
+            instance.save()
+        return instance
+
+
 class IdOrHyperlinkedModelSerializer(HyperlinkedModelSerializer):
 
     serializer_related_field = IdOrHyperlinkedRelatedField
     id_field_name = "public_id"
-
-    def get_default_field_names(self, declared_fields, model_info):
-        """
-        Return the default list of field names that will be used if the
-        `Meta.fields` option is not specified.
-        """
-        return (
-            [self.url_field_name]
-            + list(declared_fields)
-            + list(model_info.fields)
-            + list(model_info.forward_relations)
-        )
 
     def build_nested_field(self, field_name, relation_info, nested_depth):
         """

@@ -104,6 +104,7 @@ class BillingAccountViewSet(
         except CoreValidationError as e:
             raise ValidationError(e)
         billing_account.refresh_from_db()
+        billing_account.set_pool_for_all_members()  # TODO: remove and make clients manage
         return Response(
             BillingAccountSerializer(
                 billing_account, context={"request": request}

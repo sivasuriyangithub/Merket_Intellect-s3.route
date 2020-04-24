@@ -14,7 +14,7 @@ from django.utils.translation import ugettext_lazy as _
 from djstripe import settings as djstripe_settings
 from djstripe.enums import SubscriptionStatus
 from djstripe.exceptions import MultipleSubscriptionException
-from djstripe.models import Customer, StripeModel, Subscription
+from djstripe.models import Customer, StripeModel, Subscription, SubscriptionItem
 from organizations.abstract import (
     AbstractOrganization,
     AbstractOrganizationUser,
@@ -469,6 +469,9 @@ class MultiPlanSubscription(Subscription):
 
         for item in items_for_manual_deletion:
             item.delete()
+
+        for item in subscription.items.all():
+            SubscriptionItem.sync_from_stripe_data(item.api_retrieve())
 
         return MultiPlanSubscription.objects.get(pk=subscription.pk)
 

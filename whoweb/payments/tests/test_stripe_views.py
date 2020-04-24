@@ -165,8 +165,9 @@ def test_new_signup_subscription_without_token(su_client):
     ) == sorted(["prod_Gw6HrLt8HOhTju", "prod_GwOi2Tcxvn2pi7"])
 
 
+@patch("djstripe.models.billing.Subscription.is_period_current")
 @pytest.mark.vcr()
-def test_upgrade_subscription(su_client):
+def test_upgrade_subscription(period_mock, su_client):
     billing = BillingAccountOwnerFactory(organization_user__seat_credits=0)
     billing_account: BillingAccount = billing.organization
     plan_one, plan_two, plan_three = (
@@ -232,8 +233,9 @@ def test_upgrade_subscription(su_client):
     ) == sorted([base_credits_product, email_adv_product])
 
 
+@patch("djstripe.models.billing.Subscription.is_period_current")
 @pytest.mark.vcr()
-def test_change_subscription_billing_cycle(su_client):
+def test_change_subscription_billing_cycle(period_mock, su_client):
     billing = BillingAccountOwnerFactory(organization_user__seat_credits=0)
     billing_account: BillingAccount = billing.organization
     monthly_one, monthly_two = (
@@ -299,3 +301,57 @@ def test_change_subscription_billing_cycle(su_client):
             for item in customer.subscription.items.select_related("plan__product")
         ]
     ) == sorted([base_credits_product, email_std_product])
+
+
+@patch("djstripe.models.billing.Subscription.is_period_current")
+@pytest.mark.vcr()
+def test_upgrade_subscription_quantity(period_mock, su_client):
+    billing = BillingAccountOwnerFactory(organization_user__seat_credits=0)
+    billing_account: BillingAccount = billing.organization
+    plan_one, plan_two = (
+        PlanFactory(id="plan_GwOROprh1UPdQL"),  # Base Credits
+        PlanFactory(id="plan_GwOvKvoNibwMK4"),  # Std Email Addon
+    )
+    plan_one.sync_from_stripe_data(plan_one.api_retrieve())
+    plan_two.sync_from_stripe_data(plan_two.api_retrieve())
+    plan_preset = WKPlanPresetFactory(stripe_plans_monthly=(plan_one, plan_two))
+
+    resp = su_client.post(
+        f"/ww/api/billing_accounts/{billing_account.public_id}/subscription/",
+        {
+            "stripe_token": "tok_visa",
+            "plan": plan_preset.public_id,
+            "items": [
+                {"stripe_id": plan_one.id, "quantity": 100,},
+                {"stripe_id": plan_two.id, "quantity": 1,},
+            ],
+        },
+        format="json",
+    )
+    assert resp.status_code == 201
+    customer = billing_account.customer
+    assert customer.has_active_subscription(plan_one)
+    assert customer.has_active_subscription(plan_two)
+    assert sorted(
+        [item.quantity for item in customer.subscription.items.all()]
+    ) == sorted([1, 100])
+
+    upgrade = su_client.patch(
+        f"/ww/api/billing_accounts/{billing_account.public_id}/subscription/",
+        {
+            "plan": plan_preset.public_id,
+            "items": [
+                {"stripe_id": plan_one.id, "quantity": 1000,},
+                {"stripe_id": plan_two.id, "quantity": 1,},
+            ],
+        },
+        format="json",
+    )
+    assert upgrade.status_code == 200
+    customer = billing_account.customer
+    customer.refresh_from_db()
+    assert customer.has_active_subscription(plan_one)
+    assert customer.has_active_subscription(plan_two)
+    assert sorted(
+        [item.quantity for item in customer.subscription.items.all()]
+    ) == sorted([1, 1000])

@@ -1,5 +1,5 @@
 from django.dispatch import receiver
-from djstripe.models import Plan, Event
+from djstripe.models import Plan, Event, SubscriptionItem
 from djstripe.signals import WEBHOOK_SIGNALS
 
 from .billing_accounts import (
@@ -27,6 +27,7 @@ __all__ = [
     "record_transaction_sold_credits",
     "WKPlan",
     "WKPlanPreset",
+    "on_payment_succeed_replenish_customer_credits",
 ]
 
 
@@ -58,3 +59,10 @@ def on_payment_succeed_replenish_customer_credits(event: Event, **kwargs):
     for item in event.customer.subscription.items.all():
         if item.plan.product.metadata.get("product") == "credits":
             acct.replenish_credits(amount=item.plan.quantity, evidence=(event,))
+
+
+@receiver(WEBHOOK_SIGNALS["customer.subscription.updated"], sender=Event)
+def on_subscription_update_ensure_items_updated(event: Event, **kwargs):
+    for item in event.customer.subscription.items.all():
+        item: SubscriptionItem = item
+        SubscriptionItem.sync_from_stripe_data(item.api_retrieve())

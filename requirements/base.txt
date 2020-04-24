@@ -27,7 +27,7 @@ django-crispy-forms==1.8.1  # https://github.com/django-crispy-forms/django-cris
 django-redis==4.11.0  # https://github.com/niwinz/django-redis
 django-organizations==1.1.2 # https://github.com/bennylope/django-organizations
 django-prettyjson==0.4.1 # https://github.com/kevinmickey/django-prettyjson
-django-autoslug==1.9.6 # https://github.com/justinmayer/django-autoslug
+django-autoslug==1.9.7 # https://github.com/justinmayer/django-autoslug
 git+https://git@github.com/lukasvinclav/django-admin-actions.git@cdc6a82f62009b042a71dc26030c27cb67e28e60#egg=django-admin-actions
 django-inline-actions==2.3.0 # https://github.com/escaped/django-inline-actions
 django-polymorphic==2.1.2 # https://github.com/django-polymorphic/django-polymorphic

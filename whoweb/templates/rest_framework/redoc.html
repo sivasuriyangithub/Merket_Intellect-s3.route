@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
-    <title>ReDoc</title>
+    <title>WhoKnows REST API Documentation</title>
     <!-- needed for adaptive design -->
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -16,9 +16,10 @@
   </head>
   <body>
     <redoc spec-url='{% url schema_url %}'
-           expandSingleSchemaField="true"
-           expandDefaultServerVariables="true"
-           expandResponses="200,201"
+           expand-single-schema-field="true"
+           expand-default-server-variables="true"
+           expand-responses="200,201"
+           hide-download-button="true"
     ></redoc>
     <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"> </script>
   </body>

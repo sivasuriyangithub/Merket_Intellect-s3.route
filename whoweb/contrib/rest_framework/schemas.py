@@ -19,12 +19,14 @@ from django.db import models
 from django.utils.encoding import force_str
 from django.utils.text import camel_case_to_spaces
 from rest_framework import exceptions, renderers, serializers
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.compat import uritemplate
 from rest_framework.fields import _UnvalidatedField, empty
 from rest_framework.schemas.generators import BaseSchemaGenerator
 from rest_framework.schemas.inspectors import ViewInspector
 from rest_framework.schemas.utils import is_list_view, get_pk_description
 from rest_framework.settings import api_settings
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 
 class FutureSchemaGenerator(BaseSchemaGenerator):
@@ -703,6 +705,7 @@ class VerboseAutoSchema(FutureAutoSchema):
         operation = super().get_operation(path, method)
         operation["summary"] = self.get_summary(path, method)
         operation["tags"] = self.get_tags(path, method)
+        operation["security"] = self.get_security(path, method)
         return operation
 
     def get_summary(self, path, method):
@@ -851,3 +854,19 @@ class VerboseAutoSchema(FutureAutoSchema):
                 "description": "",
             }
         }
+
+    def get_security(self, path, method):
+        auth_classes = getattr(
+            self.view,
+            "authentication_classes",
+            api_settings.DEFAULT_AUTHENTICATION_CLASSES,
+        )
+
+        security = []
+        if len(auth_classes) == 0:
+            return []
+        if JWTAuthentication in auth_classes:
+            security.append({"bearerAuth": []})
+        if SessionAuthentication in auth_classes:
+            security.append({"cookieAuth": []})
+        return security

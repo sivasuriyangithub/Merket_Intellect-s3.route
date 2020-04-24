@@ -1,5 +1,7 @@
 import json
 from collections import defaultdict
+
+from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
 from rest_framework.renderers import JSONOpenAPIRenderer
 
@@ -25,6 +27,30 @@ class TagGroupSchemaGenerator(FutureSchemaGenerator):
                     {"name": top.title(), "tags": list(tags)}
                     for top, tags in top_level_path_tags.items()
                 ]
+            }
+        )
+        schema["components"].update(
+            {
+                "securitySchemes": {
+                    "bearerAuth": {
+                        "type": "http",
+                        "scheme": "bearer",
+                        "bearerFormat": "JWT",
+                    },
+                    "cookieAuth": {
+                        "type": "apiKey",
+                        "in": "cookie",
+                        "name": settings.SESSION_COOKIE_NAME,
+                    },
+                },
+                "responses": {
+                    "UnauthorizedError": {
+                        "description": "Access token is missing or invalid"
+                    },
+                    "PermissionDenied": {
+                        "description": "You do not have the required permissions for this operation"
+                    },
+                },
             }
         )
         return schema

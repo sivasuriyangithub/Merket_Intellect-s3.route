@@ -96,8 +96,6 @@ class SearchExportSerializer(IdOrHyperlinkedModelSerializer):
         view_name="billingaccountmember-detail",
         lookup_field="public_id",
         queryset=BillingAccountMember.objects.all(),
-        required=False,
-        allow_null=True,
     )
 
     class Meta:
@@ -139,15 +137,6 @@ class SearchExportSerializer(IdOrHyperlinkedModelSerializer):
 
     def get_status_name(self, obj):
         return SearchExport.STATUS[int(obj.status)]
-
-    def validate(self, attrs):
-        billing_seat = attrs["billing_seat"]
-        if not (
-            billing_seat.plan
-            or billing_seat.organization.customer().has_any_active_subscription()
-        ):
-            raise PaymentRequired()
-        return attrs
 
     def create(self, validated_data):
         try:

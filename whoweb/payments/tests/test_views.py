@@ -40,7 +40,6 @@ def test_create_billing_seat_for_passthrough(sync_mock, su_client):
 def test_passthrough_updates_credits(su_client):
     seat = BillingAccountMemberFactory(seat_credits=0).seat
     original = su_client.get(f"/ww/api/admin/seats/{seat.public_id}/", format="json",)
-    print(original.content)
     # assert original.json()["seat_credits"] == 0
 
     resp = su_client.patch(

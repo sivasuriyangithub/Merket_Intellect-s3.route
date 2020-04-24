@@ -13,6 +13,7 @@ class AdminBillingSeatViewSet(viewsets.ModelViewSet):
     queryset = Seat.objects.all()
     serializer_class = AdminBillingSeatSerializer
     permission_classes = [IsSuperUser]
+    schema = None
 
 
 class AdminBillingAccountViewSet(viewsets.ModelViewSet):
@@ -20,3 +21,4 @@ class AdminBillingAccountViewSet(viewsets.ModelViewSet):
     queryset = Seat.objects.all()
     serializer_class = AdminBillingAccountSerializer
     permission_classes = [IsSuperUser]
+    schema = None

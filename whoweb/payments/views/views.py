@@ -79,7 +79,7 @@ class BillingAccountViewSet(
     @action(
         detail=True,
         methods=["post", "patch"],
-        name="Subscribe",
+        name="Subscription",
         request_serializer_class=BillingAccountSubscriptionSerializer,
         url_path="subscription",
     )
@@ -91,8 +91,9 @@ class BillingAccountViewSet(
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        is_post = self.request.method == "POST"
         try:
-            if self.request.method == "POST":
+            if is_post:
                 billing_account.subscribe(**serializer.validated_data)
             else:
                 billing_account.update_subscription(**serializer.validated_data)
@@ -104,7 +105,10 @@ class BillingAccountViewSet(
             raise ValidationError(e)
         billing_account.refresh_from_db()
         return Response(
-            BillingAccountSerializer(billing_account, context={"request": request}).data
+            BillingAccountSerializer(
+                billing_account, context={"request": request}
+            ).data,
+            status=status.HTTP_201_CREATED if is_post else status.HTTP_200_OK,
         )
 
     @subscription.mapping.delete

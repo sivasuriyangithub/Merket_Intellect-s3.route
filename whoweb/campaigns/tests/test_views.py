@@ -31,7 +31,6 @@ def test_create_simple_campaign(su_client, query_contact_invites):
         },
         format="json",
     )
-    print(resp.content)
     assert resp.status_code == 201
     assert resp.json()["url"].startswith("http://testserver/ww/api/campaign/simple/")
     assert resp.json()["budget"] == 500
@@ -93,7 +92,6 @@ def test_create_interval_campaign(su_client, query_contact_invites):
         },
         format="json",
     )
-    print(resp.content)
     assert resp.status_code == 201
     assert resp.json()["url"].startswith("http://testserver/ww/api/campaign/interval/")
     assert resp.json()["budget"] == 500

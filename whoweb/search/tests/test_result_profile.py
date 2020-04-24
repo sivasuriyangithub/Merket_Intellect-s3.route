@@ -27,7 +27,6 @@ def test_load_derived_profile(raw_derived):
 def test_load_unload_underived_profile(search_results):
     for search_result in search_results:
         result_profile = ResultProfile(**search_result)
-        print(result_profile)
         once = result_profile.dict()
         loaded = ResultProfile(**once)
         twice = loaded.dict()

@@ -2,10 +2,11 @@ import json
 from collections import defaultdict
 from django.core.serializers.json import DjangoJSONEncoder
 from rest_framework.renderers import JSONOpenAPIRenderer
-from rest_framework.schemas.openapi import SchemaGenerator
+
+from whoweb.contrib.rest_framework.schemas import FutureSchemaGenerator
 
 
-class TagGroupSchemaGenerator(SchemaGenerator):
+class TagGroupSchemaGenerator(FutureSchemaGenerator):
     def get_schema(self, request=None, public=False):
         schema = super().get_schema(request=request, public=public)
         paths = schema["paths"]

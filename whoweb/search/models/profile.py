@@ -532,7 +532,6 @@ class ResultProfile(BaseModel):
         profile = ResultProfile(
             _id=_id, first_name=first_name, last_name=last_name, company=company
         )
-        print(_id, first_name, last_name, company)
         if _id and all([first_name, last_name, company]):
             pass
         elif _id and not all([first_name, last_name, company]):

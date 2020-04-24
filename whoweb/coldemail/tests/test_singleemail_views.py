@@ -38,7 +38,6 @@ def test_create_single_email(su_client):
         },
         format="json",
     )
-    print(resp.content)
     assert resp.status_code == 201
     assert resp.json()["url"].startswith("http://testserver/ww/api/single_emails/")
     assert resp.json()["email"] == "test@email.com"

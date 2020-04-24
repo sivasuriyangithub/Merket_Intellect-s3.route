@@ -106,7 +106,6 @@ def test_enrich_profile(
         },
         format="json",
     )
-    print(resp.content)
     assert resp.status_code == 201
     assert "industry" in resp.json()["profile"]
     assert resp.json()["credits_used"] == 25

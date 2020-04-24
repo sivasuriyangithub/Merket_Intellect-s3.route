@@ -10,7 +10,6 @@ PROFILE = "w"
 def flattenDates(obj):
     for (key, val) in obj.items():
         if isinstance(val, dict):
-            print(key, val)
             if val.get("$date"):
                 obj[key] = val.get("$date")
             else:

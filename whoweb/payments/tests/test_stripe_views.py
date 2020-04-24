@@ -78,8 +78,9 @@ def test_add_card_has_existing_subscription_past_due(
     assert billing_account.customer.can_charge() is True
 
 
+@patch("djstripe.models.billing.Subscription.is_period_current")
 @pytest.mark.vcr()
-def test_new_signup_subscription_with_token(su_client):
+def test_new_signup_subscription_with_token(period_mock, su_client):
     billing = BillingAccountOwnerFactory(organization_user__seat_credits=0)
     billing_account: BillingAccount = billing.organization
     plan_one, plan_two = (
@@ -104,7 +105,7 @@ def test_new_signup_subscription_with_token(su_client):
         },
         format="json",
     )
-    assert resp.status_code == 200
+    assert resp.status_code == 201
     assert (
         resp.json()["url"]
         == f"http://testserver/ww/api/billing_accounts/{billing_account.public_id}/"
@@ -113,6 +114,7 @@ def test_new_signup_subscription_with_token(su_client):
     assert customer.can_charge() is True
     assert customer.has_active_subscription(plan_one)
     assert customer.has_active_subscription(plan_two)
+    assert period_mock.call_count == 3  # 2 + 1 for is_valid in response body
     assert sorted(
         [
             item.plan.product.id
@@ -148,7 +150,7 @@ def test_new_signup_subscription_without_token(su_client):
         },
         format="json",
     )
-    assert resp.status_code == 200
+    assert resp.status_code == 201
     assert (
         resp.json()["url"]
         == f"http://testserver/ww/api/billing_accounts/{billing_account.public_id}/"
@@ -194,7 +196,7 @@ def test_upgrade_subscription(su_client):
         },
         format="json",
     )
-    assert resp.status_code == 200
+    assert resp.status_code == 201
     customer = billing_account.customer
     assert customer.has_active_subscription(plan_one)
     assert customer.has_active_subscription(plan_two)
@@ -265,7 +267,7 @@ def test_change_subscription_billing_cycle(su_client):
         },
         format="json",
     )
-    assert resp.status_code == 200
+    assert resp.status_code == 201
     customer = billing_account.customer
     assert customer.has_active_subscription(monthly_one)
     assert customer.has_active_subscription(monthly_two)
@@ -287,7 +289,6 @@ def test_change_subscription_billing_cycle(su_client):
         },
         format="json",
     )
-    print(upgrade.content)
     assert upgrade.status_code == 200
     customer = billing_account.customer
     assert customer.has_active_subscription(yearly_one)

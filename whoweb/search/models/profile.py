@@ -334,6 +334,18 @@ class ResultProfile(BaseModel):
         always=True,
     )
     def set_str_none_to_emptystring(cls, v):
+        """
+        Search is inconsistent in returning null or empty strings.
+        Data may also erroneously be a list of tags, instead of one value.
+
+        "industry": ["health", "health care", "care"]
+
+        """
+        if isinstance(v, (list, tuple)):
+            try:
+                return sorted(v, key=len, reverse=True)[0]
+            except IndexError:
+                return ""
         return v or ""
 
     @root_validator(pre=True)

@@ -32,12 +32,12 @@ from whoweb.accounting.ledgers import (
 )
 from whoweb.accounting.models import LedgerEntry
 from whoweb.contrib.fields import ObscureIdMixin
-from whoweb.users.models import Seat, Network
+from whoweb.users.models import Seat, Group
 from .plans import WKPlan, WKPlanPreset
 
 
 class BillingAccount(ObscureIdMixin, AbstractOrganization):
-    network = models.ForeignKey(Network, on_delete=models.SET_NULL, null=True)
+    group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True)
     seats = models.ManyToManyField(
         Seat, related_name="billing_account", through="BillingAccountMember"
     )

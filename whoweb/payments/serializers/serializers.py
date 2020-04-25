@@ -3,7 +3,7 @@ from rest_framework import serializers
 from whoweb.contrib.graphene_django.fields import NodeRelatedField
 from whoweb.contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
 from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
-from whoweb.users.models import Network
+from whoweb.users.models import Group
 from .stripe import SubscriptionSerializer, StripePlanSerializer
 from ..models import BillingAccount, BillingAccountMember, WKPlan, WKPlanPreset
 
@@ -59,9 +59,10 @@ class BillingAccountSerializer(IdOrHyperlinkedModelSerializer):
     subscription = SubscriptionSerializer(read_only=True)
     plan = PlanSerializer(read_only=True)
     network = IdOrHyperlinkedRelatedField(
-        view_name="network-detail",
+        source="group",
+        view_name="group-detail",
         lookup_field="public_id",
-        queryset=Network.objects.all(),
+        queryset=Group.objects.all(),
     )
 
     class Meta:
@@ -69,7 +70,6 @@ class BillingAccountSerializer(IdOrHyperlinkedModelSerializer):
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
             "plan": {"lookup_field": "public_id"},
-            "network": {"lookup_field": "public_id"},
         }
         depth = 2
         fields = (

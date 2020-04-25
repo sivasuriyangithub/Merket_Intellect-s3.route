@@ -7,7 +7,7 @@ from slugify import slugify
 from whoweb.contrib.graphene_django.fields import NodeRelatedField
 from whoweb.contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
 from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
-from whoweb.users.models import Seat, UserProfile, Network
+from whoweb.users.models import Seat, UserProfile, Group
 from ..models import WKPlan
 
 
@@ -17,7 +17,7 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
     id = serializers.CharField(source="public_id", read_only=True)
     network = IdOrHyperlinkedRelatedField(
         source="organization",
-        view_name="network-detail",
+        view_name="group-detail",
         lookup_field="public_id",
         read_only=True,
     )
@@ -64,7 +64,6 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
         model = Seat
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
-            "network": {"lookup_field": "public_id"},
         }
         fields = [
             "display_name",
@@ -102,9 +101,7 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
         profile, _ = UserProfile.get_or_create(
             username=xperweb_id, email=email, first_name=first_name, last_name=last_name
         )
-        group, _ = Network.objects.get_or_create(
-            name=group_name, slug=slugify(group_id)
-        )
+        group, _ = Group.objects.get_or_create(name=group_name, slug=slugify(group_id))
         seat, _ = group.get_or_add_user(
             user=profile.user, display_name=profile.user.get_full_name()
         )
@@ -118,7 +115,7 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
         billing_account, _ = BillingAccount.objects.update_or_create(
             name=billing_account_name,
             slug=slugify(billing_account_name),
-            network=group,
+            group=group,
             defaults=dict(plan=plan),
         )
         billing_member, _ = billing_account.get_or_add_user(
@@ -177,7 +174,7 @@ class AdminBillingAccountSerializer(IdOrHyperlinkedModelSerializer):
     id = serializers.CharField(source="public_id", read_only=True)
     network = IdOrHyperlinkedRelatedField(
         source="organization",
-        view_name="network-detail",
+        view_name="group-detail",
         lookup_field="public_id",
         read_only=True,
     )
@@ -247,9 +244,7 @@ class AdminBillingAccountSerializer(IdOrHyperlinkedModelSerializer):
         profile, _ = UserProfile.get_or_create(
             username=xperweb_id, email=email, first_name=first_name, last_name=last_name
         )
-        group, _ = Network.objects.get_or_create(
-            name=group_name, slug=slugify(group_id)
-        )
+        group, _ = Group.objects.get_or_create(name=group_name, slug=slugify(group_id))
         seat, _ = group.get_or_add_user(
             user=profile.user, display_name=profile.user.get_full_name()
         )

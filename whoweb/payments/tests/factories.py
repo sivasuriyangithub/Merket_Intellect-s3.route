@@ -65,7 +65,7 @@ class WKPlanPresetFactory(DjangoModelFactory):
 class BillingAccountFactory(DjangoModelFactory):
 
     name = Faker("company")
-    network = SelfAttribute("..seat.organization")
+    group = SelfAttribute("..seat.organization")
     plan = SubFactory(WKPlanFactory)
 
     class Meta:

@@ -13,7 +13,7 @@ from organizations.base_admin import (
 from organizations.models import OrganizationOwner, OrganizationUser, Organization
 
 from whoweb.users.forms import GroupOwnerAdminForm, SeatAdminForm
-from whoweb.users.models import UserProfile, Network, Seat, GroupOwner, DeveloperKey
+from whoweb.users.models import UserProfile, Group, Seat, GroupOwner, DeveloperKey
 
 User = get_user_model()
 
@@ -74,7 +74,7 @@ class GroupOwnerAdmin(GuardedModelAdminMixin, BaseOrganizationOwnerAdmin):
 admin.site.unregister(Organization)
 admin.site.unregister(OrganizationUser)
 admin.site.unregister(OrganizationOwner)
-admin.site.register(Network, GroupAdmin)
+admin.site.register(Group, GroupAdmin)
 admin.site.register(Seat, SeatAdmin)
 admin.site.register(GroupOwner, GroupOwnerAdmin)
 admin.site.register(DeveloperKey, GuardedModelAdmin)

@@ -104,7 +104,6 @@ class DeveloperKeySerializer(
     id = serializers.CharField(source="pk", read_only=True)
     graph_id = NodeRelatedField("DeveloperKeyNode", source="pk")
     network = IdOrHyperlinkedRelatedField(
-        source="group",
         view_name="group-detail",
         lookup_field="public_id",
         queryset=Group.objects.all(),
@@ -130,7 +129,7 @@ class DeveloperKeySerializer(
 
     def validate(self, attrs):
         user = attrs["created_by"]
-        if not user.has_perm("add_developerkeys", attrs["group"]):
+        if not user.has_perm("add_developerkeys", attrs["network"]):
             raise PermissionDenied
         return attrs
 

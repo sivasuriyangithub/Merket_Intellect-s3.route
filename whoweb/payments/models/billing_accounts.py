@@ -37,7 +37,7 @@ from .plans import WKPlan, WKPlanPreset
 
 
 class BillingAccount(ObscureIdMixin, AbstractOrganization):
-    group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True)
+    network = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True)
     seats = models.ManyToManyField(
         Seat, related_name="billing_account", through="BillingAccountMember"
     )

@@ -59,7 +59,6 @@ class BillingAccountSerializer(IdOrHyperlinkedModelSerializer):
     subscription = SubscriptionSerializer(read_only=True)
     plan = PlanSerializer(read_only=True)
     network = IdOrHyperlinkedRelatedField(
-        source="group",
         view_name="group-detail",
         lookup_field="public_id",
         queryset=Group.objects.all(),

@@ -182,7 +182,7 @@ class DeveloperKey(ObscureIdMixin, TimeStampedModel):
     key = models.CharField(default=make_key, unique=True, max_length=64)
     secret = encrypt(models.CharField(default=make_secret, max_length=64))
     test_key = models.BooleanField(default=False)
-    group = models.ForeignKey(
+    network = models.ForeignKey(
         Group, on_delete=models.CASCADE, related_name="credentials"
     )
     seat = models.ForeignKey(

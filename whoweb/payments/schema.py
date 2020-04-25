@@ -27,7 +27,7 @@ class PlanNode(GuardedObjectType):
 
 
 class BillingAccountNode(GuardedObjectType):
-    network = graphene.Field(NetworkNode, source="group")
+    network = graphene.Field(NetworkNode)
 
     class Meta:
         model = BillingAccount

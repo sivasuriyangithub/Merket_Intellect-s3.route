@@ -11,7 +11,7 @@ from factory import (
     RelatedFactory,
 )
 
-from whoweb.users.models import Group, GroupOwner, Seat
+from whoweb.users.models import Network, GroupOwner, Seat
 
 
 class EmailAddressFactory(DjangoModelFactory):
@@ -53,7 +53,7 @@ class GroupFactory(DjangoModelFactory):
     name = Faker("company")
 
     class Meta:
-        model = Group
+        model = Network
 
 
 class SeatFactory(DjangoModelFactory):

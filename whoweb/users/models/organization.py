@@ -14,7 +14,7 @@ from organizations.signals import user_added
 from whoweb.contrib.fields import ObscureIdMixin
 
 
-class Group(ObscureIdMixin, AbstractOrganization):
+class Network(ObscureIdMixin, AbstractOrganization):
     class Meta:
         verbose_name = _("network")
         verbose_name_plural = _("networks")
@@ -113,8 +113,8 @@ class Group(ObscureIdMixin, AbstractOrganization):
             name=f"{self.permissions_scope}:network_viewers"
         )
         if created:
-            assign_perm("users.view_group", group)
-            assign_perm("users.view_group", group, self)
+            assign_perm("users.view_network", group)
+            assign_perm("users.view_network", group, self)
         return group
 
     @transaction.atomic
@@ -182,8 +182,8 @@ class DeveloperKey(ObscureIdMixin, TimeStampedModel):
     key = models.CharField(default=make_key, unique=True, max_length=64)
     secret = encrypt(models.CharField(default=make_secret, max_length=64))
     test_key = models.BooleanField(default=False)
-    group = models.ForeignKey(
-        Group, on_delete=models.CASCADE, related_name="credentials"
+    network = models.ForeignKey(
+        Network, on_delete=models.CASCADE, related_name="credentials"
     )
     seat = models.ForeignKey(
         Seat,

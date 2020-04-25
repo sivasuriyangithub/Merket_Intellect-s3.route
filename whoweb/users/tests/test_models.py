@@ -1,13 +1,13 @@
 import pytest
 
-from whoweb.users.models import Group
+from whoweb.users.models import Network
 from whoweb.users.tests.factories import GroupFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
 
 
 def test_get_or_add_user():
-    group: Group = GroupFactory()
+    group: Network = GroupFactory()
     owner_user = UserFactory()
 
     owner_seat, created = group.get_or_add_user(owner_user)
@@ -37,7 +37,7 @@ def test_get_or_add_user():
 
 
 def test_remove_user():
-    group: Group = GroupFactory()
+    group: Network = GroupFactory()
     owner_user = UserFactory()
     user = UserFactory()
     group.get_or_add_user(owner_user)
@@ -49,7 +49,7 @@ def test_remove_user():
 
 
 def test_change_owner():
-    group: Group = GroupFactory()
+    group: Network = GroupFactory()
     owner_user = UserFactory()
     user = UserFactory()
     group.get_or_add_user(owner_user)

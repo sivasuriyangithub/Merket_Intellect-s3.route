@@ -10,11 +10,11 @@ class GroupOwnerAdminForm(forms.ModelForm):
     class Meta:
         model = GroupOwner
         fields = "__all__"
-        labels = {"organization_user": "Seat", "organization": "Group"}
+        labels = {"organization_user": "Seat", "organization": "Network"}
 
 
 class SeatAdminForm(forms.ModelForm):
     class Meta:
         model = Seat
         fields = "__all__"
-        labels = {"organization_user": "Seat", "organization": "Group"}
+        labels = {"organization_user": "Seat", "organization": "Network"}

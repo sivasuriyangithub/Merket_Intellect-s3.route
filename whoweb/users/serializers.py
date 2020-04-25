@@ -6,7 +6,7 @@ from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 from whoweb.contrib.graphene_django.fields import NodeRelatedField
 from whoweb.contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
 from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
-from .models import Seat, DeveloperKey, Group, UserProfile
+from .models import Seat, DeveloperKey, Network, UserProfile
 
 
 class UserSerializer(IdOrHyperlinkedModelSerializer):
@@ -29,7 +29,7 @@ class NetworkSerializer(IdOrHyperlinkedModelSerializer):
     id = serializers.CharField(source="public_id", read_only=True)
 
     class Meta:
-        model = Group
+        model = Network
         extra_kwargs = {"url": {"lookup_field": "public_id"}}
         fields = ("name", "slug", "url", "id", "graph_id")
         read_only_fields = fields
@@ -39,9 +39,9 @@ class SeatSerializer(ObjectPermissionsAssignmentMixin, IdOrHyperlinkedModelSeria
     created_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
     network = IdOrHyperlinkedRelatedField(
         source="organization",
-        view_name="group-detail",
+        view_name="network-detail",
         lookup_field="public_id",
-        queryset=Group.objects.all(),
+        queryset=Network.objects.all(),
     )
     graph_id = NodeRelatedField("SeatNode", source="public_id")
     id = serializers.CharField(source="public_id", read_only=True)
@@ -103,17 +103,12 @@ class DeveloperKeySerializer(
     created_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
     id = serializers.CharField(source="pk", read_only=True)
     graph_id = NodeRelatedField("DeveloperKeyNode", source="pk")
-    network = IdOrHyperlinkedRelatedField(
-        source="group",
-        view_name="group-detail",
-        lookup_field="public_id",
-        queryset=Group.objects.all(),
-    )
 
     class Meta:
         model = DeveloperKey
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
+            "network": {"lookup_field": "public_id"},
         }
         fields = [
             "id",

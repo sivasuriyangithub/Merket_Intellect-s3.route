@@ -1,6 +1,7 @@
 from allauth.account.models import EmailAddress
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from guardian.mixins import GuardianUserMixin
 from model_utils.models import TimeStampedModel
@@ -30,6 +31,10 @@ class UserProfile(ObscureIdMixin, TimeStampedModel):
             defaults={"email": email, "verified": True, "primary": True},
         )
         return cls.objects.get_or_create(user=user)
+
+    @cached_property
+    def username(self):
+        return self.user.username
 
 
 # WARN: See docstring.

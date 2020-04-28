@@ -1,21 +1,21 @@
 six==1.14.0
-ipython==7.12.0
+ipython==7.13.0
 pytz==2019.3  # https://github.com/stub42/pytz
 python-slugify==4.0.0  # https://github.com/un33k/python-slugify
 Pillow==7.0.0  # https://github.com/python-pillow/Pillow
 argon2-cffi==19.2.0  # https://github.com/hynek/argon2_cffi
 whitenoise==5.0.1  # https://github.com/evansd/whitenoise
 redis==3.4.1  # https://github.com/antirez/redis
-celery[gevent,tblib]==4.4.0  # pyup: < 5.0  # https://github.com/celery/celery
-django-celery-beat==1.6.0  # https://github.com/celery/django-celery-beat
-django-celery-results==1.2.0 # https://github.com/celery/django-celery-results
-flower==0.9.3  # https://github.com/mher/flower
+celery[gevent,tblib]==4.4.2  # pyup: < 5.0  # https://github.com/celery/celery
+django-celery-beat==2.0.0  # https://github.com/celery/django-celery-beat
+django-celery-results==1.2.1 # https://github.com/celery/django-celery-results
+flower==0.9.4  # https://github.com/mher/flower
 pymongo==3.10.1 # for bson utils
 dnspython
 requests-cache
 python-dateutil==2.8.1
-pydantic==1.4 # https://github.com/samuelcolvin/pydantic
-django-cryptography==0.3 # https://github.com/georgemarshall/django-cryptography
+pydantic==1.5.1 # https://github.com/samuelcolvin/pydantic
+django-cryptography==1.0 # https://github.com/georgemarshall/django-cryptography
 
 # Django
 # ------------------------------------------------------------------------------
@@ -23,7 +23,7 @@ django==2.2.10  # pyup: < 3.0  # https://www.djangoproject.com/
 django-environ==0.4.5  # https://github.com/joke2k/django-environ
 django-model-utils==4.0.0  # https://github.com/jazzband/django-model-utils
 django-allauth==0.41.0  # https://github.com/pennersr/django-allauth
-django-crispy-forms==1.8.1  # https://github.com/django-crispy-forms/django-crispy-forms
+django-crispy-forms==1.9.0  # https://github.com/django-crispy-forms/django-crispy-forms
 django-redis==4.11.0  # https://github.com/niwinz/django-redis
 django-organizations==1.1.2 # https://github.com/bennylope/django-organizations
 django-prettyjson==0.4.1 # https://github.com/kevinmickey/django-prettyjson
@@ -32,7 +32,7 @@ git+https://git@github.com/lukasvinclav/django-admin-actions.git@cdc6a82f62009b0
 django-inline-actions==2.3.0 # https://github.com/escaped/django-inline-actions
 django-polymorphic==2.1.2 # https://github.com/django-polymorphic/django-polymorphic
 django-tagulous[i18n]==0.14.1 # http://radiac.net/projects/django-tagulous/documentation
-dj-stripe==2.2.3 # https://github.com/dj-stripe/dj-stripe
+dj-stripe==2.3.0 # https://github.com/dj-stripe/dj-stripe
 django-proxy-overrides==0.2.1 # https://github.com/datamade/django-proxy-overrides
 
 # Django REST Framework
@@ -41,7 +41,7 @@ drf-extensions==0.6.0 # https://github.com/chibisov/drf-extensions
 coreapi==2.3.3  # https://github.com/core-api/python-client
 django-filter==2.2.0
 markdown==3.2.1
-Pygments==2.5.2
+Pygments==2.6.1
 django-guardian==2.2.0 # http://github.com/django-guardian/django-guardian
 djangorestframework-guardian==0.3.0 # https://github.com/rpkilby/django-rest-framework-guardian
 djangorestframework_simplejwt==4.4.0 # https://github.com/davesque/django-rest-framework-simplejwt
@@ -49,5 +49,5 @@ pyyaml==5.3.1 # https://www.django-rest-framework.org/api-guide/schemas/
 uritemplate==3.0.1 # https://www.django-rest-framework.org/api-guide/schemas/
 
 # GraphQL
-graphene-django==2.8.0 # https://github.com/graphql-python/graphene-django
-django-graphql-jwt==0.3.0 # https://github.com/flavors/django-graphql-jwt
+graphene-django==2.9.1 # https://github.com/graphql-python/graphene-django
+django-graphql-jwt==0.3.1 # https://github.com/flavors/django-graphql-jwt

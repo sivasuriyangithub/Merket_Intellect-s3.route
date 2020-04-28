@@ -20,7 +20,7 @@ class TagulousField(SlugRelatedField):
             self.fail("invalid")
 
     def get_queryset(self):
-        return getattr(self.parent.Meta.model, self.source).tag_model.objects
+        return getattr(self.parent.Meta.model, self.source).tag_model.objects.all()
 
 
 class MultipleChoiceListField(MultipleChoiceField):

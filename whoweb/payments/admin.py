@@ -27,17 +27,26 @@ class OwnerInline(BaseOwnerInline):
 
 class MemberInline(admin.TabularInline):
     model = BillingAccountMember
-    form = BillingAccountMemberAdminInlineForm
     fields = ("is_admin", "seat", "seat_credits", "pool_credits")
     extra = 1
+    readonly_fields = ("seat_credits",)
 
 
 class BillingAccountAdmin(BaseOrganizationAdmin):
     inlines = [OwnerInline, MemberInline]
+    list_display = ("pk", "public_id", "name", "network", "credit_pool")
 
 
 class BillingAccountMemberAdmin(BaseOrganizationUserAdmin):
     form = BillingAccountMemberAdminForm
+    list_display = (
+        "pk",
+        "public_id",
+        "user",
+        "organization",
+        "pool_credits",
+        "credits",
+    )
     exclude = ("user",)
 
     def save_model(self, request, obj, form, change):

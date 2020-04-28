@@ -50,3 +50,37 @@ def test_passthrough_updates_credits(su_client):
     assert resp.status_code == 200
     seat.billing.refresh_from_db(fields=("seat_credits",))
     assert seat.billing.seat_credits == 100001
+
+
+def test_set_member_credits(su_client):
+    seat = BillingAccountMemberFactory(seat_credits=0)
+    org = seat.organization
+    org.credit_pool = 20000
+    org.save()
+    assert seat.credits == 0
+
+    resp = su_client.post(
+        f"/ww/api/billing_accounts/{org.public_id}/credits/",
+        {"credits": 14000, "billing_seat": seat.public_id,},
+        format="json",
+    )
+    print(resp.content)
+    assert resp.status_code == 200
+    assert resp.json()["pool_credits"] == False
+    assert resp.json()["credits"] == 14000
+
+
+def test_set_member_should_pool(su_client):
+    seat = BillingAccountMemberFactory(seat_credits=10000)
+    assert seat.credits == 10000
+    assert seat.pool_credits == False
+
+    resp = su_client.post(
+        f"/ww/api/billing_accounts/{seat.organization.public_id}/credits/",
+        {"pool": True, "billing_seat": seat.public_id,},
+        format="json",
+    )
+    print(resp.content)
+    assert resp.status_code == 200
+    assert resp.json()["pool_credits"] == True
+    assert resp.json()["credits"] == 10000

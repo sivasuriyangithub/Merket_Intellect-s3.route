@@ -115,7 +115,7 @@ class BillingAccountViewSet(
     @subscription.mapping.delete
     def cancel_subscription(self, request, public_id=None):
         billing_account: BillingAccount = self.get_object()
-        billing_account.subscription().cancel(at_period_end=CANCELLATION_AT_PERIOD_END)
+        billing_account.subscription.cancel(at_period_end=CANCELLATION_AT_PERIOD_END)
         return Response(
             BillingAccountSerializer(billing_account, context={"request": request}).data
         )
@@ -126,7 +126,7 @@ class BillingAccountViewSet(
         name="Set Member Credits",
         request_serializer_class=ManageMemberCreditsSerializer,
     )
-    def credits(self, request, pk=None):
+    def credits(self, request, public_id=None):
         """
 
         :param request:
@@ -143,16 +143,21 @@ class BillingAccountViewSet(
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        member = serializer.validated_data["billing_seat"]
-        updated = billing_account.set_member_credits(
-            member=member, target=serializer.validated_data["credits"]
-        )
+        member: BillingAccountMember = serializer.validated_data["billing_seat"]
+        if serializer.validated_data["pool"] is True:
+            member.pool_credits = True
+            member.save()
+            target = 0
+        else:
+            target = serializer.validated_data["credits"]
+        updated = billing_account.set_member_credits(member=member, target=target)
         if not updated:
             raise PaymentRequired
 
         member.refresh_from_db()
         return Response(
-            BillingAccountMemberSerializer(member).data, status=status.HTTP_200_OK
+            BillingAccountMemberSerializer(member, context={"request": request}).data,
+            status=status.HTTP_200_OK,
         )
 
 

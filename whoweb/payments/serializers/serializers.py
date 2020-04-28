@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from whoweb.contrib.graphene_django.fields import NodeRelatedField
 from whoweb.contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
@@ -110,12 +111,21 @@ class BillingAccountSubscriptionSerializer(serializers.Serializer):
 
 
 class ManageMemberCreditsSerializer(serializers.Serializer):
-    credits = serializers.IntegerField(min_value=0)
+    credits = serializers.IntegerField(min_value=0, default=0, initial=0)
+    pool = serializers.BooleanField(default=False, initial=False, required=False)
     billing_seat = IdOrHyperlinkedRelatedField(
         view_name="billingaccountmember-detail",
         lookup_field="public_id",
         queryset=BillingAccountMember.objects.all(),
     )
+
+    def validate(self, attrs):
+        if attrs.get("pool", False) and attrs.get("credits", 0) > 0:
+            raise ValidationError(
+                "You may not set credits for a member using the account credit pool. "
+                "Either set pool to false or set credits to 0."
+            )
+        return attrs
 
 
 class BillingAccountMemberSerializer(IdOrHyperlinkedModelSerializer):

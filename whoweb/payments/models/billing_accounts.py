@@ -22,6 +22,7 @@ from organizations.abstract import (
 )
 from organizations.signals import user_added
 from proxy_overrides.related import ProxyForeignKey
+from rest_framework.reverse import reverse
 
 from whoweb.accounting.actions import create_transaction, Debit, Credit
 from whoweb.accounting.ledgers import (
@@ -67,8 +68,12 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
         customer, created = MultiPlanCustomer.get_or_create(subscriber=self)
         return MultiPlanCustomer.objects.get(pk=customer.pk)
 
-    def subscription(self):
+    @property
+    def subscription(self) -> "MultiPlanSubscription":
         return self.customer.subscription
+
+    def get_absolute_url(self):
+        return reverse("billingaccount-detail", kwargs={"public_id": self.public_id})
 
     def get_or_add_user(self, user, **kwargs):
         """
@@ -160,15 +165,17 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
 
     def set_member_credits(self, member: "BillingAccountMember", target: int):
         with atomic():
-            locked_member = BillingAccountMember.objects.filter(
-                pk=member.pk
-            ).select_for_update(of=("self",))
+            locked_member = (
+                BillingAccountMember.objects.filter(pk=member.pk)
+                .select_for_update(of=("self",))
+                .get()
+            )
             adjustment = target - locked_member.seat_credits
             # TODO: not sure if update can be done in subtransaction; test!
             if adjustment > 0:
                 return self.allocate_credits_to_member(member, amount=adjustment)
             elif adjustment < 0:
-                return self.revoke_credits_from_member(member, amount=adjustment)
+                return self.revoke_credits_from_member(member, amount=abs(adjustment))
             else:
                 return True
 
@@ -284,6 +291,11 @@ class BillingAccountMember(ObscureIdMixin, AbstractOrganizationUser):
     class Meta:
         verbose_name = _("billing account member")
         verbose_name_plural = _("billing account members")
+
+    def get_absolute_url(self):
+        return reverse(
+            "billingaccountmember-detail", kwargs={"public_id": self.public_id}
+        )
 
     @property
     def credits(self) -> int:
@@ -415,6 +427,12 @@ class MultiPlanSubscription(Subscription):
         related_name="subscriptions",
         help_text="The customer associated with this subscription.",
     )
+
+    def __str__(self):
+        return "{customer} on {plan}".format(
+            customer=str(self.customer),
+            plan=", ".join([str(item.plan) for item in self.items.all()]),
+        )
 
     def update(
         self,

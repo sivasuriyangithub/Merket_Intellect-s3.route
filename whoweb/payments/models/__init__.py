@@ -61,8 +61,10 @@ def on_subscription_update_ensure_items_updated(event: Event, **kwargs):
         try:
             SubscriptionItem.sync_from_stripe_data(item.api_retrieve())
         except InvalidRequestError as e:
-            if e.code == 404:
+            if e.http_status == 404:
                 item.delete()
+            else:
+                raise
 
 
 @receiver(WEBHOOK_SIGNALS["invoice.payment_succeeded"], sender=Event)

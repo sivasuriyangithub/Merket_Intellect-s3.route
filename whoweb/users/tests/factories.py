@@ -48,7 +48,7 @@ class UserFactory(DjangoModelFactory):
         django_get_or_create = ["username"]
 
 
-class GroupFactory(DjangoModelFactory):
+class NetworkFactory(DjangoModelFactory):
 
     name = Faker("company")
 
@@ -58,7 +58,7 @@ class GroupFactory(DjangoModelFactory):
 
 class SeatFactory(DjangoModelFactory):
     user = SubFactory(UserFactory)
-    organization = SubFactory(GroupFactory)
+    organization = SubFactory(NetworkFactory)
     display_name = Faker("user_name")
 
     class Meta:

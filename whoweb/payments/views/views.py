@@ -3,6 +3,7 @@ import logging
 from django.core.exceptions import ValidationError as CoreValidationError
 from django.db.models import Q
 from django.http import Http404
+from django_filters.rest_framework import DjangoFilterBackend
 from djstripe.exceptions import MultipleSubscriptionException
 from djstripe.settings import CANCELLATION_AT_PERIOD_END
 from rest_framework import status, mixins
@@ -12,7 +13,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
-from whoweb.contrib.rest_framework.permissions import IsSuperUser
+from whoweb.contrib.rest_framework.filters import ObjectPermissionsFilter
+from whoweb.contrib.rest_framework.permissions import IsSuperUser, ObjectPermissions
 from ..exceptions import PaymentRequired
 from ..models import (
     WKPlan,
@@ -71,7 +73,8 @@ class BillingAccountViewSet(
     lookup_field = "public_id"
     queryset = BillingAccount.objects.all()
     serializer_class = BillingAccountSerializer
-    permission_classes = [IsSuperUser]
+    permission_classes = [IsSuperUser | ObjectPermissions]
+    filter_backends = [DjangoFilterBackend, ObjectPermissionsFilter]
 
     request_serializer_class = BillingAccountSerializer
     response_serializer_class = BillingAccountSerializer

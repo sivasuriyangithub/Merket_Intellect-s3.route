@@ -2,8 +2,13 @@ from unittest.mock import patch
 
 import bson
 import pytest
+from guardian.shortcuts import get_perms
 
-from whoweb.payments.tests.factories import BillingAccountMemberFactory
+from whoweb.payments.models import BillingAccount
+from whoweb.payments.tests.factories import (
+    BillingAccountMemberFactory,
+    BillingAccountFactory,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -84,3 +89,23 @@ def test_set_member_should_pool(su_client):
     assert resp.status_code == 200
     assert resp.json()["pool_credits"] == True
     assert resp.json()["credits"] == 10000
+
+
+def test_owner_can_view_only_own_account(api_client, seat):
+    alpha: BillingAccount = BillingAccountFactory(
+        name="Alpha Co", network=seat.organization
+    )
+    alpha_owner, created = alpha.get_or_add_user(seat.user, seat=seat)
+    print([group.permissions.all() for group in seat.user.groups.all()])
+    print(get_perms(seat.user, alpha))
+    beta_mbr = BillingAccountMemberFactory(organization__name="Beta Co")
+
+    api_client.force_authenticate(user=alpha_owner.user)
+    resp = api_client.get(
+        f"/ww/api/billing_accounts/{alpha.public_id}/", format="json",
+    )
+    assert resp.status_code == 200
+    resp = api_client.get(
+        f"/ww/api/billing_accounts/{beta_mbr.organization.public_id}/", format="json",
+    )
+    assert resp.status_code == 404

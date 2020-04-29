@@ -272,7 +272,7 @@ LOGGING = {
             "formatter": "verbose",
         }
     },
-    "root": {"level": "INFO", "handlers": ["console"]},
+    "root": {"level": env("DJANGO_LOG_LEVEL", default="INFO"), "handlers": ["console"]},
 }
 
 # Celery

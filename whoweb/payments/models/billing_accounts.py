@@ -5,8 +5,7 @@ from typing import Optional, Union
 from django.contrib.postgres.fields import JSONField
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import F, Value, Q
-from django.db.models.functions import Greatest
+from django.db.models import F, Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.timezone import now
@@ -15,12 +14,12 @@ from djstripe import settings as djstripe_settings
 from djstripe.enums import SubscriptionStatus
 from djstripe.exceptions import MultipleSubscriptionException
 from djstripe.models import Customer, StripeModel, Subscription, SubscriptionItem
+from guardian.shortcuts import assign_perm
 from organizations.abstract import (
-    AbstractOrganization,
     AbstractOrganizationUser,
     AbstractOrganizationOwner,
+    AbstractOrganization,
 )
-from organizations.signals import user_added
 from proxy_overrides.related import ProxyForeignKey
 from rest_framework.reverse import reverse
 
@@ -33,11 +32,14 @@ from whoweb.accounting.ledgers import (
 )
 from whoweb.accounting.models import LedgerEntry
 from whoweb.contrib.fields import ObscureIdMixin
+from whoweb.contrib.organizations.models import PermissionsAbstractOrganization
 from whoweb.users.models import Seat, Group
 from .plans import WKPlan, WKPlanPreset
 
 
-class BillingAccount(ObscureIdMixin, AbstractOrganization):
+class BillingAccount(
+    ObscureIdMixin, PermissionsAbstractOrganization, AbstractOrganization
+):
     network = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True)
     seats = models.ManyToManyField(
         Seat, related_name="billing_account", through="BillingAccountMember"
@@ -50,6 +52,24 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
     class Meta:
         verbose_name = _("billing account")
         verbose_name_plural = _("billing accounts")
+        permissions = (
+            (
+                "change_membercredits",
+                "May allocate and revoke credits for all members.",
+            ),
+            (
+                "add_billingaccountmembers",
+                "Add billing account member to billing account.",
+            ),
+            (
+                "view_billingaccountmembers",
+                "View all billing account members in this billing account.",
+            ),
+            (
+                "delete_billingaccountmembers",
+                "Delete billing account member from billing account.",
+            ),
+        )
 
     @cached_property
     def email(self):
@@ -75,32 +95,47 @@ class BillingAccount(ObscureIdMixin, AbstractOrganization):
     def get_absolute_url(self):
         return reverse("billingaccount-detail", kwargs={"public_id": self.public_id})
 
-    def get_or_add_user(self, user, **kwargs):
-        """
-        Adds a new user to the organization, and if it's the first user makes
-        the user an admin and the owner. Uses the `get_or_create` method to
-        create or return the existing user.
+    @property
+    @atomic
+    def default_admin_permission_groups(self):
+        return [self.admin_authgroup, self.members_admin_authgroup]
 
-        `user` should be a user instance, e.g. `auth.User`.
+    @property
+    @atomic
+    def default_permission_groups(self):
+        return [self.organization_viewers]
 
-        Returns the same tuple as the `get_or_create` method, the
-        `OrganizationUser` and a boolean value indicating whether the
-        OrganizationUser was created or not.
-        """
-        users_count = self.users.all().count()
-        kwargs.setdefault("is_admin", users_count == 0)
-
-        org_user, created = self._org_user_model.objects.get_or_create(
-            organization=self, user=user, defaults=kwargs
-        )
-        if users_count == 0:
-            self._org_owner_model.objects.create(
-                organization=self, organization_user=org_user
-            )
+    @property
+    def admin_authgroup(self):
+        group, created = self.get_or_create_auth_group("admin")
         if created:
-            # User added signal
-            user_added.send(sender=self, user=user)
-        return org_user, created
+            assign_perm("payments.view_billingaccount", group)
+            assign_perm("payments.change_billingaccount", group)
+            assign_perm("payments.view_billingaccount", group, self)
+            assign_perm("payments.change_billingaccount", group, self)
+        return group
+
+    @property
+    def members_admin_authgroup(self):
+        group, created = self.get_or_create_auth_group("members_admin")
+        if created:
+            assign_perm("payments.add_billingaccountmember", group)
+            assign_perm("payments.view_billingaccountmember", group)
+            assign_perm("payments.delete_billingaccountmember", group)
+            assign_perm("add_billingaccountmembers", group, self)
+            assign_perm("view_billingaccountmembers", group, self)
+            assign_perm("delete_billingaccountmembers", group, self)
+
+            assign_perm("change_membercredits", group, self)
+        return group
+
+    @property
+    def organization_viewers(self):
+        group, created = self.get_or_create_auth_group("network_viewers")
+        if created:
+            assign_perm("payments.view_billingaccount", group)
+            assign_perm("payments.view_billingaccount", group, self)
+        return group
 
     @atomic
     def consume_credits(self, amount, *args, evidence=(), **kwargs):

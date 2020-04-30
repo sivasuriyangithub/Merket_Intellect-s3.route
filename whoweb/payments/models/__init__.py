@@ -69,11 +69,12 @@ def on_subscription_update_ensure_items_updated(event: Event, **kwargs):
 
 @receiver(WEBHOOK_SIGNALS["invoice.payment_succeeded"], sender=Event)
 def on_payment_succeed_replenish_customer_credits(event: Event, **kwargs):
-    acct: BillingAccount = event.customer.subscriber
-
     # make sure SubscriptionItems are up to date
     on_subscription_update_ensure_items_updated(event=event)
 
+    acct: BillingAccount = event.customer.subscriber
+    if not acct:
+        return
     quantity = 0
     for item in event.customer.subscription.items.all():
         item: SubscriptionItem = item

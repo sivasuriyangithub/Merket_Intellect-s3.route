@@ -24,6 +24,7 @@ from organizations.abstract import (
 from organizations.signals import user_added
 from proxy_overrides.related import ProxyForeignKey
 from rest_framework.reverse import reverse
+from stripe.error import InvalidRequestError
 
 from whoweb.accounting.actions import create_transaction, Debit, Credit
 from whoweb.accounting.ledgers import (
@@ -496,6 +497,15 @@ class MultiPlanSubscription(Subscription):
             SubscriptionItem.sync_from_stripe_data(item.api_retrieve())
 
         return MultiPlanSubscription.objects.get(pk=subscription.pk)
+
+    def sync_or_purge_subscription_items(self):
+        for item in self.items.all():
+            item: SubscriptionItem = item
+            try:
+                SubscriptionItem.sync_from_stripe_data(item.api_retrieve())
+            except InvalidRequestError as e:
+                if e.http_status == 404:
+                    item.delete()
 
 
 User = get_user_model()

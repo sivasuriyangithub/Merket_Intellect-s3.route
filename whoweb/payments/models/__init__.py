@@ -56,6 +56,8 @@ Plan.create = classmethod(patched_create)
 
 @receiver(WEBHOOK_SIGNALS["customer.subscription.updated"], sender=Event)
 def on_subscription_update_ensure_items_updated(event: Event, **kwargs):
+    if not (event.customer and event.customer.subscription):
+        return
     for item in event.customer.subscription.items.all():
         item: SubscriptionItem = item
         try:

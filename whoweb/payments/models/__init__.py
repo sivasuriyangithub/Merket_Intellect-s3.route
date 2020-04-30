@@ -1,3 +1,4 @@
+from django.contrib.auth import get_user_model
 from django.dispatch import receiver
 from djstripe.models import Plan, Event, SubscriptionItem, Account
 from djstripe.signals import WEBHOOK_SIGNALS
@@ -67,6 +68,14 @@ Account._manipulate_stripe_object_hook = classmethod(
 )
 
 
+def get_stripe_webhook_user():
+    User = get_user_model()
+    stripe_webhook_user, created = User.objects.get_or_create(
+        username="stripe_webhook_user", email="dev+stripe_webhook_user@whoknows.com"
+    )
+    return stripe_webhook_user
+
+
 @receiver(WEBHOOK_SIGNALS["customer.subscription.updated"], sender=Event)
 def on_subscription_update_ensure_items_updated(event: Event, **kwargs):
     if not (event.customer and event.customer.subscription):
@@ -95,4 +104,7 @@ def on_payment_succeed_replenish_customer_credits(event: Event, **kwargs):
         item: SubscriptionItem = item
         if item.plan.product.metadata.get("product") == "credits":
             quantity += item.quantity
-    acct.replenish_credits(amount=quantity, evidence=(event,))
+
+    acct.replenish_credits(
+        amount=quantity, initiated_by=get_stripe_webhook_user(), evidence=(event,)
+    )

@@ -1,5 +1,5 @@
 from django.dispatch import receiver
-from djstripe.models import Plan, Event, SubscriptionItem
+from djstripe.models import Plan, Event, SubscriptionItem, Account
 from djstripe.signals import WEBHOOK_SIGNALS
 from stripe.error import InvalidRequestError
 
@@ -52,6 +52,19 @@ def patched_create(cls, description=None, name=None, aggregate_usage=None, **kwa
 
 Plan._original_create = Plan.create
 Plan.create = classmethod(patched_create)
+
+
+# https://github.com/dj-stripe/dj-stripe/issues/830
+def _account_manipulate_stripe_object_hook(cls, data):
+    data["settings"]["branding"]["icon"] = None
+    data["settings"]["branding"]["logo"] = None
+    return _original_account_manipulate_stripe_object_hook(data)
+
+
+_original_account_manipulate_stripe_object_hook = Account._manipulate_stripe_object_hook
+Account._manipulate_stripe_object_hook = classmethod(
+    _account_manipulate_stripe_object_hook
+)
 
 
 @receiver(WEBHOOK_SIGNALS["customer.subscription.updated"], sender=Event)

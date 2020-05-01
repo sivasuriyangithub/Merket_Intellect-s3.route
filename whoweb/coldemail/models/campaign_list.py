@@ -39,7 +39,11 @@ class CampaignList(ColdemailBaseModel):
             query["filters"]["skip"] = 0
 
         export = SearchExport.create_from_query(
-            billing_seat=self.billing_seat, query=query, **kwargs
+            billing_seat=self.billing_seat,
+            query=query,
+            uploadable=True,
+            charge=True,
+            **kwargs
         )
 
         self.export = export

@@ -871,6 +871,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         else:
             filename = f"whoknows_search_results_{self.created.date()}.csv"
         self.csv.save(filename, export_file)
+        self.status = self.STATUS.complete
         self.save()
         # Update metadata to ensure download on link-click for users.
         if isinstance(self.csv.storage, GoogleCloudStorage):
@@ -940,7 +941,6 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             message=html_message,
         )
         self.sent = email
-        self.status = self.STATUS.complete
         self.save()
 
     @property
@@ -998,8 +998,6 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         sigs |= upload_to_static_bucket.si(export_id=self.pk)
         if self.notify:
             sigs |= send_notification.si(export_id=self.pk).set(priority=3)
-        if self.uploadable:
-            sigs |= spawn_mx_group.si(export_id=self.pk)
         return sigs
 
     def get_absolute_url(self, filetype="csv"):

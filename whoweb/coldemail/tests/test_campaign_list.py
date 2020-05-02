@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 from celery.task import Task
 
-from payments.tests.factories import BillingAccountMemberFactory
+from whoweb.payments.tests.factories import BillingAccountMemberFactory
 from whoweb.coldemail.models import CampaignList
 from whoweb.coldemail.tasks import check_for_list_publication, upload_list
 from whoweb.coldemail.tests.factories import CampaignListFactory

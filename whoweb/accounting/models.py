@@ -89,6 +89,8 @@ class TransactionQuerySet(models.QuerySet):
         )
         qs = self
         if match_type == MatchType.ANY:
+            if not related_objects:
+                return qs.none()
             combined_query = reduce(
                 operator.or_,
                 [
@@ -104,6 +106,8 @@ class TransactionQuerySet(models.QuerySet):
             )
             return qs.filter(combined_query).distinct()
         elif match_type == MatchType.ALL:
+            if not related_objects:
+                return qs.none()
             for related_object in related_objects:
                 qs = qs.filter(
                     related_objects__related_object_content_type=(

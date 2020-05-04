@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 from celery.task import Task
 
+from whoweb.payments.tests.factories import BillingAccountMemberFactory
 from whoweb.coldemail.models import CampaignList
 from whoweb.coldemail.tasks import check_for_list_publication, upload_list
 from whoweb.coldemail.tests.factories import CampaignListFactory
@@ -31,7 +32,10 @@ def test_publish_with_export(sigs_mock, query_contact_invites):
 @patch("whoweb.search.models.SearchExport.processing_signatures")
 def test_publish_with_query(sigs_mock, query_contact_invites):
     sigs_mock.return_value = MagicMock(spec=Task).si()
-    campaign_list = CampaignListFactory(query=query_contact_invites, export=None)
+    seat = BillingAccountMemberFactory(seat_credits=15000000)
+    campaign_list = CampaignListFactory(
+        query=query_contact_invites, export=None, billing_seat=seat
+    )
     assert campaign_list.export is None
     campaign_list.publish(apply_tasks=False)
     assert campaign_list.export is not None

@@ -4,6 +4,7 @@ from datetime import datetime
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import F
 from django.db.transaction import atomic
+from django.utils.timezone import now
 
 from .models import Ledger
 from .models import LedgerBalance
@@ -47,7 +48,7 @@ def create_transaction(
     )
 
     if not posted_timestamp:
-        posted_timestamp = datetime.now()
+        posted_timestamp = now()
 
     validate_transaction(user, evidence, ledger_entries, notes, kind, posted_timestamp)
 

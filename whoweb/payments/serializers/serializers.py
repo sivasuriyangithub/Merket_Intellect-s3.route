@@ -138,6 +138,9 @@ class BillingAccountMemberSerializer(IdOrHyperlinkedModelSerializer):
         queryset=BillingAccount.objects.all(),
     )
     credits = serializers.IntegerField()
+    subscription = SubscriptionSerializer(
+        read_only=True, source="organization.subscription"
+    )
 
     class Meta:
         model = BillingAccountMember
@@ -150,6 +153,7 @@ class BillingAccountMemberSerializer(IdOrHyperlinkedModelSerializer):
             "id",
             "graph_id",
             "billing_account",
+            "subscription",
             "seat",
             "pool_credits",
             "credits",

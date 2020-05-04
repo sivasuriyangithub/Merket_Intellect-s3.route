@@ -2,6 +2,7 @@ from copy import copy, deepcopy
 from datetime import datetime, timedelta
 from typing import Optional, Union
 
+from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import JSONField
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -22,6 +23,7 @@ from organizations.abstract import (
 )
 from proxy_overrides.related import ProxyForeignKey
 from rest_framework.reverse import reverse
+from stripe.error import InvalidRequestError
 
 from whoweb.accounting.actions import create_transaction, Debit, Credit
 from whoweb.accounting.ledgers import (
@@ -138,44 +140,47 @@ class BillingAccount(
         return group
 
     @atomic
-    def consume_credits(self, amount, *args, evidence=(), **kwargs):
+    def consume_credits(self, amount, initiated_by, evidence=(), **kwargs):
         updated = BillingAccount.objects.filter(
             pk=self.pk, credit_pool__gte=amount
         ).update(credit_pool=F("credit_pool") - amount,)
         if updated:
             record_transaction_consume_credits(
-                amount, *args, evidence=evidence + (self,), **kwargs
+                amount, initiated_by, evidence=evidence + (self,), **kwargs
             )
         return bool(updated)
 
     @atomic
-    def refund_credits(self, amount, *args, evidence=(), **kwargs):
+    def refund_credits(self, amount, initiated_by, evidence=(), **kwargs):
         self.credit_pool = F("credit_pool") + amount
         self.save()
         record_transaction_refund_credits(
-            amount, *args, evidence=evidence + (self,), **kwargs
+            amount, initiated_by, evidence=evidence + (self,), **kwargs
         )
 
     @atomic
-    def add_credits(self, amount, *args, evidence=(), **kwargs):
+    def add_credits(self, amount, initiated_by, evidence=(), **kwargs):
         self.credit_pool = F("credit_pool") + amount
         self.save()
         record_transaction_sold_credits(
-            amount, *args, evidence=evidence + (self,), **kwargs
+            amount, initiated_by, evidence=evidence + (self,), **kwargs
         )
 
     @atomic
-    def expire_all_remaining_credits(self, *args, evidence=(), **kwargs):
+    def expire_all_remaining_credits(self, initiated_by, evidence=(), **kwargs):
         record_transaction_expire_credits(
-            amount=int(self.credit_pool), *args, evidence=evidence + (self,), **kwargs
+            amount=int(self.credit_pool),
+            initiated_by=initiated_by,
+            evidence=evidence + (self,),
+            **kwargs,
         )
         self.credit_pool = 0
         self.save()
 
     @atomic
-    def replenish_credits(self, amount, *args, evidence=(), **kwargs):
-        self.expire_all_remaining_credits(*args, evidence=evidence, **kwargs)
-        self.add_credits(amount, *args, evidence=evidence, **kwargs)
+    def replenish_credits(self, amount, initiated_by, evidence=(), **kwargs):
+        self.expire_all_remaining_credits(initiated_by, evidence=evidence, **kwargs)
+        self.add_credits(amount, initiated_by, evidence=evidence, **kwargs)
 
     @atomic
     def allocate_credits_to_member(self, member: "BillingAccountMember", amount: int):
@@ -528,9 +533,26 @@ class MultiPlanSubscription(Subscription):
 
         return MultiPlanSubscription.objects.get(pk=subscription.pk)
 
+    def sync_or_purge_subscription_items(self):
+        for item in self.items.all():
+            item: SubscriptionItem = item
+            try:
+                SubscriptionItem.sync_from_stripe_data(item.api_retrieve())
+            except InvalidRequestError as e:
+                if e.http_status == 404:
+                    item.delete()
+
+
+User = get_user_model()
+
 
 def record_transaction_consume_credits(
-    amount, initiated_by, evidence=(), notes="", transaction_kind=None, posted_at=None
+    amount: int,
+    initiated_by: "User",
+    evidence=(),
+    notes="",
+    transaction_kind=None,
+    posted_at=None,
 ):
     create_transaction(
         user=initiated_by,
@@ -546,7 +568,12 @@ def record_transaction_consume_credits(
 
 
 def record_transaction_refund_credits(
-    amount, initiated_by, evidence=(), notes="", transaction_kind=None, posted_at=None
+    amount: int,
+    initiated_by: User,
+    evidence=(),
+    notes="",
+    transaction_kind=None,
+    posted_at=None,
 ):
     create_transaction(
         user=initiated_by,
@@ -562,8 +589,8 @@ def record_transaction_refund_credits(
 
 
 def record_transaction_sold_credits(
-    amount,
-    initiated_by=None,
+    amount: int,
+    initiated_by: User,
     evidence=(),
     notes="",
     transaction_kind=None,
@@ -583,8 +610,8 @@ def record_transaction_sold_credits(
 
 
 def record_transaction_expire_credits(
-    amount,
-    initiated_by=None,
+    amount: int,
+    initiated_by: User,
     evidence=(),
     notes="",
     transaction_kind=None,

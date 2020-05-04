@@ -91,13 +91,11 @@ def test_set_member_should_pool(su_client):
     assert resp.json()["credits"] == 10000
 
 
-def test_owner_can_view_only_own_account(api_client, seat):
+def test_owner_can_view_only_own_account(api_client, su, seat):
     alpha: BillingAccount = BillingAccountFactory(
         name="Alpha Co", network=seat.organization
     )
     alpha_owner, created = alpha.get_or_add_user(seat.user, seat=seat)
-    print([group.permissions.all() for group in seat.user.groups.all()])
-    print(get_perms(seat.user, alpha))
     beta_mbr = BillingAccountMemberFactory(organization__name="Beta Co")
 
     api_client.force_authenticate(user=alpha_owner.user)
@@ -109,3 +107,10 @@ def test_owner_can_view_only_own_account(api_client, seat):
         f"/ww/api/billing_accounts/{beta_mbr.organization.public_id}/", format="json",
     )
     assert resp.status_code == 404
+
+    # and let's be sure it exists, not real 404
+    api_client.force_authenticate(user=su)
+    su = api_client.get(
+        f"/ww/api/billing_accounts/{beta_mbr.organization.public_id}/", format="json",
+    )
+    assert su.status_code == 200

@@ -86,9 +86,14 @@ class BillingAccount(
         )
 
     @property
-    def customer(self) -> "MultiPlanCustomer":
-        customer, created = MultiPlanCustomer.get_or_create(subscriber=self)
-        return MultiPlanCustomer.objects.get(pk=customer.pk)
+    def customer(self) -> Optional["MultiPlanCustomer"]:
+        cus = self.djstripe_customers.first()
+        if cus:
+            return MultiPlanCustomer.objects.get(pk=cus.pk)
+
+    def get_or_create_customer(self):
+        cus, _ = Customer.get_or_create(self)
+        return MultiPlanCustomer.objects.get(pk=cus.pk)
 
     @property
     def subscription(self) -> "MultiPlanSubscription":
@@ -246,7 +251,8 @@ class BillingAccount(
         valid_items, plan_preset, total_credits = self._get_valid_items(
             plan_id=plan_id, items=items
         )
-        customer = self.customer
+        customer = self.get_or_create_customer()
+
         if customer.valid_subscriptions:
             raise MultipleSubscriptionException()
 

@@ -4,6 +4,7 @@ from unittest.mock import patch, PropertyMock
 import pytest
 from django.utils.timezone import now
 from djstripe.enums import SubscriptionStatus
+from djstripe.models import Customer
 
 from whoweb.payments.models import BillingAccount, MultiPlanCustomer
 from whoweb.payments.tests.factories import (
@@ -19,7 +20,7 @@ pytestmark = pytest.mark.django_db
 def test_add_card_no_existing_subscription(su_client):
     billing = BillingAccountOwnerFactory(organization_user__seat_credits=0)
     billing_account: BillingAccount = billing.organization
-    assert billing_account.customer.can_charge() is False
+    assert billing_account.customer is None
 
     resp = su_client.post(
         "/ww/api/payment_source/",
@@ -41,7 +42,7 @@ def test_add_card_has_existing_subscription_on_trial(sub_mock, su_client):
     billing = BillingAccountOwnerFactory(organization_user__seat_credits=0)
     billing_account: BillingAccount = billing.organization
 
-    assert billing_account.customer.can_charge() is False
+    assert billing_account.customer is None
 
     sub_mock.return_value.status = SubscriptionStatus.trialing
     sub_mock.return_value.trial_end = now() + timedelta(1)
@@ -63,8 +64,7 @@ def test_add_card_has_existing_subscription_past_due(
 ):
     billing = BillingAccountOwnerFactory(organization_user__seat_credits=0)
     billing_account: BillingAccount = billing.organization
-
-    assert billing_account.customer.can_charge() is False
+    assert billing_account.customer is None
 
     sub_mock.return_value.status = SubscriptionStatus.unpaid
     invoices_mock.return_value = []
@@ -91,7 +91,7 @@ def test_new_signup_subscription_with_token(period_mock, su_client):
     plan_two.sync_from_stripe_data(plan_two.api_retrieve())
     plan_preset = WKPlanPresetFactory(stripe_plans_monthly=(plan_one, plan_two))
 
-    assert billing_account.customer.can_charge() is False
+    assert billing_account.customer is None
 
     resp = su_client.post(
         f"/ww/api/billing_accounts/{billing_account.public_id}/subscription/",
@@ -136,7 +136,7 @@ def test_new_signup_subscription_without_token(su_client):
     plan_two.sync_from_stripe_data(plan_two.api_retrieve())
     plan_preset = WKPlanPresetFactory(stripe_plans_monthly=stripe_plans)
 
-    assert billing_account.customer.can_charge() is False
+    assert billing_account.customer is None
 
     resp = su_client.post(
         f"/ww/api/billing_accounts/{billing_account.public_id}/subscription/",

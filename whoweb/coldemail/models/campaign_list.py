@@ -50,7 +50,7 @@ class CampaignList(ColdemailBaseModel):
         self.save()
         return export
 
-    def publish(self, apply_tasks=True, on_complete=None):
+    def publish(self, apply_tasks=True, on_complete=None, export_kwargs=None):
         from whoweb.coldemail.tasks import upload_list, check_for_list_publication
 
         if self.is_published:
@@ -61,7 +61,9 @@ class CampaignList(ColdemailBaseModel):
         if not export and not self.query:
             raise AttributeError("List data source has neither query nor export.")
         elif not export:
-            export = self.convert_query_to_export()
+            if export_kwargs is None:
+                export_kwargs = {}
+            export = self.convert_query_to_export(**export_kwargs)
 
         self.status = self.STATUS.pending
         self.save()

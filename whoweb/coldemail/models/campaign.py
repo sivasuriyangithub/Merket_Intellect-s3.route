@@ -3,11 +3,13 @@ import time
 from calendar import timegm
 
 from django.conf import settings
+from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.utils.timezone import now
 
 from whoweb.core.router import router
+from .reply import ReplyTo
 from .base import ColdemailBaseModel
 from .campaign_list import CampaignList
 from .campaign_message import CampaignMessage
@@ -30,6 +32,7 @@ class ColdCampaign(ColdemailBaseModel):
     from_name = models.CharField(max_length=255)
     from_address = models.CharField(max_length=255)
     send_time = models.DateTimeField(null=True)
+    reply_routes = GenericRelation(ReplyTo, related_query_name="campaign")
 
     # stats
     stats_fetched = models.DateTimeField(null=True)
@@ -88,8 +91,14 @@ class ColdCampaign(ColdemailBaseModel):
 
         message_sig = self.message.publish(apply_tasks=False)
 
+        export_kwargs = {}
+        if reply_route := self.reply_routes.first():
+            export_kwargs["extra_columns"] = {
+                "route_id": reply_route.coldemail_route_id
+            }
+
         list_sigs = self.campaign_list.publish(
-            apply_tasks=False, on_complete=on_complete
+            apply_tasks=False, on_complete=on_complete, export_kwargs=export_kwargs
         )
 
         post_send_sigs = update_validation.si(self.pk, should_orphan=True)

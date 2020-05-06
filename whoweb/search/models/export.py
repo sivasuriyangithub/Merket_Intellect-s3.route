@@ -179,6 +179,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     notify = models.BooleanField(default=False)
     charge = models.BooleanField(default=False)
     uploadable = models.BooleanField(default=False, editable=False)
+    extra_columns = JSONField(null=True)
 
     on_trial = models.BooleanField(default=False)  # ????
 
@@ -368,7 +369,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             return [
                 SearchExport.ALL_COLUMNS[idx].lower().replace(" ", "_")
                 for idx in self.columns
-            ]
+            ] + list(self.extra_columns.keys() if self.extra_columns else [])
         else:
             return [SearchExport.ALL_COLUMNS[idx] for idx in self.columns]
 
@@ -467,7 +468,9 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
                 return
             row = [key] + row
         if self.uploadable:
-            row += [profile.domain or "", profile.mx_domain or ""]
+            row += [profile.domain or "", profile.mx_domain or "",] + list(
+                self.extra_columns.values() if self.extra_columns else []
+            )
         return row
 
     def generate_csv_rows(self, rows=None):

@@ -30,7 +30,9 @@ def test_publish(msg_mock, list_mock, cold_campaign):
     sigs = cold_campaign.publish()
     assert sigs
     msg_mock.assert_called_once_with(apply_tasks=False)
-    list_mock.assert_called_once_with(apply_tasks=False, on_complete=None)
+    list_mock.assert_called_once_with(
+        apply_tasks=False, on_complete=None, export_kwargs={}
+    )
     assert cold_campaign.is_locked == True
 
 

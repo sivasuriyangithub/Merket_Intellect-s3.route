@@ -369,7 +369,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             return [
                 SearchExport.ALL_COLUMNS[idx].lower().replace(" ", "_")
                 for idx in self.columns
-            ] + (self.extra_columns.keys() if self.extra_columns else [])
+            ] + list(self.extra_columns.keys() if self.extra_columns else [])
         else:
             return [SearchExport.ALL_COLUMNS[idx] for idx in self.columns]
 
@@ -468,7 +468,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
                 return
             row = [key] + row
         if self.uploadable:
-            row += [profile.domain or "", profile.mx_domain or "",] + (
+            row += [profile.domain or "", profile.mx_domain or "",] + list(
                 self.extra_columns.values() if self.extra_columns else []
             )
         return row

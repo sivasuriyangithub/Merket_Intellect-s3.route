@@ -301,10 +301,8 @@ CELERY_RESULT_EXTENDED = True
 CELERY_RESULT_EXPIRES = timedelta(days=5)
 CELERY_RESULT_CHORD_JOIN_TIMEOUT = 20.0
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-time-limit
-# TODO: set to whatever value is adequate in your circumstances
 CELERY_TASK_TIME_LIMIT = 60 * 60
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-soft-time-limit
-# TODO: set to whatever value is adequate in your circumstances
 CELERY_TASK_SOFT_TIME_LIMIT = None
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#beat-scheduler
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
@@ -370,8 +368,9 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.SlidingToken",),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=14),
     "USER_ID_FIELD": "email",
     "USER_ID_CLAIM": "username",
 }
@@ -390,8 +389,8 @@ GRAPHQL_JWT = {
     "JWT_ARGUMENT_NAME": "token",
     "JWT_GET_USER_BY_NATURAL_KEY_HANDLER": "whoweb.contrib.graphql_jwt.utils.get_user_by_natural_key",
     "JWT_VERIFY_EXPIRATION": True,
-    "JWT_EXPIRATION_DELTA": timedelta(days=7),
-    "JWT_REFRESH_EXPIRATION_DELTA": timedelta(days=30),
+    "JWT_EXPIRATION_DELTA": timedelta(minutes=15),
+    "JWT_REFRESH_EXPIRATION_DELTA": timedelta(days=14),
 }
 
 # tagulous

@@ -216,7 +216,6 @@ class BillingAccount(
                 .get()
             )
             adjustment = target - locked_member.seat_credits
-            # TODO: not sure if update can be done in subtransaction; test!
             if adjustment > 0:
                 return self.allocate_credits_to_member(member, amount=adjustment)
             elif adjustment < 0:

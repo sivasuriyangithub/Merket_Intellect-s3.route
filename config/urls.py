@@ -9,7 +9,12 @@ from graphene_django.views import GraphQLView
 from rest_framework.permissions import AllowAny
 from rest_framework.schemas import get_schema_view
 from rest_framework_extensions.routers import ExtendedDefaultRouter
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+    TokenRefreshSlidingView,
+    TokenObtainSlidingView,
+)
 
 from whoweb.campaigns.urls import router as campaign_router
 from whoweb.coldemail.urls import router as coldemail_router
@@ -34,10 +39,11 @@ urlpatterns = [
     # path("accounts/", include("allauth.urls")),
     path("api/", include(router.urls)),
     path("api/payment_source/", PaymentSourceAPIView.as_view(), name="paymentsource"),
-    path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("api/token/", TokenObtainSlidingView.as_view(), name="token_obtain"),
+    path("api/token/refresh/", TokenRefreshSlidingView.as_view(), name="token_refresh"),
     path("graphql", csrf_exempt(GraphQLView.as_view(graphiql=True))),
     # Your stuff: custom urls includes go here.
+    path("accounts/", include("whoweb.users.urls", namespace="users")),
     path("search/", include("whoweb.search.urls", namespace="search")),
     path("reply/", include("whoweb.coldemail.urls", namespace="coldemail")),
     path(

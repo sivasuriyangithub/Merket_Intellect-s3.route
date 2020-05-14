@@ -889,27 +889,6 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             blob.patch()
         return self.csv.url
 
-    #   TODO
-    #     for hook in self.query.export.webhooks:
-    #         results = []
-    #         if self.query.export.is_flat:
-    #             csv_rows = self.generate_csv_rows(rows)
-    #             results = [
-    #                 {tup[0]: tup[1] for tup in zip(self.get_column_names(), row)}
-    #                 for row in csv_rows
-    #             ]
-    #         else:
-    #             for row in rows:
-    #                 contact_info = row.get("derived_contact", None)
-    #                 versioned_profile = ensure_profile_matches_spec(row)
-    #                 if contact_info:
-    #                     versioned_derivation = ensure_contact_info_matches_spec(
-    #                         contact_info, profile=None
-    #                     )
-    #                     versioned_profile["contact"] = versioned_derivation
-    #                 results.append(versioned_profile)
-    #         for row in results:
-    #             requests.post(url=hook, json=row)
     @transaction.atomic
     def send_link(self):
         if self.sent:

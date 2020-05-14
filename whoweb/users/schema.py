@@ -12,7 +12,7 @@ from whoweb.contrib.rest_framework.permissions import (
     ObjectPermissions,
     ObjectPassesTest,
 )
-from whoweb.users.models import UserProfile, Network, Seat, DeveloperKey
+from whoweb.users.models import UserProfile, Group, Seat, DeveloperKey
 
 User = get_user_model()
 
@@ -51,7 +51,7 @@ class UserNode(GuardedObjectType):
 
 class NetworkNode(GuardedObjectType):
     class Meta:
-        model = Network
+        model = Group
         fields = (
             "name",
             "slug",

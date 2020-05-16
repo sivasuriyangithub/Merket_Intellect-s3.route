@@ -227,6 +227,7 @@ class DeriveContactSerializer(serializers.Serializer):
         default=[WORK, SOCIAL, PERSONAL, PROFILE],
         write_only=True,
     )
+    include_social = serializers.BooleanField(default=True, initial=True)
     credits_used = serializers.IntegerField(read_only=True)
     credits_remaining = serializers.IntegerField(read_only=True)
     profile = ResultProfileSerializer(read_only=True)

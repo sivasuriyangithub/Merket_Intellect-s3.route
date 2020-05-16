@@ -369,8 +369,8 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
     "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.SlidingToken",),
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=14),
+    "SLIDING_TOKEN_LIFETIME": timedelta(seconds=15),
+    "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=14),
     "USER_ID_FIELD": "email",
     "USER_ID_CLAIM": "username",
 }
@@ -385,7 +385,11 @@ GRAPHENE = {
     ],
 }
 GRAPHQL_JWT = {
-    "JWT_ALLOW_ARGUMENT": True,
+    # "JWT_ALLOW_ARGUMENT": True,
+    "JWT_ALLOW_ANY_CLASSES": (
+        "config.schema.RereshSlidingJSONWebToken",
+        "config.schema.ObtainJSONWebToken",
+    ),
     "JWT_ARGUMENT_NAME": "token",
     "JWT_GET_USER_BY_NATURAL_KEY_HANDLER": "whoweb.contrib.graphql_jwt.utils.get_user_by_natural_key",
     "JWT_VERIFY_EXPIRATION": True,

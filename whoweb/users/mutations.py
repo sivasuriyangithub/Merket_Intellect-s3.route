@@ -1,9 +1,8 @@
 import graphene
 from django import http
 from graphene_django.rest_framework.mutation import SerializerMutation
-from graphql_jwt import ObtainJSONWebToken
 
-from whoweb.users.models import Seat, DeveloperKey
+from whoweb.users.models import DeveloperKey
 from whoweb.users.serializers import DeveloperKeySerializer
 
 

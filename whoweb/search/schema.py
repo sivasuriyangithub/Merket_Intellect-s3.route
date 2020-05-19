@@ -110,7 +110,7 @@ class SearchExportNode(GuardedObjectType):
 
 class GradedEmailType(graphene.ObjectType):
     email = graphene.String()
-    graded = graphene.String()
+    grade = graphene.String()
     email_type = graphene.Field(GradedEmailTypeChoices)
     is_passing = graphene.Boolean()
     is_personal = graphene.Boolean()

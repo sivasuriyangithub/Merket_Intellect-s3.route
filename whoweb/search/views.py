@@ -2,6 +2,7 @@ import csv
 import itertools
 
 from django.http import StreamingHttpResponse, Http404, HttpResponseBadRequest
+from django.shortcuts import redirect
 from django.views.decorators.http import require_GET
 from rest_framework import mixins
 from rest_framework.pagination import PageNumberPagination
@@ -18,7 +19,11 @@ from .models import SearchExport
 from .serializers import (
     SearchExportSerializer,
     SearchExportDataSerializer,
-    ResultProfileSerializer,
+    DeriveContactSerializer,
+    ProfileEnrichmentSerializer,
+    BatchDeriveContactSerializer,
+    BatchResultSerializer,
+    BatchProfileEnrichmentSerializer,
 )
 
 
@@ -44,6 +49,8 @@ def download(request, uuid, filetype="csv", *args, **kwargs):
 
     pseudo_buffer = Echo()
     if filetype == "csv":
+        if export.csv and export.csv.url:
+            return redirect(export.csv.url)
         writer = csv.writer(pseudo_buffer)
         response = StreamingHttpResponse(
             (writer.writerow(row) for row in export.generate_csv_rows()),
@@ -88,11 +95,12 @@ def validate(request, uuid):
         export = SearchExport.objects.get(uuid=uuid)
     except SearchExport.DoesNotExist:
         raise Http404("Export not found")
-
     export.log_event(
         evt=DOWNLOAD_VALIDATION,
         data={"request": repr(request), "headers": repr(request.headers)},
     )
+    if export.pre_validation_file and export.pre_validation_file.url:
+        return redirect(export.pre_validation_file.url)
     pseudo_buffer = Echo()
     writer = csv.writer(pseudo_buffer)
     response = StreamingHttpResponse(
@@ -145,10 +153,7 @@ class SearchExportResultViewSet(
             serializer = self.get_serializer(
                 itertools.chain(
                     *[
-                        (
-                            ResultProfile.from_json(profile).to_json()
-                            for profile in page.data
-                        )
+                        (ResultProfile(**profile).dict() for profile in page.data)
                         for page in qs_page
                     ]
                 ),
@@ -159,10 +164,7 @@ class SearchExportResultViewSet(
         serializer = self.get_serializer(
             itertools.chain(
                 *(
-                    (
-                        ResultProfile.from_json(profile).to_json()
-                        for profile in page.data
-                    )
+                    (ResultProfile(**profile).dict() for profile in page.data)
                     for page in queryset
                 )
             ),
@@ -171,6 +173,26 @@ class SearchExportResultViewSet(
         return Response(serializer.data)
 
 
-class DeriveProfileViewSet(mixins.CreateModelMixin, GenericViewSet):
-    serializer_class = ResultProfileSerializer
+class DeriveProfileContactViewSet(mixins.CreateModelMixin, GenericViewSet):
+    serializer_class = DeriveContactSerializer
     permission_classes = [IsSuperUser]
+
+
+class BatchDeriveProfileContactViewSet(mixins.CreateModelMixin, GenericViewSet):
+    serializer_class = BatchDeriveContactSerializer
+    permission_classes = [IsSuperUser]
+
+
+class EnrichProfileViewSet(mixins.CreateModelMixin, GenericViewSet):
+    serializer_class = ProfileEnrichmentSerializer
+    permission_classes = [IsSuperUser]
+
+
+class BatchEnrichProfileViewSet(mixins.CreateModelMixin, GenericViewSet):
+    serializer_class = BatchProfileEnrichmentSerializer
+    permission_classes = [IsSuperUser]
+
+
+class BatchResultViewSet(mixins.RetrieveModelMixin, GenericViewSet):
+    serializer_class = BatchResultSerializer
+    permission_classes = []

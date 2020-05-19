@@ -231,9 +231,22 @@ sentry_sdk.init(
         RedisIntegration(),
     ],
     environment=env("ENVIRONMENT_NAME"),
-    release="{}@{}".format(env("IMAGE"), env("REVISION")),
+    release="{}@{}".format(env("IMAGE", default="").replace(".", "-"), env("REVISION")),
     send_default_pii=True,
 )
+
+
+# djstripe
+# ------------------------------------------------------------------------------
+STRIPE_LIVE_PUBLIC_KEY = env("STRIPE_LIVE_PUBLIC_KEY", default=None)
+STRIPE_LIVE_SECRET_KEY = env("STRIPE_LIVE_SECRET_KEY", default=None)
+STRIPE_TEST_PUBLIC_KEY = env("STRIPE_TEST_PUBLIC_KEY", default=None)
+STRIPE_TEST_SECRET_KEY = env("STRIPE_TEST_SECRET_KEY", default=None)
+STRIPE_LIVE_MODE = env.bool("STRIPE_LIVE_MODE", default=True)
+DJSTRIPE_WEBHOOK_SECRET = env("DJSTRIPE_WEBHOOK_SECRET", default=None)
+DJSTRIPE_WEBHOOK_VALIDATION = env(
+    "DJSTRIPE_WEBHOOK_VALIDATION", default="verify_signature"
+)  # can also be `retrieve_event`
 
 # Your stuff...
 # ------------------------------------------------------------------------------

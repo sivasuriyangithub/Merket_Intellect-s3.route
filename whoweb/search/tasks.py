@@ -4,15 +4,15 @@ from math import ceil
 from celery import group, shared_task
 from celery.exceptions import MaxRetriesExceededError
 from django.db.models import F
-from requests import HTTPError, Timeout, ConnectionError
+from google.api_core.exceptions import GoogleAPICallError
+from kombu.exceptions import OperationalError
 from redis.exceptions import ConnectionError as RedisConnectionError
+from requests import HTTPError, Timeout, ConnectionError
 
-from whoweb.core.router import router
-from whoweb.search.events import ALERT_XPERWEB, PAGES_SPAWNED
+from whoweb.search.events import PAGES_SPAWNED
 from whoweb.search.models import SearchExport, ResultProfile
 from whoweb.search.models.export import MXDomain, SearchExportPage
 from whoweb.search.models.profile import VALIDATED, COMPLETE, FAILED, RETRY, WORK
-from kombu.exceptions import OperationalError
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,7 @@ NETWORK_ERRORS = [
     ConnectionError,
     OperationalError,
     RedisConnectionError,
+    GoogleAPICallError,
 ]
 MAX_DERIVE_RETRY = 3
 
@@ -136,23 +137,6 @@ def send_notification(export_id):
     return export.send_link()
 
 
-@shared_task(
-    bind=True, max_retries=3000, track_started=True, autoretry_for=NETWORK_ERRORS
-)
-def alert_xperweb(self, export_id):
-    try:
-        export = SearchExport.objects.get(pk=export_id)
-    except SearchExport.DoesNotExist:
-        return 404
-    export.log_event(ALERT_XPERWEB, task=self.request)
-    router.alert_xperweb_export_completion(
-        idempotency_key=export.uuid, amount=export.charged
-    )
-    export.status = export.STATUS.complete
-    export.save()
-    return True
-
-
 @shared_task(ignore_result=False, autoretry_for=NETWORK_ERRORS)
 def fetch_mx_domains(domains):
     mxds = MXDomain.objects.filter(domain__in=domains)
@@ -172,6 +156,12 @@ def spawn_mx_group(self, export_id):
     return self.replace(group_signature)
 
 
+@shared_task(bind=True, autoretry_for=NETWORK_ERRORS)
+def upload_to_static_bucket(self, export_id):
+    export = SearchExport.objects.get(pk=export_id)
+    return export.upload_to_static_bucket(task_context=self.request)
+
+
 def process_derivation(
     task, page_pk, profile_data, defer, omit_failures, add_invite_key, filters
 ):
@@ -183,7 +173,7 @@ def process_derivation(
     :type omit_failures: boolean
     :rtype: boolean
     """
-    profile = ResultProfile.from_json(profile_data)
+    profile = ResultProfile(**profile_data)
     status = profile.derivation_status
     if not status in [VALIDATED, COMPLETE]:
         deferred = list(set(defer))  # copy, unique

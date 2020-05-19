@@ -5,6 +5,8 @@ image:
   repository: gcr.io/wkinfra-171623/wkpython/whoweb
   tag: 7.3.0
 basedomain: whoknows.com
+allowPreemptible: true
+preferPreemptible: true
 service:
   name: whoweb
   type: ClusterIP
@@ -17,8 +19,8 @@ service:
   paths: "/ww/"
 deployment:
   replicas: 1
-  cpuRequest: "2"
-  memoryRequest: "4.2Gi"
+  cpuRequest: "4"
+  memoryRequest: "4Gi"
   cpuLimit: "6"
   memoryLimit: "8Gi"
   postgresqlInNamespace: false

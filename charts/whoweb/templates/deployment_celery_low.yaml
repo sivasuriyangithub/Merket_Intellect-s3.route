@@ -29,18 +29,55 @@ spec:
         app: {{ template "jx.name" . }}-celery-low
     spec:
       terminationGracePeriodSeconds: {{ default 30 .Values.celeryLow.gracePeriod }}
-      {{- if .Values.preemptible }}
+      {{- if .Values.allowPreemptible }}
       tolerations:
-        - key: "key"
-          operator: "Exists"
-          effect: "NoSchedule"
+      - key: cloud.google.com/gke-preemptible
+        operator: Equal
+        value: "true"
+        effect: NoSchedule
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 50
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - {{ template "jx.name" . }}-celery-low
+              topologyKey: "kubernetes.io/hostname"
+        {{- if .Values.preferPreemptible }}
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: cloud.google.com/gke-preemptible
+                operator: Exists
+            weight: 100
+        {{- else if .Values.onlyPreemptible }}
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: cloud.google.com/gke-preemptible
+                  operator: Exists
+        {{- end }}
       {{- end }}
+      volumes:
+        - name: service-account
+          secret:
+            secretName: static-bucket-account
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           args:
             - "/app/start-celeryworker-lowQ"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          volumeMounts:
+            - name: service-account
+              mountPath: "/etc/service_account_credentials"
+              readOnly: true
           env:
           - name: IMAGE
             value: {{ .Values.image.repository }}
@@ -54,6 +91,8 @@ spec:
             value: "{{- template "ingress.url" . -}},{{ .Values.service.name }}"
           - name: DJANGO_SETTINGS_MODULE
             value: {{ .Values.deployment.settingsModule }}
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: "/etc/service_account_credentials/key.json"
           envFrom:
           {{- range .Values.deployment.envConfigMapRef }}
           - configMapRef:

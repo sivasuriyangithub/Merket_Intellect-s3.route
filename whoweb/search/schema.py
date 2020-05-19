@@ -2,7 +2,7 @@ import graphene
 from graphene import relay
 from graphene.types.generic import GenericScalar
 from graphene_django.filter import DjangoFilterConnectionField
-from rest_framework_guardian.filters import ObjectPermissionsFilter
+from whoweb.contrib.rest_framework.filters import ObjectPermissionsFilter
 
 from whoweb.contrib.graphene_django.types import GuardedObjectType
 from whoweb.contrib.rest_framework.permissions import (
@@ -66,7 +66,7 @@ class SearchExportNode(GuardedObjectType):
         filter_backends = (ObjectPermissionsFilter,)
         fields = (
             "uuid",
-            "seat",
+            "billing_seat",
             "query",
             "status",
             "status_changed",

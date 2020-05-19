@@ -9,15 +9,15 @@ pytestmark = pytest.mark.django_db
 
 
 def test_create_simple_campaign(su_client, query_contact_invites):
-    seat = BillingAccountMemberFactory().seat
-    msg0 = CampaignMessageFactory(seat=seat)
+    seat = BillingAccountMemberFactory()
+    msg0 = CampaignMessageFactory(billing_seat=seat)
     resp = su_client.post(
         "/ww/api/campaign/simple/",
         {
             "query": query_contact_invites,
             "budget": 500,
             "title": "my campaign",
-            "seat": seat.public_id,
+            "billing_seat": seat.public_id,
             "tags": ["apple", "banana"],
             "from_name": "Joe Engels",
             "sending_rules": [
@@ -31,7 +31,6 @@ def test_create_simple_campaign(su_client, query_contact_invites):
         },
         format="json",
     )
-    print(resp.content)
     assert resp.status_code == 201
     assert resp.json()["url"].startswith("http://testserver/ww/api/campaign/simple/")
     assert resp.json()["budget"] == 500
@@ -42,7 +41,7 @@ def test_create_simple_campaign(su_client, query_contact_invites):
 
 @patch("whoweb.campaigns.models.SimpleDripCampaignRunner.publish")
 def test_publish_simplecampaign(publish_mock, su_client, query_contact_invites):
-    seat = BillingAccountMemberFactory().seat
+    seat = BillingAccountMemberFactory()
     resp = su_client.post(
         "/ww/api/campaign/simple/",
         {
@@ -51,7 +50,7 @@ def test_publish_simplecampaign(publish_mock, su_client, query_contact_invites):
             "title": "my campaign",
             "from_name": "Joe Engels",
             "sending_rules": [],
-            "seat": seat.public_id,
+            "billing_seat": seat.public_id,
         },
         format="json",
     )
@@ -63,9 +62,9 @@ def test_publish_simplecampaign(publish_mock, su_client, query_contact_invites):
 
 
 def test_create_interval_campaign(su_client, query_contact_invites):
-    seat = BillingAccountMemberFactory().seat
-    msg0 = CampaignMessageFactory(seat=seat)
-    msg1 = CampaignMessageFactory(seat=seat)
+    seat = BillingAccountMemberFactory()
+    msg0 = CampaignMessageFactory(billing_seat=seat)
+    msg1 = CampaignMessageFactory(billing_seat=seat)
     resp = su_client.post(
         "/ww/api/campaign/interval/",
         {
@@ -89,11 +88,10 @@ def test_create_interval_campaign(su_client, query_contact_invites):
                     "include_previous": True,
                 },
             ],
-            "seat": seat.public_id,
+            "billing_seat": seat.public_id,
         },
         format="json",
     )
-    print(resp.content)
     assert resp.status_code == 201
     assert resp.json()["url"].startswith("http://testserver/ww/api/campaign/interval/")
     assert resp.json()["budget"] == 500
@@ -104,7 +102,7 @@ def test_create_interval_campaign(su_client, query_contact_invites):
 
 @patch("whoweb.campaigns.models.IntervalCampaignRunner.publish")
 def test_publish_intervalcampaign(publish_mock, su_client, query_contact_invites):
-    seat = BillingAccountMemberFactory().seat
+    seat = BillingAccountMemberFactory()
     resp = su_client.post(
         "/ww/api/campaign/interval/",
         {
@@ -113,7 +111,7 @@ def test_publish_intervalcampaign(publish_mock, su_client, query_contact_invites
             "title": "my campaign",
             "from_name": "Joe Engels",
             "sending_rules": [],
-            "seat": seat.public_id,
+            "billing_seat": seat.public_id,
         },
         format="json",
     )

@@ -3,9 +3,11 @@ import logging
 import uuid as uuid
 import zipfile
 from datetime import timedelta
-from io import TextIOWrapper
+from io import TextIOWrapper, StringIO
 from math import ceil
 from typing import Optional, List, Iterable, Dict, Iterator, Tuple
+
+from django.core.files.base import ContentFile
 
 import requests
 from celery import group, chain
@@ -21,12 +23,14 @@ from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from django_celery_results.models import TaskResult
 from dns import resolver
+from google.cloud import storage
 from model_utils import Choices
 from model_utils.fields import MonitorField
 from model_utils.managers import QueryManagerMixin
 from model_utils.models import TimeStampedModel, SoftDeletableModel
 from requests_cache import CachedSession
 from six import BytesIO
+from storages.backends.gcloud import GoogleCloudStorage
 
 from whoweb.accounting.ledgers import wkcredits_fulfilled_ledger
 from whoweb.accounting.models import Transaction, MatchType
@@ -35,7 +39,8 @@ from whoweb.contrib.fields import CompressedBinaryJSONField
 from whoweb.contrib.postgres.fields import EmbeddedModelField
 from whoweb.core.models import EventLoggingModel
 from whoweb.core.router import router, external_link
-from whoweb.payments.models import WKPlan
+from whoweb.payments.exceptions import SubscriptionError
+from whoweb.payments.models import WKPlan, BillingAccountMember
 from whoweb.search.events import (
     GENERATING_PAGES,
     FINALIZING,
@@ -49,6 +54,7 @@ from whoweb.search.events import (
     FINALIZING_LOCKED,
     VALIDATION_COMPLETE_LOCKED,
     COMPRESSING_PAGES,
+    UPLOAD_TO_BUCKET,
 )
 from whoweb.users.models import Seat
 from .profile import ResultProfile, WORK, PERSONAL, SOCIAL, PROFILE, VALIDATED
@@ -59,8 +65,12 @@ User = get_user_model()
 DATAVALIDATION_URL = "https://dv3.datavalidation.com/api/v2/user/me"
 
 
-class SubscriptionError(Exception):
-    pass
+def validation_file_location(instance, filename):
+    return f"exports/{instance.uuid.hex}/validate/{filename}"
+
+
+def download_file_location(instance, filename):
+    return f"exports/{instance.uuid.hex}/download/{filename}"
 
 
 class SearchExportManager(QueryManagerMixin, models.Manager):
@@ -107,6 +117,21 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         29: "domain",
         30: "mxdomain",
     }
+    PROFILE_EXCLUDES = {
+        "relevance_score",
+        "experience",
+        "education_history",
+        "skills",
+        "attenuated_skills",
+        "geo_loc",
+        "picture_url",
+        "seniority_level",
+        "time_at_current_company",
+        "time_at_current_position",
+        "total_experience",
+        "business_function",
+        "diversity",
+    }
     INTRO_COLS = [0]
     BASE_COLS = list(range(1, 10)) + [25]
     DERIVATION_COLS = list(range(10, 25)) + [26, 27, 28]
@@ -124,12 +149,20 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     )
 
     seat = models.ForeignKey(Seat, on_delete=models.CASCADE, null=True, blank=True)
+    billing_seat = models.ForeignKey(
+        BillingAccountMember, on_delete=models.CASCADE, null=True, blank=True
+    )
     scroll = models.ForeignKey(ScrollSearch, on_delete=models.SET_NULL, null=True)
     uuid = models.UUIDField(default=uuid.uuid4, db_index=True, blank=True)
     query = EmbeddedModelField(
         FilteredSearchQuery, blank=False, default=FilteredSearchQuery
     )
+    pre_validation_file = models.FileField(
+        upload_to=validation_file_location, null=True, blank=True, editable=False,
+    )
     validation_list_id = models.CharField(max_length=50, null=True, blank=True)
+    csv = models.FileField(upload_to=download_file_location, null=True, blank=True)
+
     status = models.IntegerField(
         _("status"), db_index=True, choices=STATUS, blank=True, default=STATUS.created
     )
@@ -146,6 +179,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     notify = models.BooleanField(default=False)
     charge = models.BooleanField(default=False)
     uploadable = models.BooleanField(default=False, editable=False)
+    extra_columns = JSONField(null=True)
 
     on_trial = models.BooleanField(default=False)  # ????
 
@@ -160,14 +194,14 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         return "%s (%s) %s" % (self.__class__.__name__, self.pk, self.uuid.hex)
 
     @classmethod
-    def create_from_query(cls, seat: Seat, query: dict, **kwargs):
-        export = cls(seat=seat, query=query, **kwargs)
+    def create_from_query(cls, billing_seat: Seat, query: dict, **kwargs):
+        export = cls(billing_seat=billing_seat, query=query, **kwargs)
         if not export.should_derive_email:
             export.charge = False
         # save here because export needs a pk to be added as evidence to transaction below
         export = export._set_target(save=True)
         if export.charge:
-            plan: WKPlan = seat.billing.plan
+            plan: WKPlan = billing_seat.plan
             if not plan:
                 raise SubscriptionError("No plan or subscription found for user.")
 
@@ -181,13 +215,15 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             if FilteredSearchQuery.CONTACT_FILTER_CHOICES.PHONE in filters:
                 fee_per_row += plan.credits_per_phone
             credits_to_charge = export.target * fee_per_row  # maximum possible
-            charged = seat.billing.consume_credits(
-                amount=credits_to_charge, initiated_by=seat.user, evidence=(export,)
+            charged = billing_seat.consume_credits(
+                amount=credits_to_charge,
+                initiated_by=billing_seat.user,
+                evidence=(export,),
             )
             if not charged:
                 raise SubscriptionError(
                     f"Not enough credits to complete this export. "
-                    f"{seat.billing.credits} available but {credits_to_charge} required"
+                    f"{billing_seat.credits} available but {credits_to_charge} required"
                 )
         tasks = export.processing_signatures()
 
@@ -333,14 +369,14 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             return [
                 SearchExport.ALL_COLUMNS[idx].lower().replace(" ", "_")
                 for idx in self.columns
-            ]
+            ] + list(self.extra_columns.keys() if self.extra_columns else [])
         else:
             return [SearchExport.ALL_COLUMNS[idx] for idx in self.columns]
 
     def ensure_search_interface(self, force=False):
         if self.scroll is None:
             search, created = ScrollSearch.get_or_create(
-                query=self.query, user_id=self.seat_id
+                query=self.query, user_id=self.billing_seat_id
             )
             self.scroll = search
             self.save()
@@ -360,7 +396,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             raw = self.get_raw()
         for profile in raw:
             if profile:
-                yield ResultProfile.from_json(profile)
+                yield ResultProfile(**profile)
 
     def get_profiles_by_page(
         self, raw_by_page=None
@@ -432,7 +468,9 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
                 return
             row = [key] + row
         if self.uploadable:
-            row += [profile.domain or "", profile.mx_domain or ""]
+            row += [profile.domain or "", profile.mx_domain or "",] + list(
+                self.extra_columns.values() if self.extra_columns else []
+            )
         return row
 
     def generate_csv_rows(self, rows=None):
@@ -472,7 +510,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     def compute_charges(self):
         charges = 0
         profiles = self.get_profiles()
-        plan: WKPlan = self.seat.billing.plan
+        plan: WKPlan = self.billing_seat.plan
         if self.charge:
             return sum(
                 plan.compute_contact_credit_use(profile=profile)
@@ -633,9 +671,9 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         if export.charge and not export.defer_validation:
             charges = export.compute_charges()
             credits_to_refund = export.charged - charges
-            export.seat.billing.refund_credits(
+            export.billing_seat.refund_credits(
                 amount=credits_to_refund,
-                initiated_by=export.seat.user,
+                initiated_by=export.billing_seat.user,
                 evidence=(export,),
                 notes="Computed for inline-validated export at post page completion stage.",
             )
@@ -658,9 +696,9 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         if export.charge:
             charges = export.compute_charges()
             credits_to_refund = export.charged - charges
-            export.seat.billing.refund_credits(
+            export.billing_seat.refund_credits(
                 amount=credits_to_refund,
-                initiated_by=export.seat.user,
+                initiated_by=export.billing_seat.user,
                 evidence=(export,),
                 notes="Computed for deferred-validation export at post validation stage.",
             )
@@ -678,11 +716,19 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             self.save()
             return
 
+        buffer = StringIO()
+        writer = csv.writer(buffer)
+        for row in self.get_ungraded_email_rows():
+            writer.writerow(row)
+        export_file = ContentFile(buffer.getvalue().encode("utf-8"))
+        self.pre_validation_file.save(f"wk_validation_{self.uuid.hex}.csv", export_file)
+        self.save()
+
         r = requests.post(
             url=f"{DATAVALIDATION_URL}/list/create_from_url/",
             headers={"Authorization": f"Bearer {settings.DATAVALIDATION_KEY}"},
             data=dict(
-                url=external_link(self.get_validation_url()),
+                url=self.pre_validation_file.url,
                 name=self.uuid.hex,
                 email_column_index=0,
                 has_header=0,
@@ -763,7 +809,10 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         for page in self.pages.filter(data__isnull=False).iterator(chunk_size=1):
             profiles = self.get_profiles(raw=page.data)
             page.data = [
-                profile.update_validation(registry).to_json() for profile in profiles
+                profile.update_validation(registry).dict(
+                    exclude=SearchExport.PROFILE_EXCLUDES
+                )
+                for profile in profiles
             ]
             page.save()
 
@@ -813,27 +862,33 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     def push_to_webhooks(self, rows):
         pass
 
-    #   TODO
-    #     for hook in self.query.export.webhooks:
-    #         results = []
-    #         if self.query.export.is_flat:
-    #             csv_rows = self.generate_csv_rows(rows)
-    #             results = [
-    #                 {tup[0]: tup[1] for tup in zip(self.get_column_names(), row)}
-    #                 for row in csv_rows
-    #             ]
-    #         else:
-    #             for row in rows:
-    #                 contact_info = row.get("derived_contact", None)
-    #                 versioned_profile = ensure_profile_matches_spec(row)
-    #                 if contact_info:
-    #                     versioned_derivation = ensure_contact_info_matches_spec(
-    #                         contact_info, profile=None
-    #                     )
-    #                     versioned_profile["contact"] = versioned_derivation
-    #                 results.append(versioned_profile)
-    #         for row in results:
-    #             requests.post(url=hook, json=row)
+    def upload_to_static_bucket(self, task_context=None):
+        self.log_event(UPLOAD_TO_BUCKET, task=task_context)
+        buffer = StringIO()
+        writer = csv.writer(buffer)
+        for row in self.generate_csv_rows():
+            writer.writerow(row)
+        export_file = ContentFile(buffer.getvalue().encode("utf-8"))
+        if self.uploadable:
+            filename = f"{self.uuid.hex}__fetch.csv"
+        else:
+            filename = f"whoknows_search_results_{self.created.date()}.csv"
+        self.csv.save(filename, export_file)
+        self.status = self.STATUS.complete
+        self.save()
+        # Update metadata to ensure download on link-click for users.
+        if isinstance(self.csv.storage, GoogleCloudStorage):
+            client = storage.Client()
+            bucket = client.get_bucket(settings.GS_BUCKET_NAME)
+            blob_name = self.csv.url.split(settings.GS_BUCKET_NAME + "/", maxsplit=1)[
+                -1
+            ]
+            blob = bucket.get_blob(blob_name)
+            blob.content_disposition = "attachment"
+            blob.content_type = "text/csv"
+            blob.patch()
+        return self.csv.url
+
     @transaction.atomic
     def send_link(self):
         if self.sent:
@@ -845,7 +900,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             return
         if export.sent:
             return
-        email = self.seat.email
+        email = self.billing_seat.seat.email
         link = external_link(self.get_absolute_url())
         json_link = external_link(self.get_absolute_url(filetype="json"))
         subject = "Your WhoKnows Export Results"
@@ -868,7 +923,6 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             message=html_message,
         )
         self.sent = email
-        self.status = self.STATUS.complete
         self.save()
 
     @property
@@ -890,7 +944,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             send_notification,
             do_post_validation_completion,
             spawn_mx_group,
-            alert_xperweb,
+            upload_to_static_bucket,
         )
 
         batch_ratio = self.PREFETCH_MULTIPLIER
@@ -921,27 +975,16 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
                 | fetch_validation_results.si(export_id=self.pk)
                 | do_post_validation_completion.si(export_id=self.pk)
             )
-        if self.notify:
-            sigs |= send_notification.si(export_id=self.pk).set(priority=3)
         if self.uploadable:
             sigs |= spawn_mx_group.si(export_id=self.pk)
-        sigs |= (
-            alert_xperweb.si(export_id=self.pk)
-            .on_error(alert_xperweb.si(export_id=self.pk))
-            .set(priority=4)
-        )
+        sigs |= upload_to_static_bucket.si(export_id=self.pk)
+        if self.notify:
+            sigs |= send_notification.si(export_id=self.pk).set(priority=3)
         return sigs
 
-    def get_validation_url(self):
-        return reverse("search:validate_export", kwargs={"uuid": self.uuid})
-
-    def get_named_fetch_url(self):
-        return reverse(
-            "search:download_export_with_named_file_ext",
-            kwargs={"uuid": self.uuid, "same_uuid": self.uuid, "filetype": "csv"},
-        )
-
     def get_absolute_url(self, filetype="csv"):
+        if filetype == "csv":
+            return self.csv.url
         return reverse(
             "search:download_export", kwargs={"uuid": self.uuid, "filetype": filetype}
         )
@@ -983,10 +1026,14 @@ class SearchExportPage(TimeStampedModel):
         page = cls.objects.get(pk=page_pk)
         if profile.id:
             _, created = WorkingExportRow.objects.update_or_create(
-                page=page, profile_id=profile.id, defaults={"data": profile.to_json()},
+                page=page,
+                profile_id=profile.id,
+                defaults={"data": profile.dict(exclude=SearchExport.PROFILE_EXCLUDES)},
             )
         else:
-            WorkingExportRow.objects.create(page=page, data=profile.to_json())
+            WorkingExportRow.objects.create(
+                page=page, data=profile.dict(exclude=SearchExport.PROFILE_EXCLUDES)
+            )
             created = True
         if page:
             page.pending_count = F("pending_count") - int(created)
@@ -1008,7 +1055,10 @@ class SearchExportPage(TimeStampedModel):
         self.save()
         scroll = self.export.scroll
         ids = scroll.get_ids_for_page(self.page_num)
-        profiles = [p.to_json() for p in scroll.get_profiles_for_page(self.page_num)]
+        profiles = [
+            p.dict(exclude=SearchExport.PROFILE_EXCLUDES)
+            for p in scroll.get_profiles_for_page(self.page_num)
+        ]
         self.count = len(profiles)
         self.data = profiles
         self.status = self.STATUS.complete
@@ -1050,9 +1100,9 @@ class SearchExportPage(TimeStampedModel):
         )
         priority = self.export.queue_priority
         derivation_sigs = [
-            process_derivation.si(self.pk, profile.to_json(), *args).set(
-                priority=priority
-            )
+            process_derivation.si(
+                self.pk, profile.dict(exclude=SearchExport.PROFILE_EXCLUDES), *args
+            ).set(priority=priority)
             for profile in profiles
         ]
         return derivation_sigs

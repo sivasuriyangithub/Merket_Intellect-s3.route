@@ -1,5 +1,6 @@
 from typing import Type, TypeVar
 
+from django.utils.timezone import now
 from factory import (
     DjangoModelFactory,
     SubFactory,
@@ -36,6 +37,7 @@ class SendingRuleFactory(DjangoModelFactory):
     runner = SubFactory(CampaignRunnerFactory)
     message = SubFactory(CampaignMessageFactory)
     index = Sequence(int)
+    send_datetime = LazyAttribute(lambda o: now() if o.index == 0 else None)
 
 
 class DripRecordFactory(DjangoModelFactory):

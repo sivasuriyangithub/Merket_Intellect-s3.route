@@ -1,8 +1,11 @@
 from django.contrib.auth import get_user_model
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets, mixins
+from rest_framework import viewsets, mixins, status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet
 from rest_framework_guardian.filters import ObjectPermissionsFilter
+from slugify import slugify
 
 from whoweb.contrib.rest_framework.permissions import ObjectPermissions, IsSuperUser
 from whoweb.users.models import Seat, DeveloperKey, Group, UserProfile
@@ -11,6 +14,7 @@ from whoweb.users.serializers import (
     DeveloperKeySerializer,
     NetworkSerializer,
     UserSerializer,
+    AuthManagementSerializer,
 )
 
 User = get_user_model()
@@ -52,3 +56,42 @@ class DeveloperKeyViewSet(
     serializer_class = DeveloperKeySerializer
     permission_classes = [IsSuperUser | ObjectPermissions]
     filter_backends = [DjangoFilterBackend, ObjectPermissionsFilter]
+
+
+class ManageUserAuthenticationAPIView(APIView):
+    permission_classes = [IsSuperUser]
+    serializer_class = AuthManagementSerializer
+
+    def post(self, request, **kwargs):
+        serializer = AuthManagementSerializer(
+            data=request.data, context={"request": request}
+        )
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        seat: Seat = serializer.validated_data.get("seat")
+        if not seat:
+            xperweb_id = serializer.validated_data.get("xperweb_id")
+            email = serializer.validated_data.get("email")
+            first_name = serializer.validated_data.get("first_name")
+            last_name = serializer.validated_data.get("last_name")
+            group_id = serializer.validated_data.get("group_id")
+            group_name = serializer.validated_data.get("group_name") or group_id
+
+            profile, _ = UserProfile.get_or_create(
+                username=xperweb_id,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+            )
+            group, _ = Group.objects.get_or_create(
+                name=group_name, slug=slugify(group_id)
+            )
+            seat, _ = group.get_or_add_user(
+                user=profile.user, display_name=profile.user.get_full_name()
+            )
+        user: User = seat.user
+        user.set_password(serializer.validated_data["password"])
+        user.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)

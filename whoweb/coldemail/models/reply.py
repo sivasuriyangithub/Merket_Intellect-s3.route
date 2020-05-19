@@ -53,7 +53,7 @@ class ReplyTo(TimeStampedModel):
 
     def publish(self):
         assert hasattr(self.replyable_object, "log_reply")
-        seat = self.replyable_object.seat
+        seat = self.replyable_object.billing_seat.seat
         route = RoutesObject.create_reply_route(
             match=self.pk,
             forwarding_address=seat.email,

@@ -4,7 +4,7 @@ from django.conf import settings
 from graphene_django.debug import DjangoDebug
 from graphql_jwt.decorators import login_required
 
-from whoweb.users.schema import Query as UsersQuery
+from whoweb.users.schema import Query as UsersQuery, SeatNode
 from whoweb.search.schema import Query as SearchQuery
 from whoweb.payments.schema import Query as PaymentsQuery
 from whoweb.users.mutations import Mutation as UsersMutation
@@ -18,10 +18,16 @@ class Viewer(UsersQuery, SearchQuery, PaymentsQuery, graphene.ObjectType):
 
 
 class Query(graphene.ObjectType):
-    viewer = graphene.Field(Viewer, token=graphene.String(required=True))
+    viewer = graphene.Field(
+        Viewer, token=graphene.String(required=True), seat=graphene.ID(required=False)
+    )
 
     @login_required
-    def resolve_viewer(self, info, **kwargs):
+    def resolve_viewer(self, info, seat=None, **kwargs):
+        if seat is not None:
+            seat = SeatNode.get_node(info, seat)
+        if not hasattr(info.context, "seat"):
+            info.context.seat = seat
         return info.context.user
 
 

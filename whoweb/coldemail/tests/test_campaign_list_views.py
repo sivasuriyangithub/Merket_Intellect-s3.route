@@ -17,7 +17,6 @@ def test_create_campaignlist(su_client, query_contact_invites):
         },
         format="json",
     )
-    print(resp.content)
     assert resp.status_code == 201
     assert resp.json()["url"].startswith("http://testserver/ww/api/campaign/lists/")
     assert resp.json()["name"] == "list name"

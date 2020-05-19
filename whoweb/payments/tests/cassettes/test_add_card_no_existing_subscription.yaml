@@ -1,0 +1,353 @@
+interactions:
+- request:
+    body: email=nparks%40gmail.com&metadata[djstripe_subscriber]=1
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '56'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      Idempotency-Key:
+      - 3e6bf23c-5f2f-4c1c-8a35-2816b3b9d079
+      Stripe-Version:
+      - '2019-09-09'
+      User-Agent:
+      - Stripe/v1 PythonBindings/2.43.0 dj-stripe/2.2.3 (https://github.com/dj-stripe/dj-stripe)
+      X-Stripe-Client-User-Agent:
+      - '{"bindings_version": "2.43.0", "lang": "python", "publisher": "stripe", "httplib":
+        "requests", "lang_version": "3.8.0", "platform": "macOS-10.15.2-x86_64-i386-64bit",
+        "uname": "Darwin MacBook-Pro-Touch.local 19.2.0 Darwin Kernel Version 19.2.0:
+        Sat Nov  9 03:47:04 PST 2019; root:xnu-6153.61.1~20/RELEASE_X86_64 x86_64
+        i386", "application": {"name": "dj-stripe", "partner_id": null, "url": "https://github.com/dj-stripe/dj-stripe",
+        "version": "2.2.3"}}'
+      authorization:
+      - DUMMY
+    method: POST
+    uri: https://api.stripe.com/v1/customers
+  response:
+    body:
+      string: "{\n  \"id\": \"cus_GvLpd6jx4Z4Um6\",\n  \"object\": \"customer\",\n\
+        \  \"account_balance\": 0,\n  \"address\": null,\n  \"balance\": 0,\n  \"\
+        created\": 1584411943,\n  \"currency\": null,\n  \"default_source\": null,\n\
+        \  \"delinquent\": false,\n  \"description\": null,\n  \"discount\": null,\n\
+        \  \"email\": \"nparks@gmail.com\",\n  \"invoice_prefix\": \"BF43C392\",\n\
+        \  \"invoice_settings\": {\n    \"custom_fields\": null,\n    \"default_payment_method\"\
+        : null,\n    \"footer\": null\n  },\n  \"livemode\": false,\n  \"metadata\"\
+        : {\n    \"djstripe_subscriber\": \"1\"\n  },\n  \"name\": null,\n  \"next_invoice_sequence\"\
+        : 1,\n  \"phone\": null,\n  \"preferred_locales\": [\n\n  ],\n  \"shipping\"\
+        : null,\n  \"sources\": {\n    \"object\": \"list\",\n    \"data\": [\n\n\
+        \    ],\n    \"has_more\": false,\n    \"total_count\": 0,\n    \"url\": \"\
+        /v1/customers/cus_GvLpd6jx4Z4Um6/sources\"\n  },\n  \"subscriptions\": {\n\
+        \    \"object\": \"list\",\n    \"data\": [\n\n    ],\n    \"has_more\": false,\n\
+        \    \"total_count\": 0,\n    \"url\": \"/v1/customers/cus_GvLpd6jx4Z4Um6/subscriptions\"\
+        \n  },\n  \"tax_exempt\": \"none\",\n  \"tax_ids\": {\n    \"object\": \"\
+        list\",\n    \"data\": [\n\n    ],\n    \"has_more\": false,\n    \"total_count\"\
+        : 0,\n    \"url\": \"/v1/customers/cus_GvLpd6jx4Z4Um6/tax_ids\"\n  },\n  \"\
+        tax_info\": null,\n  \"tax_info_verification\": null\n}\n"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '1192'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 17 Mar 2020 02:25:43 GMT
+      Server:
+      - nginx
+      Strict-Transport-Security:
+      - max-age=31556926; includeSubDomains; preload
+      access-control-allow-credentials:
+      - 'true'
+      access-control-allow-methods:
+      - GET, POST, HEAD, OPTIONS, DELETE
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required
+      access-control-max-age:
+      - '300'
+      cache-control:
+      - no-cache, no-store
+      idempotency-key:
+      - 3e6bf23c-5f2f-4c1c-8a35-2816b3b9d079
+      original-request:
+      - req_g9Kgqq92k0sWBt
+      request-id:
+      - req_g9Kgqq92k0sWBt
+      stripe-should-retry:
+      - 'false'
+      stripe-version:
+      - '2019-09-09'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Stripe-Version:
+      - '2019-09-09'
+      User-Agent:
+      - Stripe/v1 PythonBindings/2.43.0 dj-stripe/2.2.3 (https://github.com/dj-stripe/dj-stripe)
+      X-Stripe-Client-Telemetry:
+      - '{"last_request_metrics": {"request_id": "req_g9Kgqq92k0sWBt", "request_duration_ms":
+        424}}'
+      X-Stripe-Client-User-Agent:
+      - '{"bindings_version": "2.43.0", "lang": "python", "publisher": "stripe", "httplib":
+        "requests", "lang_version": "3.8.0", "platform": "macOS-10.15.2-x86_64-i386-64bit",
+        "uname": "Darwin MacBook-Pro-Touch.local 19.2.0 Darwin Kernel Version 19.2.0:
+        Sat Nov  9 03:47:04 PST 2019; root:xnu-6153.61.1~20/RELEASE_X86_64 x86_64
+        i386", "application": {"name": "dj-stripe", "partner_id": null, "url": "https://github.com/dj-stripe/dj-stripe",
+        "version": "2.2.3"}}'
+      authorization:
+      - DUMMY
+    method: GET
+    uri: https://api.stripe.com/v1/customers/cus_GvLpd6jx4Z4Um6?expand%5B0%5D=default_source
+  response:
+    body:
+      string: "{\n  \"id\": \"cus_GvLpd6jx4Z4Um6\",\n  \"object\": \"customer\",\n\
+        \  \"account_balance\": 0,\n  \"address\": null,\n  \"balance\": 0,\n  \"\
+        created\": 1584411943,\n  \"currency\": null,\n  \"default_source\": null,\n\
+        \  \"delinquent\": false,\n  \"description\": null,\n  \"discount\": null,\n\
+        \  \"email\": \"nparks@gmail.com\",\n  \"invoice_prefix\": \"BF43C392\",\n\
+        \  \"invoice_settings\": {\n    \"custom_fields\": null,\n    \"default_payment_method\"\
+        : null,\n    \"footer\": null\n  },\n  \"livemode\": false,\n  \"metadata\"\
+        : {\n    \"djstripe_subscriber\": \"1\"\n  },\n  \"name\": null,\n  \"next_invoice_sequence\"\
+        : 1,\n  \"phone\": null,\n  \"preferred_locales\": [\n\n  ],\n  \"shipping\"\
+        : null,\n  \"sources\": {\n    \"object\": \"list\",\n    \"data\": [\n\n\
+        \    ],\n    \"has_more\": false,\n    \"total_count\": 0,\n    \"url\": \"\
+        /v1/customers/cus_GvLpd6jx4Z4Um6/sources\"\n  },\n  \"subscriptions\": {\n\
+        \    \"object\": \"list\",\n    \"data\": [\n\n    ],\n    \"has_more\": false,\n\
+        \    \"total_count\": 0,\n    \"url\": \"/v1/customers/cus_GvLpd6jx4Z4Um6/subscriptions\"\
+        \n  },\n  \"tax_exempt\": \"none\",\n  \"tax_ids\": {\n    \"object\": \"\
+        list\",\n    \"data\": [\n\n    ],\n    \"has_more\": false,\n    \"total_count\"\
+        : 0,\n    \"url\": \"/v1/customers/cus_GvLpd6jx4Z4Um6/tax_ids\"\n  },\n  \"\
+        tax_info\": null,\n  \"tax_info_verification\": null\n}\n"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '1192'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 17 Mar 2020 02:25:44 GMT
+      Server:
+      - nginx
+      Strict-Transport-Security:
+      - max-age=31556926; includeSubDomains; preload
+      access-control-allow-credentials:
+      - 'true'
+      access-control-allow-methods:
+      - GET, POST, HEAD, OPTIONS, DELETE
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required
+      access-control-max-age:
+      - '300'
+      cache-control:
+      - no-cache, no-store
+      request-id:
+      - req_3vvJbqb33SDe4n
+      stripe-version:
+      - '2019-09-09'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: source=tok_visa
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '15'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      Idempotency-Key:
+      - 376ee43b-8e3f-4daa-84b0-900c4981a8d9
+      Stripe-Version:
+      - '2019-09-09'
+      User-Agent:
+      - Stripe/v1 PythonBindings/2.43.0 dj-stripe/2.2.3 (https://github.com/dj-stripe/dj-stripe)
+      X-Stripe-Client-Telemetry:
+      - '{"last_request_metrics": {"request_id": "req_3vvJbqb33SDe4n", "request_duration_ms":
+        148}}'
+      X-Stripe-Client-User-Agent:
+      - '{"bindings_version": "2.43.0", "lang": "python", "publisher": "stripe", "httplib":
+        "requests", "lang_version": "3.8.0", "platform": "macOS-10.15.2-x86_64-i386-64bit",
+        "uname": "Darwin MacBook-Pro-Touch.local 19.2.0 Darwin Kernel Version 19.2.0:
+        Sat Nov  9 03:47:04 PST 2019; root:xnu-6153.61.1~20/RELEASE_X86_64 x86_64
+        i386", "application": {"name": "dj-stripe", "partner_id": null, "url": "https://github.com/dj-stripe/dj-stripe",
+        "version": "2.2.3"}}'
+      authorization:
+      - DUMMY
+    method: POST
+    uri: https://api.stripe.com/v1/customers/cus_GvLpd6jx4Z4Um6/sources
+  response:
+    body:
+      string: "{\n  \"id\": \"card_1GNV7kDGSmTJrpHg2YJ5qTev\",\n  \"object\": \"card\"\
+        ,\n  \"address_city\": null,\n  \"address_country\": null,\n  \"address_line1\"\
+        : null,\n  \"address_line1_check\": null,\n  \"address_line2\": null,\n  \"\
+        address_state\": null,\n  \"address_zip\": null,\n  \"address_zip_check\"\
+        : null,\n  \"brand\": \"Visa\",\n  \"country\": \"US\",\n  \"customer\": \"\
+        cus_GvLpd6jx4Z4Um6\",\n  \"cvc_check\": null,\n  \"dynamic_last4\": null,\n\
+        \  \"exp_month\": 3,\n  \"exp_year\": 2021,\n  \"fingerprint\": \"JBQUMWEqhLPrdmkK\"\
+        ,\n  \"funding\": \"credit\",\n  \"last4\": \"4242\",\n  \"metadata\": {\n\
+        \  },\n  \"name\": null,\n  \"tokenization_method\": null\n}\n"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '578'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 17 Mar 2020 02:25:44 GMT
+      Server:
+      - nginx
+      Strict-Transport-Security:
+      - max-age=31556926; includeSubDomains; preload
+      access-control-allow-credentials:
+      - 'true'
+      access-control-allow-methods:
+      - GET, POST, HEAD, OPTIONS, DELETE
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required
+      access-control-max-age:
+      - '300'
+      cache-control:
+      - no-cache, no-store
+      idempotency-key:
+      - 376ee43b-8e3f-4daa-84b0-900c4981a8d9
+      original-request:
+      - req_ZU8L4PTzNysZya
+      request-id:
+      - req_ZU8L4PTzNysZya
+      stripe-should-retry:
+      - 'false'
+      stripe-version:
+      - '2019-09-09'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: default_source=card_1GNV7kDGSmTJrpHg2YJ5qTev
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '44'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      Idempotency-Key:
+      - fde2b06b-714e-4c57-b94d-3cf72992043c
+      Stripe-Version:
+      - '2019-09-09'
+      User-Agent:
+      - Stripe/v1 PythonBindings/2.43.0 dj-stripe/2.2.3 (https://github.com/dj-stripe/dj-stripe)
+      X-Stripe-Client-Telemetry:
+      - '{"last_request_metrics": {"request_id": "req_ZU8L4PTzNysZya", "request_duration_ms":
+        687}}'
+      X-Stripe-Client-User-Agent:
+      - '{"bindings_version": "2.43.0", "lang": "python", "publisher": "stripe", "httplib":
+        "requests", "lang_version": "3.8.0", "platform": "macOS-10.15.2-x86_64-i386-64bit",
+        "uname": "Darwin MacBook-Pro-Touch.local 19.2.0 Darwin Kernel Version 19.2.0:
+        Sat Nov  9 03:47:04 PST 2019; root:xnu-6153.61.1~20/RELEASE_X86_64 x86_64
+        i386", "application": {"name": "dj-stripe", "partner_id": null, "url": "https://github.com/dj-stripe/dj-stripe",
+        "version": "2.2.3"}}'
+      authorization:
+      - DUMMY
+    method: POST
+    uri: https://api.stripe.com/v1/customers/cus_GvLpd6jx4Z4Um6
+  response:
+    body:
+      string: "{\n  \"id\": \"cus_GvLpd6jx4Z4Um6\",\n  \"object\": \"customer\",\n\
+        \  \"account_balance\": 0,\n  \"address\": null,\n  \"balance\": 0,\n  \"\
+        created\": 1584411943,\n  \"currency\": null,\n  \"default_source\": \"card_1GNV7kDGSmTJrpHg2YJ5qTev\"\
+        ,\n  \"delinquent\": false,\n  \"description\": null,\n  \"discount\": null,\n\
+        \  \"email\": \"nparks@gmail.com\",\n  \"invoice_prefix\": \"BF43C392\",\n\
+        \  \"invoice_settings\": {\n    \"custom_fields\": null,\n    \"default_payment_method\"\
+        : null,\n    \"footer\": null\n  },\n  \"livemode\": false,\n  \"metadata\"\
+        : {\n    \"djstripe_subscriber\": \"1\"\n  },\n  \"name\": null,\n  \"next_invoice_sequence\"\
+        : 1,\n  \"phone\": null,\n  \"preferred_locales\": [\n\n  ],\n  \"shipping\"\
+        : null,\n  \"sources\": {\n    \"object\": \"list\",\n    \"data\": [\n  \
+        \    {\n        \"id\": \"card_1GNV7kDGSmTJrpHg2YJ5qTev\",\n        \"object\"\
+        : \"card\",\n        \"address_city\": null,\n        \"address_country\"\
+        : null,\n        \"address_line1\": null,\n        \"address_line1_check\"\
+        : null,\n        \"address_line2\": null,\n        \"address_state\": null,\n\
+        \        \"address_zip\": null,\n        \"address_zip_check\": null,\n  \
+        \      \"brand\": \"Visa\",\n        \"country\": \"US\",\n        \"customer\"\
+        : \"cus_GvLpd6jx4Z4Um6\",\n        \"cvc_check\": null,\n        \"dynamic_last4\"\
+        : null,\n        \"exp_month\": 3,\n        \"exp_year\": 2021,\n        \"\
+        fingerprint\": \"JBQUMWEqhLPrdmkK\",\n        \"funding\": \"credit\",\n \
+        \       \"last4\": \"4242\",\n        \"metadata\": {\n        },\n      \
+        \  \"name\": null,\n        \"tokenization_method\": null\n      }\n    ],\n\
+        \    \"has_more\": false,\n    \"total_count\": 1,\n    \"url\": \"/v1/customers/cus_GvLpd6jx4Z4Um6/sources\"\
+        \n  },\n  \"subscriptions\": {\n    \"object\": \"list\",\n    \"data\": [\n\
+        \n    ],\n    \"has_more\": false,\n    \"total_count\": 0,\n    \"url\":\
+        \ \"/v1/customers/cus_GvLpd6jx4Z4Um6/subscriptions\"\n  },\n  \"tax_exempt\"\
+        : \"none\",\n  \"tax_ids\": {\n    \"object\": \"list\",\n    \"data\": [\n\
+        \n    ],\n    \"has_more\": false,\n    \"total_count\": 0,\n    \"url\":\
+        \ \"/v1/customers/cus_GvLpd6jx4Z4Um6/tax_ids\"\n  },\n  \"tax_info\": null,\n\
+        \  \"tax_info_verification\": null\n}\n"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '1952'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 17 Mar 2020 02:25:45 GMT
+      Server:
+      - nginx
+      Strict-Transport-Security:
+      - max-age=31556926; includeSubDomains; preload
+      access-control-allow-credentials:
+      - 'true'
+      access-control-allow-methods:
+      - GET, POST, HEAD, OPTIONS, DELETE
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required
+      access-control-max-age:
+      - '300'
+      cache-control:
+      - no-cache, no-store
+      idempotency-key:
+      - fde2b06b-714e-4c57-b94d-3cf72992043c
+      original-request:
+      - req_6SBcXEv3Y1RbFk
+      request-id:
+      - req_6SBcXEv3Y1RbFk
+      stripe-should-retry:
+      - 'false'
+      stripe-version:
+      - '2019-09-09'
+    status:
+      code: 200
+      message: OK
+version: 1

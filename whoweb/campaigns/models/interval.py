@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from django.db import models
+from rest_framework.reverse import reverse
 
 from .base import BaseCampaignRunner
 from ..events import CAMPAIGN_SIGNATURES
@@ -55,3 +56,8 @@ class IntervalCampaignRunner(IntervalCampaignBase):
             return (sigs.apply_async(), publish_next_sig.apply_async()), campaign
         else:
             return (sigs, publish_next_sig), campaign
+
+    def get_absolute_url(self):
+        return reverse(
+            "intervalcampaignrunner-detail", kwargs={"public_id": self.public_id}
+        )

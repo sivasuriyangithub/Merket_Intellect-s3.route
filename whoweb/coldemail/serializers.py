@@ -1,7 +1,11 @@
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
-from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
+from whoweb.contrib.rest_framework.fields import TagulousField
+from whoweb.contrib.rest_framework.serializers import (
+    IdOrHyperlinkedModelSerializer,
+    TaggableMixin,
+)
 from .models import (
     CampaignMessage,
     ColdCampaign,
@@ -12,36 +16,21 @@ from .models import (
 from whoweb.search.serializers import FilteredSearchQuerySerializer
 
 
-class TaggableMixin(object):
-    def update(self, instance, validated_data):
-        if tags := validated_data.pop("tags", None) is not None:
-            instance.tags = tags
-        return super().update(instance, validated_data)
-
-    def create(self, validated_data):
-        tags = validated_data.pop("tags", None)
-        instance = super().create(validated_data)
-        if tags is not None:
-            instance.tags = tags
-            instance.save()
-        return instance
-
-
 class CampaignMessageSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
     status_name = serializers.CharField(source="get_status_display", read_only=True)
     id = serializers.CharField(source="public_id", read_only=True)
-    tags = serializers.ListSerializer(child=serializers.CharField(), required=False)
+    tags = TagulousField(required=False)
 
     class Meta:
         model = CampaignMessage
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
-            "seat": {"lookup_field": "public_id"},
+            "billing_seat": {"lookup_field": "public_id"},
         }
         fields = (
             "url",
             "id",
-            "seat",
+            "billing_seat",
             "title",
             "subject",
             "plain_content",
@@ -58,18 +47,18 @@ class CampaignMessageSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
 
 class CampaignMessageTemplateSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
     id = serializers.CharField(source="public_id", read_only=True)
-    tags = serializers.ListSerializer(child=serializers.CharField(), required=False)
+    tags = TagulousField(required=False)
 
     class Meta:
         model = CampaignMessageTemplate
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
-            "seat": {"lookup_field": "public_id"},
+            "billing_seat": {"lookup_field": "public_id"},
         }
         fields = (
             "url",
             "id",
-            "seat",
+            "billing_seat",
             "title",
             "tags",
             "subject",
@@ -83,18 +72,18 @@ class CampaignListSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
     query = FilteredSearchQuerySerializer()
     status_name = serializers.CharField(source="get_status_display", read_only=True)
     id = serializers.CharField(source="public_id", read_only=True)
-    tags = serializers.ListSerializer(child=serializers.CharField(), required=False)
+    tags = TagulousField(required=False)
 
     class Meta:
         model = CampaignList
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
-            "seat": {"lookup_field": "public_id"},
+            "billing_seat": {"lookup_field": "public_id"},
         }
         fields = (
             "url",
             "id",
-            "seat",
+            "billing_seat",
             "name",
             "tags",
             "origin",
@@ -139,7 +128,7 @@ class CampaignSerializer(serializers.ModelSerializer):
 
 
 class SingleColdEmailSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
-    tags = serializers.ListSerializer(child=serializers.CharField(), required=False)
+    tags = TagulousField(required=False)
 
     class Meta:
         model = SingleColdEmail
@@ -152,7 +141,7 @@ class SingleColdEmailSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
             "send_date",
             "test",
             "use_credits_method",
-            "seat",
+            "billing_seat",
             "views",
             "clicks",
             "optouts",
@@ -160,12 +149,12 @@ class SingleColdEmailSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
         )
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
-            "seat": {"lookup_field": "public_id"},
+            "billing_seat": {"lookup_field": "public_id"},
             "message": {"lookup_field": "public_id"},
         }
 
     def validate(self, attrs):
-        seat = attrs.get("seat")
-        if seat and seat != attrs["message"].seat:
+        seat = attrs.get("billing_seat")
+        if seat and seat != attrs["message"].billing_seat:
             raise PermissionDenied
         return attrs

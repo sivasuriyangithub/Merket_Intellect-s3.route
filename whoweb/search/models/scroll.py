@@ -12,6 +12,7 @@ from django.db import models
 from django.utils.timezone import now
 from model_utils.fields import MonitorField
 from model_utils.models import TimeStampedModel
+from pydantic import parse_obj_as
 
 from whoweb.contrib.postgres.fields import EmbeddedModelField
 from whoweb.core.router import router
@@ -101,7 +102,7 @@ class ScrollSearch(TimeStampedModel):
         if ids_only:
             return [result["profile_id"] for result in results]
         else:
-            return [ResultProfile.from_json(profile) for profile in results]
+            return [ResultProfile(**profile) for profile in results]
 
     def send_scroll_search(self) -> typing.List[str]:
         filters = self.query.serialize()["filters"]
@@ -192,12 +193,8 @@ class ScrollSearch(TimeStampedModel):
                 "defer": ["degree_levels", "company_counts"],
             }
             result = router.unified_search(json=id_query, timeout=90)
-            result = [
-                ResultProfile.from_json(profile)
-                for profile in result.get("results", [])
-            ]
-            results.extend(result)
-        return results
+            results.extend(result.get("results", []))
+        return parse_obj_as(typing.List[ResultProfile], results)
 
 
 class ScrollSearchPage(TimeStampedModel):

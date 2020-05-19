@@ -1,8 +1,26 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
-from rest_framework.exceptions import ValidationError
 from rest_framework.fields import MultipleChoiceField, iter_options, to_choices_dict
-from rest_framework.relations import PrimaryKeyRelatedField, HyperlinkedRelatedField
+from rest_framework.relations import (
+    HyperlinkedRelatedField,
+    SlugRelatedField,
+)
+
+
+class TagulousField(SlugRelatedField):
+    def __init__(self, slug_field="name", many=True, **kwargs):
+        super().__init__(slug_field=slug_field, many=many, **kwargs)
+
+    def to_internal_value(self, data):
+        try:
+            return self.get_queryset().get(**{self.slug_field: data})
+        except ObjectDoesNotExist:
+            return str(data)
+        except (TypeError, ValueError):
+            self.fail("invalid")
+
+    def get_queryset(self):
+        return getattr(self.parent.Meta.model, self.source).tag_model.objects.all()
 
 
 class MultipleChoiceListField(MultipleChoiceField):

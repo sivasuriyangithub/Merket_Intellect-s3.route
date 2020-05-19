@@ -1,57 +1,38 @@
 from secrets import token_urlsafe, token_hex
 
 from allauth.account.models import EmailAddress
-from django.contrib.auth.models import Group as authGroup
 from django.db import models, transaction
 from django.utils.translation import ugettext_lazy as _
 from django_cryptography.fields import encrypt
+from guardian.models import UserObjectPermissionBase, GroupObjectPermissionBase
 from guardian.shortcuts import assign_perm
 from model_utils.models import TimeStampedModel
-from organizations.abstract import AbstractOrganization, AbstractOrganizationOwner
+from organizations.abstract import AbstractOrganizationOwner, AbstractOrganization
 from organizations.abstract import AbstractOrganizationUser
-from organizations.signals import user_added
 
 from whoweb.contrib.fields import ObscureIdMixin
+from whoweb.contrib.organizations.models import PermissionsAbstractOrganization
 
 
-class Group(ObscureIdMixin, AbstractOrganization):
+class Group(ObscureIdMixin, PermissionsAbstractOrganization, AbstractOrganization):
     class Meta:
         verbose_name = _("network")
         verbose_name_plural = _("networks")
         permissions = (
-            ("add_developerkeys", "May add credentials for this organization"),
+            ("add_developerkeys", "May add API credentials for this organization"),
+            ("view_developerkeys", "May view all API credentials in this organization"),
+            (
+                "delete_developerkeys",
+                "May delete API credentials from this organization",
+            ),
             ("add_seats", "May add seats to this organization"),
+            ("view_seats", "May view all seats in this organization"),
+            ("delete_seats", "May delete seats from this organization"),
         )
 
     @property
     def permissions_scope(self):
         return f"org.{self.slug}"
-
-    def get_or_add_user(self, user, **kwargs):
-        """
-        Same as super(), but
-         - allows for additional keyword user defaults
-         - adds default and owner permission groups
-        """
-
-        users_count = self.users.all().count()
-        kwargs.setdefault("is_admin", users_count == 0)
-
-        org_user, created = self._org_user_model.objects.get_or_create(
-            organization=self, user=user, defaults=kwargs
-        )
-        if users_count == 0:
-            self._org_owner_model.objects.create(
-                organization=self, organization_user=org_user
-            )
-            if created:
-                user.groups.add(*self.default_admin_permission_groups)
-
-        if created:
-            # User added signal
-            user_added.send(sender=self, user=user)
-            user.groups.add(*self.default_permission_groups)
-        return org_user, created
 
     @property
     @transaction.atomic
@@ -63,73 +44,53 @@ class Group(ObscureIdMixin, AbstractOrganization):
     def default_permission_groups(self):
         return [self.seat_viewers, self.network_viewers]
 
-    def add_user(self, user, **kwargs):
-        return self.get_or_add_user(user, **kwargs)[0]
-
-    @transaction.atomic
-    def remove_user(self, user):
-        group_authGroups = authGroup.objects.filter(
-            name__startswith=f"{self.permissions_scope}:"
-        )
-        user.groups.remove(*list(group_authGroups))
-        super().remove_user(user)
-
     @property
     def credentials_admin_authgroup(self):
-        group, created = authGroup.objects.get_or_create(
-            name=f"{self.permissions_scope}:developer_keys_admin"
-        )
+        group, created = self.get_or_create_auth_group("developer_keys_admin")
         if created:
-            assign_perm("add_developerkeys", group, self)  # object level
-            assign_perm("users.add_developerkey", group)  # global
+            assign_perm("add_developerkeys", group, self)
+            assign_perm("view_developerkeys", group, self)
+            assign_perm("delete_developerkeys", group, self)
+            assign_perm("users.add_developerkey", group)
             assign_perm("users.view_developerkey", group)
             assign_perm("users.delete_developerkey", group)
         return group
 
     @property
     def seat_admin_authgroup(self):
-        group, created = authGroup.objects.get_or_create(
-            name=f"{self.permissions_scope}:seat_admin"
-        )
+        group, created = self.get_or_create_auth_group("seat_admin")
         if created:
-            assign_perm("add_seats", group, self)  # object level
-            assign_perm("users.add_seat", group)  # global
+            assign_perm("add_seats", group, self)
+            assign_perm("view_seats", group, self)
+            assign_perm("delete_seats", group, self)
+            assign_perm("users.add_seat", group)
             assign_perm("users.view_seat", group)
             assign_perm("users.delete_seat", group)
         return group
 
     @property
     def seat_viewers(self):
-        group, created = authGroup.objects.get_or_create(
-            name=f"{self.permissions_scope}:seat_viewers"
-        )
+        group, created = self.get_or_create_auth_group("seat_viewers")
         if created:
+            assign_perm("view_seats", group, self)
             assign_perm("users.view_seat", group)
         return group
 
     @property
     def network_viewers(self):
-        group, created = authGroup.objects.get_or_create(
-            name=f"{self.permissions_scope}:network_viewers"
-        )
+        group, created = self.get_or_create_auth_group("network_viewers")
         if created:
             assign_perm("users.view_group", group)
             assign_perm("users.view_group", group, self)
         return group
 
-    @transaction.atomic
-    def change_owner(self, new_owner: "Seat"):
-        from_user = self.owner.organization_user.user
-        admin_groups = list(
-            from_user.groups.filter(name__startswith=f"{self.permissions_scope}:")
-        )
-        from_user.groups.remove(*admin_groups)
-        from_user.groups.add(*self.default_permission_groups)
 
-        super().change_owner(new_owner)
+class NetworkUserObjectPermission(UserObjectPermissionBase):
+    content_object = models.ForeignKey(Group, on_delete=models.CASCADE)
 
-        to_user = new_owner.user
-        to_user.groups.add(*admin_groups)
+
+class NetworkGroupObjectPermission(GroupObjectPermissionBase):
+    content_object = models.ForeignKey(Group, on_delete=models.CASCADE)
 
 
 class Seat(ObscureIdMixin, AbstractOrganizationUser):
@@ -160,10 +121,18 @@ class Seat(ObscureIdMixin, AbstractOrganizationUser):
         return EmailAddress.objects.get_primary(user=self.user).email
 
 
+class SeatUserObjectPermission(UserObjectPermissionBase):
+    content_object = models.ForeignKey(Seat, on_delete=models.CASCADE)
+
+
+class SeatGroupObjectPermission(GroupObjectPermissionBase):
+    content_object = models.ForeignKey(Seat, on_delete=models.CASCADE)
+
+
 class GroupOwner(AbstractOrganizationOwner):
     class Meta:
-        verbose_name = _("network admin")
-        verbose_name_plural = _("network admins")
+        verbose_name = _("network owner")
+        verbose_name_plural = _("network owners")
 
     @property
     def user(self):
@@ -178,11 +147,19 @@ def make_secret():
     return token_hex(32)
 
 
+class NetworkAdminUserObjectPermission(UserObjectPermissionBase):
+    content_object = models.ForeignKey(GroupOwner, on_delete=models.CASCADE)
+
+
+class NetworkAdminGroupObjectPermission(GroupObjectPermissionBase):
+    content_object = models.ForeignKey(GroupOwner, on_delete=models.CASCADE)
+
+
 class DeveloperKey(ObscureIdMixin, TimeStampedModel):
     key = models.CharField(default=make_key, unique=True, max_length=64)
     secret = encrypt(models.CharField(default=make_secret, max_length=64))
     test_key = models.BooleanField(default=False)
-    group = models.ForeignKey(
+    network = models.ForeignKey(
         Group, on_delete=models.CASCADE, related_name="credentials"
     )
     seat = models.ForeignKey(
@@ -199,3 +176,11 @@ class DeveloperKey(ObscureIdMixin, TimeStampedModel):
         return "{liveness}_{key}".format(
             liveness="test" if self.test_key else "live", key=self.key
         )
+
+
+class DeveloperKeyUserObjectPermission(UserObjectPermissionBase):
+    content_object = models.ForeignKey(DeveloperKey, on_delete=models.CASCADE)
+
+
+class DeveloperKeyGroupObjectPermission(GroupObjectPermissionBase):
+    content_object = models.ForeignKey(DeveloperKey, on_delete=models.CASCADE)

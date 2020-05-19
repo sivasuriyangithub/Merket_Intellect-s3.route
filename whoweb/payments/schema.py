@@ -1,6 +1,6 @@
 import graphene
 from graphene_django.filter import DjangoFilterConnectionField
-from rest_framework_guardian.filters import ObjectPermissionsFilter
+from whoweb.contrib.rest_framework.filters import ObjectPermissionsFilter
 
 from whoweb.contrib.graphene_django.types import GuardedObjectType, ObscureIdNode
 from whoweb.contrib.rest_framework.permissions import (
@@ -27,7 +27,7 @@ class PlanNode(GuardedObjectType):
 
 
 class BillingAccountNode(GuardedObjectType):
-    network = graphene.Field(NetworkNode, source="group")
+    network = graphene.Field(NetworkNode)
 
     class Meta:
         model = BillingAccount
@@ -35,7 +35,7 @@ class BillingAccountNode(GuardedObjectType):
         filter_fields = []
         permission_classes = [IsSuperUser | ObjectPermissions]
         filter_backends = (ObjectPermissionsFilter,)
-        fields = ("seats", "plan", "credit_pool", "trial_credit_pool")
+        fields = ("seats", "plan", "credit_pool")
 
 
 class BillingAccountMemberNode(GuardedObjectType):
@@ -50,7 +50,6 @@ class BillingAccountMemberNode(GuardedObjectType):
         fields = (
             "seat",
             "seat_credits",
-            "seat_trial_credits",
             "pool_credits",
         )
 

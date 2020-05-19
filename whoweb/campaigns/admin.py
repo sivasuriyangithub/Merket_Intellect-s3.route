@@ -139,7 +139,7 @@ class SimpleDripCampaignRunnerAdmin(InlineActionsModelAdminMixin, ActionsModelAd
             {
                 "fields": (
                     ("pk", "public_id",),
-                    "seat",
+                    "billing_seat",
                     "title",
                     "query",
                     "budget",
@@ -201,7 +201,7 @@ class IntervalCampaignRunnerAdmin(InlineActionsModelAdminMixin, ActionsModelAdmi
             {
                 "fields": (
                     ("pk", "public_id",),
-                    "seat",
+                    "billing_seat",
                     "title",
                     "query",
                     "budget",

@@ -1,4 +1,7 @@
 from rest_framework import permissions
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class IsSuperUser(permissions.BasePermission):
@@ -38,3 +41,8 @@ class ObjectPermissions(permissions.DjangoObjectPermissions):
         "PATCH": ["%(app_label)s.change_%(model_name)s"],
         "DELETE": ["%(app_label)s.delete_%(model_name)s"],
     }
+
+    def get_required_object_permissions(self, method, model_cls):
+        perms = super().get_required_object_permissions(method, model_cls)
+        logger.debug(perms)
+        return perms

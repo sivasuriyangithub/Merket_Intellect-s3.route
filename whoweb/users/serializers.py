@@ -104,7 +104,6 @@ class DeveloperKeySerializer(
     id = serializers.CharField(source="pk", read_only=True)
     graph_id = NodeRelatedField("DeveloperKeyNode", source="pk")
     network = IdOrHyperlinkedRelatedField(
-        source="group",
         view_name="group-detail",
         lookup_field="public_id",
         queryset=Group.objects.all(),
@@ -130,10 +129,31 @@ class DeveloperKeySerializer(
 
     def validate(self, attrs):
         user = attrs["created_by"]
-        if not user.has_perm("add_developerkeys", attrs["group"]):
+        if not user.has_perm("add_developerkeys", attrs["network"]):
             raise PermissionDenied
         return attrs
 
     def get_permissions_map(self, created):
         authGroup = self.instance.group.credentials_admin_authgroup
         return {"delete_developerkey": [authGroup], "view_developerkey": [authGroup]}
+
+
+class AuthManagementSerializer(serializers.Serializer):
+    seat = IdOrHyperlinkedRelatedField(
+        view_name="seat-detail",
+        lookup_field="public_id",
+        queryset=Seat.objects.all(),
+        required=False,
+    )
+
+    password = serializers.CharField(required=True, write_only=True)
+    xperweb_id = serializers.CharField(write_only=True, required=False)
+    group_name = serializers.CharField(
+        write_only=True, allow_null=True, allow_blank=True, required=False
+    )
+    group_id = serializers.CharField(write_only=True, required=False)
+    first_name = serializers.CharField(
+        write_only=True, required=False, allow_blank=True
+    )
+    last_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    email = serializers.EmailField(write_only=True, required=False)

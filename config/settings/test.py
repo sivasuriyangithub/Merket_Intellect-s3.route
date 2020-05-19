@@ -17,6 +17,9 @@ SECRET_KEY = env(
 # https://docs.djangoproject.com/en/dev/ref/settings/#test-runner
 TEST_RUNNER = "django.test.runner.DiscoverRunner"
 
+MEDIA_URL = f"https://storage.googleapis.com/test/media/"
+MEDIA_ROOT = f"https://storage.googleapis.com/test/media/"
+
 # CACHES
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#caches
@@ -53,6 +56,19 @@ TEMPLATES[0]["OPTIONS"]["loaders"] = [  # noqa F405
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-backend
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+
+# djstripe
+# ------------------------------------------------------------------------------
+# useful if running tests under VCR
+STRIPE_TEST_PUBLIC_KEY = env(
+    "STRIPE_TEST_PUBLIC_KEY", default="pk_test_000000000000000000000000"
+)
+STRIPE_TEST_SECRET_KEY = env(
+    "STRIPE_TEST_SECRET_KEY", default="sk_test_000000000000000000000000"
+)
+DJSTRIPE_WEBHOOK_SECRET = env("DJSTRIPE_WEBHOOK_SECRET", default=None)
+STRIPE_LIVE_MODE = False
+DJSTRIPE_WEBHOOK_VALIDATION = "retrieve_event"
 
 # Your stuff...
 # ------------------------------------------------------------------------------

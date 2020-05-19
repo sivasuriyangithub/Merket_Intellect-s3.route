@@ -80,6 +80,7 @@ THIRD_PARTY_APPS = [
     "allauth.socialaccount",
     "rest_framework",
     "graphene_django",
+    "djstripe",
     "django_celery_beat",
     "django_celery_results",
     "django_filters",
@@ -271,7 +272,7 @@ LOGGING = {
             "formatter": "verbose",
         }
     },
-    "root": {"level": "INFO", "handlers": ["console"]},
+    "root": {"level": env("DJANGO_LOG_LEVEL", default="INFO"), "handlers": ["console"]},
 }
 
 # Celery
@@ -300,10 +301,8 @@ CELERY_RESULT_EXTENDED = True
 CELERY_RESULT_EXPIRES = timedelta(days=5)
 CELERY_RESULT_CHORD_JOIN_TIMEOUT = 20.0
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-time-limit
-# TODO: set to whatever value is adequate in your circumstances
 CELERY_TASK_TIME_LIMIT = 60 * 60
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-soft-time-limit
-# TODO: set to whatever value is adequate in your circumstances
 CELERY_TASK_SOFT_TIME_LIMIT = None
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#beat-scheduler
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
@@ -358,18 +357,20 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAdminUser",  # temporary
         "rest_framework.permissions.IsAuthenticated",
     ],
+    "DEFAULT_SCHEMA_CLASS": "whoweb.contrib.rest_framework.schemas.VerboseAutoSchema",
     # "DEFAULT_RENDERER_CLASSES": [
     #     "rest_framework.renderers.JSONRenderer",
     #     "whoweb.contrib.rest_framework.renderers.CustomBrowsableAPIRenderer",
     # ],
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
-    "PAGE_SIZE": 50,
+    "PAGE_SIZE": 20,
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.SlidingToken",),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=14),
     "USER_ID_FIELD": "email",
     "USER_ID_CLAIM": "username",
 }
@@ -388,8 +389,8 @@ GRAPHQL_JWT = {
     "JWT_ARGUMENT_NAME": "token",
     "JWT_GET_USER_BY_NATURAL_KEY_HANDLER": "whoweb.contrib.graphql_jwt.utils.get_user_by_natural_key",
     "JWT_VERIFY_EXPIRATION": True,
-    "JWT_EXPIRATION_DELTA": timedelta(days=7),
-    "JWT_REFRESH_EXPIRATION_DELTA": timedelta(days=30),
+    "JWT_EXPIRATION_DELTA": timedelta(minutes=15),
+    "JWT_REFRESH_EXPIRATION_DELTA": timedelta(days=14),
 }
 
 # tagulous
@@ -400,6 +401,21 @@ SERIALIZATION_MODULES = {
     "python": "tagulous.serializers.python",
     "yaml": "tagulous.serializers.pyyaml",
 }
+
+# djstripe
+# ------------------------------------------------------------------------------
+
+
+def billing_account_request_callback(request):
+    from whoweb.payments.models import BillingAccount
+
+    return BillingAccount.objects.filter(seats__user=request.user).first()
+
+
+DJSTRIPE_SUBSCRIBER_MODEL = "payments.BillingAccount"
+DJSTRIPE_SUBSCRIBER_MODEL_MIGRATION_DEPENDENCY = "0007_auto_20200228_1436"
+DJSTRIPE_SUBSCRIBER_MODEL_REQUEST_CALLBACK = billing_account_request_callback
+DJSTRIPE_USE_NATIVE_JSONFIELD = True
 
 # Your stuff...
 # ------------------------------------------------------------------------------

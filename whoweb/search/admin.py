@@ -180,6 +180,7 @@ class ExportAdmin(ActionsModelAdmin):
     list_display = (
         "pk",
         "uuid",
+        "billing_seat",
         "status",
         "rows_enqueued",
         "latest_page_modified",
@@ -199,9 +200,16 @@ class ExportAdmin(ActionsModelAdmin):
         "modified",
         LatestPageModificationFilter,
     )
-    search_fields = ("seat__user__email", "seat__user__username", "pk", "uuid__exact")
+    search_fields = (
+        "seat__user__email",
+        "seat__user__username",
+        "billing_seat__user__email",
+        "billing_seat__user__username",
+        "pk",
+        "uuid",
+    )
     fieldsets = (
-        (None, {"fields": ("uuid", "seat", "query", "scroller",)}),
+        (None, {"fields": ("uuid", "billing_seat", "query", "scroller",)}),
         (
             "Status Fields",
             {

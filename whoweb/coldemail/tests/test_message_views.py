@@ -19,7 +19,7 @@ TEST_QUERY = {
 
 
 def test_create_campaignmessage(su_client):
-    seat = BillingAccountMemberFactory().seat
+    seat = BillingAccountMemberFactory()
     resp = su_client.post(
         "/ww/api/campaign/messages/",
         {
@@ -31,11 +31,10 @@ def test_create_campaignmessage(su_client):
             "suppression_group_id": "2",
             "plain_content": "Yo!",
             "editor": "client",
-            "seat": seat.public_id,
+            "billing_seat": seat.public_id,
         },
         format="json",
     )
-    print(resp.content)
     assert resp.status_code == 201
     assert resp.json()["url"].startswith("http://testserver/ww/api/campaign/messages/")
     assert resp.json()["title"] == "test"
@@ -45,7 +44,7 @@ def test_create_campaignmessage(su_client):
 
 
 def test_update_campaignmessage(su_client):
-    seat = BillingAccountMemberFactory().seat
+    seat = BillingAccountMemberFactory()
     resp = su_client.post(
         "/ww/api/campaign/messages/",
         {
@@ -57,7 +56,7 @@ def test_update_campaignmessage(su_client):
             "suppression_group_id": "2",
             "plain_content": "Yo!",
             "editor": "client",
-            "seat": seat.public_id,
+            "billing_seat": seat.public_id,
         },
         format="json",
     )
@@ -75,7 +74,6 @@ def test_delete_campaignmessage(su_client):
     delete = su_client.delete(
         f"/ww/api/campaign/messages/{msg.public_id}/", format="json",
     )
-    print(msg.public_id)
     assert delete.status_code == 204
 
     listed = su_client.get("/ww/api/campaign/messages/", format="json",)
@@ -83,7 +81,7 @@ def test_delete_campaignmessage(su_client):
 
 
 def test_create_campaignmessage_template(su_client):
-    seat = BillingAccountMemberFactory().seat
+    seat = BillingAccountMemberFactory()
     resp = su_client.post(
         "/ww/api/campaign/message_templates/",
         {
@@ -95,11 +93,10 @@ def test_create_campaignmessage_template(su_client):
             "suppression_group_id": "2",
             "plain_content": "Yo!",
             "editor": "client",
-            "seat": seat.public_id,
+            "billing_seat": seat.public_id,
         },
         format="json",
     )
-    print(resp.content)
     assert resp.status_code == 201
     assert resp.json()["url"].startswith(
         "http://testserver/ww/api/campaign/message_templates/"
@@ -111,7 +108,7 @@ def test_create_campaignmessage_template(su_client):
 
 
 def test_update_campaignmessage_template(su_client):
-    seat = BillingAccountMemberFactory().seat
+    seat = BillingAccountMemberFactory()
     resp = su_client.post(
         "/ww/api/campaign/message_templates/",
         {
@@ -123,7 +120,7 @@ def test_update_campaignmessage_template(su_client):
             "suppression_group_id": "2",
             "plain_content": "Yo!",
             "editor": "client",
-            "seat": seat.public_id,
+            "billing_seat": seat.public_id,
         },
         format="json",
     )

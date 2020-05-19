@@ -31,6 +31,7 @@ from whoweb.contrib.fields import ObscureIdMixin
 from whoweb.contrib.polymorphic.managers import PolymorphicSoftDeletableManager
 from whoweb.contrib.postgres.fields import EmbeddedModelField
 from whoweb.core.models import EventLoggingModel
+from whoweb.payments.models import BillingAccountMember
 from whoweb.search.models import FilteredSearchQuery, ScrollSearch
 from whoweb.users.models import Seat
 
@@ -124,6 +125,9 @@ class BaseCampaignRunner(
 
     should_charge = True
     seat = models.ForeignKey(Seat, on_delete=models.CASCADE, null=True, blank=True)
+    billing_seat = models.ForeignKey(
+        BillingAccountMember, on_delete=models.CASCADE, null=True, blank=True
+    )
 
     messages = models.ManyToManyField(CampaignMessage, through=SendingRule)
     drips = models.ManyToManyField(
@@ -230,8 +234,8 @@ class BaseCampaignRunner(
         if campaign_kwargs is None:
             campaign_kwargs = {}
 
-        if self.seat:
-            campaign_kwargs.setdefault("seat", self.seat)
+        if self.billing_seat:
+            campaign_kwargs.setdefault("billing_seat", self.billing_seat)
         title = campaign_kwargs.setdefault("title", self.title)
         campaign_kwargs.update(
             message=rule.message,
@@ -310,9 +314,7 @@ class BaseCampaignRunner(
         for page in export.pages.filter(data__isnull=False).iterator(chunk_size=1):
             profiles = self.get_profiles(raw=page.data)
             page.data = [
-                profile.to_json()
-                for profile in profiles
-                if profile.id not in responders
+                profile.dict() for profile in profiles if profile.id not in responders
             ]
             page.count = len(page.data)
             page.id = None
@@ -386,13 +388,15 @@ class BaseCampaignRunner(
             return most_recent.campaign_list.export
 
     def create_campaign_list(self, *args, **kwargs):
-        return CampaignList.objects.create(query=self.query, origin=2, seat=self.seat)
+        return CampaignList.objects.create(
+            query=self.query, origin=2, billing_seat=self.billing_seat
+        )
 
     def create_campaign(self, **campaign_kwargs):
         first_message_rule = self.sending_rules().first()
 
-        if self.seat:
-            campaign_kwargs.setdefault("seat", self.seat)
+        if self.billing_seat:
+            campaign_kwargs.setdefault("billing_seat", self.billing_seat)
         title = campaign_kwargs.setdefault("title", self.title)
         campaign_kwargs.update(
             message=first_message_rule.message,
@@ -428,7 +432,7 @@ class BaseCampaignRunner(
         """
         :rtype: (celery.canvas.Signature | celery.result.AsyncResult | None,  Campaign | None)
         """
-        from whoweb.campaigns.tasks import set_published
+        from whoweb.campaigns.tasks import set_published, ensure_stats
 
         self.log_event(PUBLISH_CAMPAIGN, task=task_context)
         if with_campaign:
@@ -448,6 +452,34 @@ class BaseCampaignRunner(
                 root_campaign=campaign, following=campaign, run_id=self.run_id
             ):
                 publish_sigs |= drip_sigs
+            else:
+                publish_sigs |= ensure_stats.signature(
+                    args=(self.pk,),
+                    immutable=True,
+                    eta=campaign.send_time + timedelta(hours=12),
+                ) | ensure_stats.signature(
+                    args=(self.pk,),
+                    immutable=True,
+                    eta=campaign.send_time + timedelta(days=1),
+                )
+            # Also get updated stats periodically as more respondent interactions occur.
+            publish_sigs |= (
+                ensure_stats.signature(
+                    args=(self.pk,),
+                    immutable=True,
+                    eta=campaign.send_time + timedelta(days=2),
+                )
+                | ensure_stats.signature(
+                    args=(self.pk,),
+                    immutable=True,
+                    eta=campaign.send_time + timedelta(days=3),
+                )
+                | ensure_stats.signature(
+                    args=(self.pk,),
+                    immutable=True,
+                    eta=campaign.send_time + timedelta(days=6),
+                )
+            )
 
             if apply_tasks:
                 self.log_event(

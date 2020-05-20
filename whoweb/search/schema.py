@@ -1,6 +1,7 @@
 import graphene
 from graphene import relay
 from graphene.types.generic import GenericScalar
+from graphene_django import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField
 from whoweb.contrib.rest_framework.filters import ObjectPermissionsFilter
 
@@ -55,7 +56,7 @@ class ExportOptions(graphene.ObjectType):
     format = graphene.Field(ExportFormatChoices)
 
 
-class FilteredSearchQuery(graphene.ObjectType):
+class FilteredSearchQueryObjectType(DjangoObjectType):
     user_id = graphene.String()
     defer = graphene.List(DeferChoices)
     contact_filters = graphene.List(ContactFilterChoices)
@@ -63,9 +64,12 @@ class FilteredSearchQuery(graphene.ObjectType):
     export = graphene.Field(ExportOptions)
     filters = graphene.Field(FilteredSearchFilters)
 
+    class Meta:
+        model = FilteredSearchQuery
+
 
 class SearchExportNode(GuardedObjectType):
-    query = graphene.Field(FilteredSearchQuery)
+    query = graphene.Field(FilteredSearchQueryObjectType)
 
     class Meta:
         model = SearchExport

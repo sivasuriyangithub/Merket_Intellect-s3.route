@@ -1,12 +1,12 @@
 import graphene
 from django import http
-from graphene_django.rest_framework.mutation import SerializerMutation
 
+from whoweb.contrib.graphene_django.mutation import NodeSerializerMutation
 from whoweb.users.models import DeveloperKey
 from whoweb.users.serializers import DeveloperKeySerializer
 
 
-class DeveloperKeyMutation(SerializerMutation):
+class DeveloperKeyMutation(NodeSerializerMutation):
     class Meta:
         serializer_class = DeveloperKeySerializer
 

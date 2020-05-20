@@ -17,9 +17,13 @@ from whoweb.search.mutations import Mutation as SearchMutation
 from whoweb.search.schema import Query as SearchQuery
 from whoweb.users.mutations import Mutation as UsersMutation
 from whoweb.users.schema import Query as UsersQuery
+from whoweb.campaigns.schema import Query as CampaignsQuery
+from whoweb.campaigns.mutations import Mutation as CampaignMutation
 
 
-class Query(UsersQuery, SearchQuery, PaymentsQuery, graphene.ObjectType):
+class Query(
+    UsersQuery, SearchQuery, PaymentsQuery, CampaignsQuery, graphene.ObjectType
+):
     debug = graphene.Field(DjangoDebug, name="_debug") if settings.DEBUG else None
 
 
@@ -76,7 +80,7 @@ class RereshSlidingJSONWebToken(SerializerMutation):
         serializer_class = TokenRefreshSlidingSerializer
 
 
-class Mutation(UsersMutation, SearchMutation, graphene.ObjectType):
+class Mutation(UsersMutation, SearchMutation, CampaignMutation, graphene.ObjectType):
     token_auth = ObtainJSONWebToken.Field()
     refresh_token = RereshSlidingJSONWebToken.Field()
     verify_token = graphql_jwt.relay.Verify.Field() if settings.DEBUG else None

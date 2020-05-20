@@ -1,4 +1,3 @@
-from django.db.models import Q
 from promise import Promise
 from promise.dataloader import DataLoader
 

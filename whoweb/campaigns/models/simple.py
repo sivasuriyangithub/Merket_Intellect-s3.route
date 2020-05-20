@@ -1,7 +1,6 @@
 from django.db import models
 from rest_framework.reverse import reverse
 
-from whoweb.coldemail.models import CampaignList
 from .base import BaseCampaignRunner
 
 

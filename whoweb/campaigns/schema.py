@@ -17,11 +17,23 @@ class Message(GuardedObjectType):
 
 
 class MessageTemplate(GuardedObjectType):
+    tags = graphene.List(graphene.String)
+
     class Meta:
         model = coldemail_models.CampaignMessageTemplate
 
 
+class ProfileLogEntry(graphene.ObjectType):
+    email = graphene.String()
+    web_id = graphene.String(name="profile_id")
+
+
 class Campaign(GuardedObjectType):
+    click_log = graphene.List(ProfileLogEntry, name="clickProfiles")
+    open_log = graphene.List(ProfileLogEntry, name="openProfiles")
+    reply_log = graphene.List(ProfileLogEntry, name="replyProfiles")
+    good_log = graphene.List(ProfileLogEntry, name="goodProfiles")
+
     class Meta:
         model = coldemail_models.ColdCampaign
 
@@ -36,6 +48,11 @@ class DripRecord(GuardedObjectType):
         model = models.DripRecord
 
 
+class TrackingParam(graphene.ObjectType):
+    param = graphene.String()
+    value = graphene.String()
+
+
 class SimpleCampaignRunnerNode(GuardedObjectType):
     query = graphene.Field(FilteredSearchQueryObjectType)
     sending_rules = graphene.List(SendingRule)
@@ -44,31 +61,35 @@ class SimpleCampaignRunnerNode(GuardedObjectType):
     get_status_display = graphene.String(name="status_name")
     tags = graphene.List(graphene.String)
     transactions = GenericScalar()
+    tracking_params = graphene.List(TrackingParam)
 
     class Meta:
         model = models.SimpleDripCampaignRunner
         interfaces = (relay.Node,)
-        filter_fields = []
+        filter_fields = [
+            "billing_seat",
+        ]
         permission_classes = [IsSuperUser | ObjectPermissions]
         filter_backends = (ObjectPermissionsFilter,)
         fields = (
-            "query",
-            "billing_seat",
             "budget",
-            "title",
-            "tags",
-            "sending_rules",
-            "drips",
+            "query",
             "campaigns",
+            "sending_rules",
+            "modified",
+            "billing_seat",
+            "tags",
+            "drips",
             "transactions",
             "tracking_params",
             "use_credits_method",
             "open_credit_budget",
             "from_name",
-            "status",
             "get_status_display",
             "status_changed",
-            "published_at",
+            "published",
+            "title",
+            "status",
         )
 
 
@@ -80,11 +101,14 @@ class IntervalCampaignRunnerNode(GuardedObjectType):
     get_status_display = graphene.String(name="status_name")
     tags = graphene.List(graphene.String)
     transactions = GenericScalar()
+    tracking_params = graphene.List(TrackingParam)
 
     class Meta:
         model = models.SimpleDripCampaignRunner
         interfaces = (relay.Node,)
-        filter_fields = []
+        filter_fields = [
+            "billing_seat",
+        ]
         permission_classes = [IsSuperUser | ObjectPermissions]
         filter_backends = (ObjectPermissionsFilter,)
         fields = (
@@ -104,7 +128,7 @@ class IntervalCampaignRunnerNode(GuardedObjectType):
             "status",
             "get_status_display",
             "status_changed",
-            "published_at",
+            "published",
         )
 
 

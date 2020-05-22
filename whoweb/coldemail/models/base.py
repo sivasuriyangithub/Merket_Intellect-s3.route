@@ -48,7 +48,7 @@ class ColdemailBaseModel(
     status_changed = MonitorField(_("status changed"), monitor="status")
     coldemail_id = models.CharField(max_length=100)
     is_removed_changed = MonitorField("deleted at", monitor="is_removed")
-    published_at = MonitorField(
+    published = MonitorField(
         monitor="status", when=[STATUS.published], null=True, default=None, blank=True
     )
     tags = TagField(to=ColdEmailTagModel, blank=True)
@@ -58,7 +58,7 @@ class ColdemailBaseModel(
 
     def __str__(self):
         return f"{self.__class__.__name__} {self.pk}" + (
-            f"(Published {self.published_at})"
+            f"(Published {self.published})"
             if self.status == self.STATUS.published
             else ""
         )

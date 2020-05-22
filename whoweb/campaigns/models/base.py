@@ -151,7 +151,7 @@ class BaseCampaignRunner(
     )
     status_changed = MonitorField("status changed", monitor="status")
     is_removed_changed = MonitorField("deleted at", monitor="is_removed")
-    published_at = MonitorField(
+    published = MonitorField(
         monitor="status", when=[STATUS.published], null=True, default=None, blank=True
     )
 
@@ -371,7 +371,7 @@ class BaseCampaignRunner(
             if campaign.status == ColdCampaign.STATUS.pending:
                 yield campaign.modified
             elif campaign.status == ColdCampaign.STATUS.published:
-                yield campaign.published_at
+                yield campaign.published
             continue
 
     @property

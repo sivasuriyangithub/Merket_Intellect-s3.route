@@ -98,18 +98,22 @@ class SimpleDripCampaignRunnerSerializer(
             "status",
             "status_name",
             "status_changed",
-            "published_at",
+            "published",
             "tracking_params",
             "use_credits_method",
             "open_credit_budget",
             "from_name",
+            "created",
+            "modified",
         ]
         read_only_fields = [
+            "created",
+            "modified",
             "drips",
             "status",
             "status_changed",
             "status_name",
-            "published_at",
+            "published",
         ]
 
 
@@ -152,7 +156,7 @@ class IntervalCampaignRunnerSerializer(
             "status",
             "status_name",
             "status_changed",
-            "published_at",
+            "published",
             "tracking_params",
             "interval_hours",
             "max_sends",
@@ -164,5 +168,5 @@ class IntervalCampaignRunnerSerializer(
             "status",
             "status_changed",
             "status_name",
-            "published_at",
+            "published",
         ]

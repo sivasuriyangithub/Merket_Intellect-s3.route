@@ -158,12 +158,12 @@ class SimpleDripCampaignRunnerAdmin(InlineActionsModelAdminMixin, ActionsModelAd
                     ("status", "status_changed",),
                     "run_id",
                     "scroll",
-                    "published_at",
+                    "published",
                 ),
             },
         ),
     )
-    readonly_fields = ("pk", "status_changed", "scroll", "published_at", "public_id")
+    readonly_fields = ("pk", "status_changed", "scroll", "published", "public_id")
 
 
 @admin.register(IntervalCampaignRunner)
@@ -220,9 +220,9 @@ class IntervalCampaignRunnerAdmin(InlineActionsModelAdminMixin, ActionsModelAdmi
                     ("status", "status_changed",),
                     "run_id",
                     "scroll",
-                    "published_at",
+                    "published",
                 ),
             },
         ),
     )
-    readonly_fields = ("pk", "status_changed", "scroll", "published_at", "public_id")
+    readonly_fields = ("pk", "status_changed", "scroll", "published", "public_id")

@@ -817,12 +817,11 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             page.save()
 
     def return_validation_results_to_cache(self):
-        r = router.update_validations(
+        return router.update_validations(
             json={"from_datavalidation": self.validation_list_id},
             timeout=90,
             request_producer=f"whoweb.search.export/{self.pk}",
         )
-        return r.content
 
     def get_mx_task_group(self):
         from whoweb.search.tasks import fetch_mx_domains

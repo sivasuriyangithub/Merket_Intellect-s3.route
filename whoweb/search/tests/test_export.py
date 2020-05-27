@@ -40,14 +40,10 @@ def pre_validation_generator():
 
 
 @patch("whoweb.core.router.Router.update_validations")
-@patch(
-    "whoweb.search.models.SearchExport.get_validation_results",
-    side_effect=validation_result_generator,
-)
-def test_return_validation_results_to_cache(result_mock, cache_mock):
-    export: SearchExport = SearchExportFactory()
+def test_return_validation_results_to_cache(update_mock):
+    export: SearchExport = SearchExportFactory(validation_list_id="test_id")
     export.return_validation_results_to_cache()
-    assert cache_mock.call_count == 3  # (250, 250, 5)
+    assert update_mock.call_args[1]["json"] == {"from_datavalidation": "test_id"}
 
 
 @pytest_parametrize_plus(

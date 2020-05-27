@@ -689,7 +689,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         if not export.status <= SearchExport.STATUS.validated:
             self.log_event(VALIDATION_COMPLETE_LOCKED, task=task_context)
             return False
-        results = list(export.get_validation_results(only_valid=True))
+        results = export.get_validation_results(only_valid=True)
         export.apply_validation_to_profiles_in_pages(validation=results)
         export.status = SearchExport.STATUS.validated
         export.save()
@@ -817,28 +817,12 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             page.save()
 
     def return_validation_results_to_cache(self):
-        upload_limit = 250
-        results_gen = self.get_validation_results(only_valid=False)
-        while True:
-            secondary_validations = []
-            i = 0
-            for row in results_gen:
-                i += 1
-                secondary_validations.append(row)
-                if i == upload_limit:
-                    break
-
-            if secondary_validations:
-                try:
-                    router.update_validations(
-                        json={"bulk_validations": secondary_validations},
-                        timeout=90,
-                        request_producer=f"whoweb.search.export/{self.pk}",
-                    )
-                except Exception as e:
-                    logger.exception("Error setting validation cache: %s " % e)
-            else:
-                return True
+        r = router.update_validations(
+            json={"from_datavalidation": self.validation_list_id},
+            timeout=90,
+            request_producer=f"whoweb.search.export/{self.pk}",
+        )
+        return r.content
 
     def get_mx_task_group(self):
         from whoweb.search.tasks import fetch_mx_domains

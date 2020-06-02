@@ -4,6 +4,7 @@ from typing import List
 
 from django.contrib.postgres.fields import JSONField
 from django.db import models, transaction
+from django.utils.timezone import now
 from model_utils import Choices
 from model_utils.fields import MonitorField
 from model_utils.models import SoftDeletableModel, TimeStampedModel
@@ -220,7 +221,7 @@ class BaseCampaignRunner(
         # and the CURRENT time is not after the last campaign send time plus a minimum buffer,
         # fail the list/export creation
         if rule.trigger == SendingRule.TRIGGER.datetime:
-            delta = datetime.utcnow() - following.send_time
+            delta = now() - following.send_time
             if delta < self.MIN_DRIP_DELAY:
                 remaining = self.MIN_DRIP_DELAY - max(timedelta(0), delta)
                 raise DripTooSoonError(countdown=int(remaining.total_seconds()))
@@ -239,7 +240,7 @@ class BaseCampaignRunner(
         title = campaign_kwargs.setdefault("title", self.title)
         campaign_kwargs.update(
             message=rule.message,
-            send_time=datetime.utcnow() + timedelta(seconds=300),
+            send_time=now() + timedelta(seconds=300),
             campaign_list=campaign_list,
             title="{} - m{}".format(title, rule.index),
         )

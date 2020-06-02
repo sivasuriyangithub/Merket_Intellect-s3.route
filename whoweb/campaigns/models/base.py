@@ -328,7 +328,7 @@ class BaseCampaignRunner(
             record.drip
             for record in DripRecord.objects.filter(
                 runner=self,
-                root_campaign=root_campaign,
+                root=root_campaign,
                 drip__status__gte=ColdCampaign.STATUS.published,
                 drip__stats_fetched__isnull=False,
             ).prefetch_related("drip")

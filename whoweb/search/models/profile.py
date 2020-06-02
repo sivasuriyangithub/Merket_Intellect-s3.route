@@ -719,7 +719,7 @@ class ResultProfile(BaseModel):
 
 class DerivationCache(TimeStampedModel):
     billing_seat = models.ForeignKey(BillingAccountMember, on_delete=models.CASCADE)
-    profile_id = models.CharField(max_length=180)
+    profile_id = models.CharField(max_length=255)
     emails = JSONField(default=list)
     phones = JSONField(default=list)
 

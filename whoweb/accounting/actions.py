@@ -41,7 +41,7 @@ def create_transaction(
     # of LedgerBalances.
     list(
         Ledger.objects.filter(
-            id__in=(ledger_entry.ledger.id for ledger_entry in ledger_entries)
+            id__in=(ledger_entry.ledger.pk for ledger_entry in ledger_entries)
         )
         .order_by("id")  # Avoid deadlocks.
         .select_for_update()
@@ -67,7 +67,7 @@ def create_transaction(
             num_updated = LedgerBalance.objects.filter(
                 ledger=ledger_entry.ledger,
                 related_object_content_type=content_type,
-                related_object_id=related_object.id,
+                related_object_id=related_object.pk,
             ).update(balance=F("balance") + ledger_entry.amount)
             assert num_updated <= 1
             if num_updated == 0:
@@ -75,7 +75,7 @@ def create_transaction(
                 LedgerBalance.objects.create(
                     ledger=ledger_entry.ledger,
                     related_object_content_type=content_type,
-                    related_object_id=related_object.id,
+                    related_object_id=related_object.pk,
                     balance=ledger_entry.amount,
                 )
 

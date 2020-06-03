@@ -28,7 +28,7 @@ def get_balances_for_object(obj):
     balances = defaultdict(lambda: 0)
     content_type = ContentType.objects.get_for_model(obj)
     ledger_balances = LedgerBalance.objects.filter(
-        related_object_content_type=content_type, related_object_id=obj.id
+        related_object_content_type=content_type, related_object_id=obj.pk
     )
     for ledger_balance in ledger_balances:
         balances[ledger_balance.ledger] = ledger_balance.balance

@@ -157,10 +157,14 @@ class ColdCampaign(ColdemailBaseModel):
             bad_log = []
         validations = []
         for entry in good_log:
+            if not ("email" in entry and "web_id" in entry):
+                continue
             validations.append(
                 {"email": entry["email"], "profile_id": entry["web_id"], "grade": "A+"}
             )
         for entry in bad_log:
+            if not ("email" in entry and "web_id" in entry):
+                continue
             validations.append(
                 {"email": entry["email"], "profile_id": entry["web_id"], "grade": "F-"}
             )

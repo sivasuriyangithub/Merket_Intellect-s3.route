@@ -39,10 +39,7 @@ class UserNode(GuardedObjectType):
 
     class Meta:
         model = UserProfile
-        fields = (
-            "created",
-            "seats",
-        )
+        fields = ("created",)
         interfaces = (ObscureIdNode,)
         permission_classes = [
             ObjectPassesTest(member_of_network) | IsSuperUser | ObjectPermissions
@@ -51,6 +48,9 @@ class UserNode(GuardedObjectType):
 
     def resolve_emails(self, info):
         return EmailAddress.objects.filter(user=self.user)
+
+    def resolve_seats(self, info):
+        return Seat.objects.filter(user=self.user)
 
 
 class NetworkNode(GuardedObjectType):

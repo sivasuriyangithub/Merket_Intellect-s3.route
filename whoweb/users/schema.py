@@ -17,9 +17,9 @@ from whoweb.users.models import UserProfile, Group, Seat, DeveloperKey
 User = get_user_model()
 
 
-def member_of_network(viewer: User, user: User):
+def member_of_network(viewer: User, profile: UserProfile):
     return not set(viewer.users_group.all().values_list("pk", flat=True)).isdisjoint(
-        user.users_group.all().values_list("pk", flat=True)
+        profile.user.users_group.all().values_list("pk", flat=True)
     )
 
 
@@ -35,10 +35,14 @@ class EmailAddressType(GuardedObjectType):
 class UserNode(GuardedObjectType):
     emails = DjangoConnectionField(EmailAddressType)
     username = graphene.String()
+    seats = DjangoConnectionField("whoweb.users.schema.SeatNode")
 
     class Meta:
         model = UserProfile
-        fields = ("created",)
+        fields = (
+            "created",
+            "seats",
+        )
         interfaces = (ObscureIdNode,)
         permission_classes = [
             ObjectPassesTest(member_of_network) | IsSuperUser | ObjectPermissions
@@ -76,6 +80,15 @@ class SeatNode(GuardedObjectType):
             "display_name": ["exact", "icontains", "istartswith"],
             "user": ["exact"],
         }
+        fields = (
+            "created",
+            "modified",
+            "is_admin",
+            "display_name",
+            "organization",
+            "credentials",
+            "billing",
+        )
         interfaces = (ObscureIdNode,)
         permission_classes = [IsSuperUser | ObjectPermissions]
         filter_backends = (ObjectPermissionsFilter,)
@@ -95,3 +108,8 @@ class Query(graphene.ObjectType):
     networks = DjangoFilterConnectionField(NetworkNode)
     seats = DjangoFilterConnectionField(SeatNode)
     developer_keys = DjangoConnectionField(DeveloperKeyNode)
+    me = graphene.Field(UserNode)
+
+    def resolve_me(self, info):
+        print(info.context.user.profile.public_id)
+        return UserNode.get_node(info, info.context.user.profile.public_id)

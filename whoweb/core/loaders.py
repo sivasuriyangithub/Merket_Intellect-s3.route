@@ -2,15 +2,17 @@ from promise import Promise
 from promise.dataloader import DataLoader
 
 
-def genLoader(Type, attr="pk"):
+def genLoader(Type):
     class GenLoad(DataLoader):
         def batch_load_fn(self, keys):
             objects_by_keys = dict()
             # Here we return a promise that will result on the
             # corresponding result for each key in keys
+            if hasattr(Type._meta.model, "public_id"):
+                attr = "public_id"
+            else:
+                attr = "pk"
             lookup = {"{0}__in".format(attr): keys}
-            if hasattr(Type._meta.mode, "public_id"):
-                lookup = {"public_id__in": keys}
             for obj in Type._meta.model.objects.filter(**lookup):
                 objects_by_keys[str(getattr(obj, attr))] = obj
             return Promise.resolve(

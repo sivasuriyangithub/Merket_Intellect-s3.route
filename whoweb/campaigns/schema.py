@@ -104,7 +104,7 @@ class IntervalCampaignRunnerNode(GuardedObjectType):
     tracking_params = graphene.List(TrackingParam)
 
     class Meta:
-        model = models.SimpleDripCampaignRunner
+        model = models.IntervalCampaignRunner
         interfaces = (relay.Node,)
         filter_fields = [
             "billing_seat",

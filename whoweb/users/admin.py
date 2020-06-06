@@ -22,6 +22,8 @@ class UserProfileInline(admin.StackedInline):
     model = UserProfile
     can_delete = False
     verbose_name = "profile"
+    fields = ("pk", "public_id")
+    readonly_fields = fields
 
 
 @admin.register(User)
@@ -51,6 +53,9 @@ class UserAdmin(GuardedModelAdminMixin, auth_admin.UserAdmin):
         ),
         (_("Important dates"), {"fields": ("last_login", "date_joined")}),
     )
+    inlines = [
+        UserProfileInline,
+    ]
     readonly_fields = ("last_login", "date_joined")
 
 

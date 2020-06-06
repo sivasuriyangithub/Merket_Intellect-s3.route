@@ -1,9 +1,9 @@
+from collections import OrderedDict
 from typing import List
 
 from graphene import relay, GlobalID
 from graphene_django import DjangoObjectType
 from graphene_django.types import DjangoObjectTypeOptions
-from graphql import GraphQLError
 from guardian.shortcuts import get_perms
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.filters import BaseFilterBackend
@@ -93,9 +93,38 @@ class GuardedObjectType(DjangoObjectType):
             lambda obj: cls.check_object_permissions(context=info.context, obj=obj)
         )
 
+    def resolve_id(self, info):
+        try:
+            return self.public_id
+        except AttributeError:
+            return super().resolve_id(info)
+
+
+class PublicGlobalID(GlobalID):
+    def __init__(self, node=None, parent_type=None, required=True, *args, **kwargs):
+        super().__init__(
+            node=node or ObscureIdNode,
+            parent_type=parent_type,
+            required=required,
+            *args,
+            **kwargs
+        )
+
 
 class ObscureIdNode(relay.Node):
+    """An object with an ID"""
+
+    id = GlobalID(
+        source="public_id", description="The ID of the object."
+    )  # this may not do anything.
+
     class Meta:
         name = "GraphNode"
 
-    id = GlobalID(source="public_id", description="The ID of the object.")
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls._meta.fields = OrderedDict(
+            id=PublicGlobalID(
+                cls, source="public_id", description="The ID of the object."
+            )  # or maybe this doesn't do anything.
+        )

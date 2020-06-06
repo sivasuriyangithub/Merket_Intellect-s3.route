@@ -1,8 +1,8 @@
 import graphene
 from graphene_django.filter import DjangoFilterConnectionField
-from whoweb.contrib.rest_framework.filters import ObjectPermissionsFilter
 
 from whoweb.contrib.graphene_django.types import GuardedObjectType, ObscureIdNode
+from whoweb.contrib.rest_framework.filters import ObjectPermissionsFilter
 from whoweb.contrib.rest_framework.permissions import (
     IsSuperUser,
     ObjectPermissions,

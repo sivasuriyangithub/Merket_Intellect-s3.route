@@ -369,7 +369,7 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
     "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.SlidingToken",),
-    "SLIDING_TOKEN_LIFETIME": timedelta(seconds=15),
+    "SLIDING_TOKEN_LIFETIME": timedelta(minutes=15),
     "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=14),
     "USER_ID_FIELD": "email",
     "USER_ID_CLAIM": "username",

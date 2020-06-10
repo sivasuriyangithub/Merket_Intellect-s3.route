@@ -214,10 +214,12 @@ class DeriveContactSerializer(serializers.Serializer):
         queryset=BillingAccountMember.objects.all(),
         write_only=True,
     )
-    id = serializers.CharField(source="_id", required=False, write_only=True)
-    first_name = serializers.CharField(required=False, write_only=True)
-    last_name = serializers.CharField(required=False, write_only=True)
-    company = serializers.CharField(required=False, write_only=True)
+    id = serializers.CharField(
+        source="_id", required=False, write_only=True, allow_null=True
+    )
+    first_name = serializers.CharField(required=False, write_only=True, allow_null=True)
+    last_name = serializers.CharField(required=False, write_only=True, allow_null=True)
+    company = serializers.CharField(required=False, write_only=True, allow_null=True)
     timeout = serializers.IntegerField(
         required=False, initial=28, default=28, write_only=True
     )
@@ -237,8 +239,10 @@ class DeriveContactSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if not (
-            "_id" in attrs
-            or all(["first_name" in attrs, "last_name" in attrs, "company" in attrs])
+            attrs.get("_id")
+            or all(
+                [attrs.get("first_name"), attrs.get("last_name"), attrs.get("company")]
+            )
         ):
             raise ValidationError(
                 "Must provide an id or all of first_name, last_name, and company."

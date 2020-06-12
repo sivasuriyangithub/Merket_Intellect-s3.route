@@ -1,5 +1,6 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
+from graphql_relay import from_global_id
 from rest_framework.fields import MultipleChoiceField, iter_options, to_choices_dict
 from rest_framework.relations import (
     HyperlinkedRelatedField,
@@ -66,6 +67,15 @@ class IdOrHyperlinkedRelatedField(HyperlinkedRelatedField):
         super().__init__(**kwargs)
 
     def to_internal_value(self, data):
+        # This is a poor place for this because it encourages
+        # tight coupling between DRF and GraphQL,
+        # instead of keeping GQL as an overlay on DRF.
+        # Ideally, we'd introspect the fields in SerializerMutation.get_serializer_kwargs
+        # and convert from global_id to model ID there.
+        try:
+            _typ, data = from_global_id(data)
+        except (ValueError, UnicodeDecodeError, AttributeError):
+            pass
         try:
             if self.pk_field is not None:
                 non_url = self.pk_field.to_internal_value(data)

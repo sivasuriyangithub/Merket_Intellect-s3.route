@@ -5,6 +5,7 @@ from graphene import relay
 from graphene_django import DjangoConnectionField
 from graphene_django.filter import DjangoFilterConnectionField
 
+from contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
 from whoweb.contrib.graphene_django.types import GuardedObjectType, ObscureIdNode
 from whoweb.contrib.rest_framework.filters import ObjectPermissionsFilter
 from whoweb.contrib.rest_framework.permissions import (
@@ -74,6 +75,8 @@ class NetworkNode(GuardedObjectType):
 
 
 class SeatNode(GuardedObjectType):
+    network = graphene.Field(NetworkNode, source="organization")
+
     class Meta:
         model = Seat
         filter_fields = {
@@ -85,7 +88,6 @@ class SeatNode(GuardedObjectType):
             "modified",
             "is_admin",
             "display_name",
-            "organization",
             "credentials",
             "billing",
         )
@@ -111,5 +113,4 @@ class Query(graphene.ObjectType):
     me = graphene.Field(UserNode)
 
     def resolve_me(self, info):
-        print(info.context.user.profile.public_id)
         return UserNode.get_node(info, info.context.user.profile.public_id)

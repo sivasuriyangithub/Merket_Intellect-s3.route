@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
+from slugify import slugify
 
 from whoweb.contrib.graphene_django.fields import NodeRelatedField
 from whoweb.contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
@@ -73,6 +74,7 @@ class BillingAccountSerializer(IdOrHyperlinkedModelSerializer):
         }
         depth = 2
         fields = (
+            "customer_type",
             "network",
             "name",
             "slug",
@@ -84,10 +86,17 @@ class BillingAccountSerializer(IdOrHyperlinkedModelSerializer):
             "subscription",
         )
         read_only_fields = (
+            "slug",
             "plan",
             "credit_pool",
             "subscription",
         )
+
+    def create(self, validated_data):
+        name = validated_data["name"]
+        return BillingAccount.objects.get_or_create(
+            slug=slugify(name), **validated_data
+        )[0]
 
 
 class PlanQuantitySerializer(serializers.Serializer):
@@ -106,6 +115,7 @@ class BillingAccountSubscriptionSerializer(serializers.Serializer):
     trial_days = serializers.IntegerField(
         required=False, default=None, allow_null=True, write_only=True
     )
+    customer_type = serializers.CharField(write_only=True, required=False)
     charge_immediately = serializers.NullBooleanField(required=False, write_only=True)
     initiated_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
 

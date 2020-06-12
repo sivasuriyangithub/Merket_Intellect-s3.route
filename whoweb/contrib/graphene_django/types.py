@@ -97,7 +97,7 @@ class GuardedObjectType(DjangoObjectType):
         try:
             return self.public_id
         except AttributeError:
-            return super().resolve_id(info)
+            return self.pk
 
 
 class PublicGlobalID(GlobalID):

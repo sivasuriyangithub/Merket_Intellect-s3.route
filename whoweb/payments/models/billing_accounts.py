@@ -50,6 +50,7 @@ class BillingAccount(
     plan = models.OneToOneField(WKPlan, on_delete=models.SET_NULL, null=True)
     plan_history = JSONField(null=True, blank=True, default=dict)
     credit_pool = models.IntegerField(default=0, blank=True)
+    customer_type = models.CharField(max_length=50)
 
     class Meta:
         verbose_name = _("billing account")
@@ -245,6 +246,7 @@ class BillingAccount(
         stripe_token=None,
         trial_days=None,
         charge_immediately=False,
+        customer_type=None,
         **kwargs,
     ):
         valid_items, plan_preset, total_credits = self._get_valid_items(
@@ -279,6 +281,8 @@ class BillingAccount(
             with_credits = min(total_credits, 1000)
         else:
             with_credits = total_credits
+        if customer_type:
+            self.customer_type = customer_type
         self.update_plan(
             initiated_by=initiated_by,
             new_plan=plan_preset.create(),
@@ -287,7 +291,13 @@ class BillingAccount(
         return subscription
 
     def update_subscription(
-        self, plan_id, items, initiated_by, stripe_token=None, **kwargs
+        self,
+        plan_id,
+        items,
+        initiated_by,
+        stripe_token=None,
+        customer_type=None,
+        **kwargs,
     ):
         customer = self.customer
         if stripe_token:
@@ -305,6 +315,8 @@ class BillingAccount(
             with_credits = min(total_credits, 1000)
         else:
             with_credits = total_credits
+        if customer_type:
+            self.customer_type = customer_type
         self.update_plan(
             initiated_by=initiated_by,
             new_plan=plan_preset.create(),

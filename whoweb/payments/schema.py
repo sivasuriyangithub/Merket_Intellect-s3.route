@@ -48,7 +48,7 @@ class StripePlanTiersObjectType(graphene.ObjectType):
 
 class StripePlanObjectType(GuardedObjectType):
     product = graphene.Field(StripeProductObjectType)
-    tiers = graphene.Field(StripePlanTiersObjectType)
+    tiers = graphene.List(StripePlanTiersObjectType)
 
     class Meta:
         model = Plan

@@ -93,7 +93,12 @@ class BillingAccount(
             return MultiPlanCustomer.objects.get(pk=cus.pk)
 
     def get_or_create_customer(self):
-        cus, _ = Customer.get_or_create(self)
+        cus, created = Customer.get_or_create(self)
+        if created or "customer_key" not in cus.metadata:
+            if cus.metadata is None:
+                cus.metadata = {}
+            cus.metadata["customer_key"] = self.owner.organization_user.user.username
+            cus.save()
         return MultiPlanCustomer.objects.get(pk=cus.pk)
 
     @property

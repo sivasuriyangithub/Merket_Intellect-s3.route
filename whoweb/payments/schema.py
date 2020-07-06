@@ -10,6 +10,7 @@ from whoweb.contrib.rest_framework.permissions import (
 )
 from whoweb.users.schema import NetworkNode
 from .models import WKPlan, BillingAccount, BillingAccountMember, MultiPlanSubscription
+from .permissions import BillingAccountMemberPermissionsFilter
 
 
 class PlanNode(GuardedObjectType):
@@ -141,7 +142,9 @@ class BillingAccountMemberNode(GuardedObjectType):
         interfaces = (ObscureIdNode,)
         filter_fields = []
         permission_classes = [IsSuperUser | ObjectPermissions]
-        filter_backends = (ObjectPermissionsFilter,)
+        filter_backends = (
+            ObjectPermissionsFilter | BillingAccountMemberPermissionsFilter,
+        )
         fields = ("seat", "pool_credits")
 
 

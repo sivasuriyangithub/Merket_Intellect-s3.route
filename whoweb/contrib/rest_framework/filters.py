@@ -42,6 +42,9 @@ class AND:
             request, queryset, view
         ) & self.op2.filter_queryset(request, queryset, view)
 
+    def __repr__(self):
+        return f"{self.op1} & {self.op2}"
+
 
 class OR:
     def __init__(self, op1, op2):
@@ -52,6 +55,9 @@ class OR:
         return self.op1.filter_queryset(
             request, queryset, view
         ) | self.op2.filter_queryset(request, queryset, view)
+
+    def __repr__(self):
+        return f"{self.op1} | {self.op2}"
 
 
 class BasePermissionMetaclass(OperationHolderMixin, type):

@@ -69,9 +69,12 @@ def modify_method_for_permissions(context, operation):
     To encourage reuse of ObjectPermissions, mutations should wrap permission checks
     with the relevant method.
     """
-    original_method = context.method
+    if hasattr(context, "_original_method"):
+        return
+    context._original_method = context.method
     try:
         context.method = operation
         yield context
     finally:
-        context.method = original_method
+        context.method = context._original_method
+        del context._original_method

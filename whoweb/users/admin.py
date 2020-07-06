@@ -1,7 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth import admin as auth_admin
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Group as AuthGroup
+from django.contrib.auth.admin import GroupAdmin as AuthGroupAdmin
 from django.utils.translation import gettext_lazy as _
 from guardian.admin import GuardedModelAdminMixin, GuardedModelAdmin
 from organizations.base_admin import (
@@ -64,8 +65,24 @@ class GroupOwnerInline(BaseOwnerInline):
     form = GroupOwnerAdminForm
 
 
+class SeatInline(admin.TabularInline):
+    model = Seat
+    form = SeatAdminForm
+    extra = 0
+    raw_id_fields = ("user",)
+
+
 class GroupAdmin(GuardedModelAdminMixin, BaseOrganizationAdmin):
-    inlines = [GroupOwnerInline]
+    inlines = [GroupOwnerInline, SeatInline]
+    actions = ["grant_default_permissions_to_all_seats"]
+
+    def grant_default_permissions_to_all_seats(self, request, queryset):
+        for group in queryset:
+            print(group)
+            for seat in group.organization_users.all():
+                print(seat)
+                print(group.default_permission_groups)
+                seat.user.groups.add(*group.default_permission_groups)
 
 
 class SeatAdmin(GuardedModelAdminMixin, BaseOrganizationUserAdmin):
@@ -76,11 +93,18 @@ class GroupOwnerAdmin(GuardedModelAdminMixin, BaseOrganizationOwnerAdmin):
     form = GroupOwnerAdminForm
 
 
+#
+# class PermissionsAuthGroupAdmin(GuardedModelAdminMixin, AuthGroupAdmin):
+#     pass
+#
+
 admin.site.unregister(Organization)
 admin.site.unregister(OrganizationUser)
 admin.site.unregister(OrganizationOwner)
+# admin.site.unregister(AuthGroup)
+
 admin.site.register(Group, GroupAdmin)
 admin.site.register(Seat, SeatAdmin)
 admin.site.register(GroupOwner, GroupOwnerAdmin)
 admin.site.register(DeveloperKey, GuardedModelAdmin)
-admin.site.register(Permission)
+# admin.site.register(AuthGroup, PermissionsAuthGroupAdmin)

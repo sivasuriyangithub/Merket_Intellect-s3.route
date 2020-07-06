@@ -263,4 +263,4 @@ class CampaignEmailLookup(models.Model):
         ColdCampaign, on_delete=models.CASCADE, related_name="email_lookups"
     )
     email = models.EmailField()
-    web_id = models.CharField(max_length=160)
+    web_id = models.CharField(max_length=255)

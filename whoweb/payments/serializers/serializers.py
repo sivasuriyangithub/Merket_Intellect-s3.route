@@ -90,13 +90,27 @@ class BillingAccountSerializer(IdOrHyperlinkedModelSerializer):
             "plan",
             "credit_pool",
             "subscription",
+            "customer_type",
         )
 
     def create(self, validated_data):
         name = validated_data["name"]
-        return BillingAccount.objects.get_or_create(
+        account, created = BillingAccount.objects.get_or_create(
             slug=slugify(name), **validated_data
-        )[0]
+        )
+
+        return account
+
+    def get_permissions_map(self, created):
+        account_admin = self.instance.organization.members_admin_authgroup
+        viewers = self.instance.organization.organization_viewers
+        user = self.instance.user
+
+        return {
+            "payments.view_billingaccount": [account_admin, viewers, user],
+            "payments.change_billingaccount": [account_admin],
+            "payments.delete_billingaccountmembers": [account_admin],
+        }
 
 
 class PlanQuantitySerializer(serializers.Serializer):

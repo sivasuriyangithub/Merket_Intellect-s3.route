@@ -1,3 +1,4 @@
+import logging
 from collections import OrderedDict
 from typing import List
 
@@ -8,6 +9,10 @@ from guardian.shortcuts import get_perms
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.filters import BaseFilterBackend
 from rest_framework.permissions import BasePermission
+
+from contrib.rest_framework.permissions import modify_method_for_permissions
+
+logger = logging.getLogger(__name__)
 
 
 class GuardedObjectTypeOptions(DjangoObjectTypeOptions):
@@ -56,6 +61,9 @@ class GuardedObjectType(DjangoObjectType):
         """
         for permission in cls.get_permissions():
             if not permission.has_permission(context, cls._meta):
+                logger.debug(
+                    f"{context.user} failed permission check for {cls.__name__} ({permission})"
+                )
                 raise PermissionDenied(getattr(permission, "message", None))
 
     @classmethod
@@ -68,6 +76,9 @@ class GuardedObjectType(DjangoObjectType):
             return obj
         for permission in cls.get_permissions():
             if not permission.has_object_permission(context, cls._meta, obj):
+                logger.debug(
+                    f"{context.user} failed object permission check for {cls.__name__}"
+                )
                 raise PermissionDenied(getattr(permission, "message", None))
 
         return obj
@@ -81,17 +92,19 @@ class GuardedObjectType(DjangoObjectType):
 
     @classmethod
     def get_queryset(cls, queryset, info):
-        cls.check_permissions(context=info.context)
-        queryset = super().get_queryset(queryset, info)
-        queryset = cls.filter_queryset(queryset, context=info.context)
+        with modify_method_for_permissions(info.context, "GET"):
+            cls.check_permissions(context=info.context)
+            queryset = super().get_queryset(queryset, info)
+            queryset = cls.filter_queryset(queryset, context=info.context)
         return queryset
 
     @classmethod
     def get_node(cls, info, _id):
-        cls.check_permissions(context=info.context)
-        return info.context.loaders.load(cls, _id).then(
-            lambda obj: cls.check_object_permissions(context=info.context, obj=obj)
-        )
+        with modify_method_for_permissions(info.context, "GET"):
+            cls.check_permissions(context=info.context)
+            return info.context.loaders.load(cls, _id).then(
+                lambda obj: cls.check_object_permissions(context=info.context, obj=obj)
+            )
 
     def resolve_id(self, info):
         try:
@@ -107,7 +120,7 @@ class PublicGlobalID(GlobalID):
             parent_type=parent_type,
             required=required,
             *args,
-            **kwargs
+            **kwargs,
         )
 
 

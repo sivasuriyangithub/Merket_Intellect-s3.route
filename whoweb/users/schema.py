@@ -5,7 +5,6 @@ from graphene import relay
 from graphene_django import DjangoConnectionField
 from graphene_django.filter import DjangoFilterConnectionField
 
-from contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
 from whoweb.contrib.graphene_django.types import GuardedObjectType, ObscureIdNode
 from whoweb.contrib.rest_framework.filters import ObjectPermissionsFilter
 from whoweb.contrib.rest_framework.permissions import (
@@ -14,6 +13,7 @@ from whoweb.contrib.rest_framework.permissions import (
     ObjectPassesTest,
 )
 from whoweb.users.models import UserProfile, Group, Seat, DeveloperKey
+from .permissions import NetworkSeatPermissionsFilter
 
 User = get_user_model()
 
@@ -93,7 +93,7 @@ class SeatNode(GuardedObjectType):
         )
         interfaces = (ObscureIdNode,)
         permission_classes = [IsSuperUser | ObjectPermissions]
-        filter_backends = (ObjectPermissionsFilter,)
+        filter_backends = (ObjectPermissionsFilter | NetworkSeatPermissionsFilter,)
 
 
 class DeveloperKeyNode(GuardedObjectType):

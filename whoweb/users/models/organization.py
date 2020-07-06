@@ -2,6 +2,7 @@ from secrets import token_urlsafe, token_hex
 
 from allauth.account.models import EmailAddress
 from django.db import models, transaction
+from django.db.transaction import atomic
 from django.utils.translation import ugettext_lazy as _
 from django_cryptography.fields import encrypt
 from guardian.models import UserObjectPermissionBase, GroupObjectPermissionBase
@@ -19,6 +20,7 @@ class Group(ObscureIdMixin, PermissionsAbstractOrganization, AbstractOrganizatio
         verbose_name = _("network")
         verbose_name_plural = _("networks")
         permissions = (
+            ("add_billing", "May add billing accounts in this organization"),
             ("add_developerkeys", "May add API credentials for this organization"),
             ("view_developerkeys", "May view all API credentials in this organization"),
             (
@@ -37,12 +39,16 @@ class Group(ObscureIdMixin, PermissionsAbstractOrganization, AbstractOrganizatio
     @property
     @transaction.atomic
     def default_admin_permission_groups(self):
-        return [self.credentials_admin_authgroup, self.seat_admin_authgroup]
+        return [
+            self.credentials_admin_authgroup,
+            self.seat_admin_authgroup,
+            self.billing_account_authgroup,
+        ]
 
     @property
     @transaction.atomic
     def default_permission_groups(self):
-        return [self.seat_viewers, self.network_viewers]
+        return [self.seat_viewers, self.network_viewers, self.billing_account_authgroup]
 
     @property
     def credentials_admin_authgroup(self):
@@ -66,6 +72,15 @@ class Group(ObscureIdMixin, PermissionsAbstractOrganization, AbstractOrganizatio
             assign_perm("users.add_seat", group)
             assign_perm("users.view_seat", group)
             assign_perm("users.delete_seat", group)
+        return group
+
+    @property
+    def billing_account_authgroup(self):
+        group, created = self.get_or_create_auth_group("org_billing_manager")
+        if created:
+            assign_perm("add_billing", group, self)
+            assign_perm("payments.add_billingaccount", group)
+            assign_perm("payments.view_billingaccount", group)
         return group
 
     @property

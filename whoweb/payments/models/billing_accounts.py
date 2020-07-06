@@ -50,7 +50,7 @@ class BillingAccount(
     plan = models.OneToOneField(WKPlan, on_delete=models.SET_NULL, null=True)
     plan_history = JSONField(null=True, blank=True, default=dict)
     credit_pool = models.IntegerField(default=0, blank=True)
-    customer_type = models.CharField(max_length=50)
+    customer_type = models.CharField(max_length=50, blank=True)
 
     class Meta:
         verbose_name = _("billing account")

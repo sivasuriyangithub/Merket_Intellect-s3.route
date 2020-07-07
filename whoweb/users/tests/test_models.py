@@ -20,7 +20,9 @@ def test_get_or_add_user():
     assert not created
 
     assert sorted(owner_user.groups.all(), key=lambda g: g.pk) == sorted(
-        network.default_permission_groups + network.default_admin_permission_groups,
+        set(
+            network.default_permission_groups + network.default_admin_permission_groups
+        ),
         key=lambda g: g.pk,
     )
 
@@ -58,13 +60,13 @@ def test_change_owner():
     assert network.users.count() == 2
 
     assert owner_user.groups.count() == len(
-        network.default_permission_groups + network.default_admin_permission_groups
+        set(network.default_permission_groups + network.default_admin_permission_groups)
     )
     assert user.groups.all().count() == len(network.default_permission_groups)
 
     network.change_owner(new_owner=seat)
 
     assert user.groups.all().count() == len(
-        network.default_permission_groups + network.default_admin_permission_groups
+        set(network.default_permission_groups + network.default_admin_permission_groups)
     )
     assert owner_user.groups.all().count() == len(network.default_permission_groups)

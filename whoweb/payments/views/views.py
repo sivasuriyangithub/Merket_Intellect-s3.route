@@ -1,5 +1,6 @@
 import logging
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as CoreValidationError
 from django.db.models import Q
 from django.http import Http404
@@ -22,6 +23,7 @@ from ..models import (
     BillingAccount,
     BillingAccountMember,
 )
+from ..permissions import BillingAccountMemberPermissionsFilter
 from ..serializers import (
     PlanSerializer,
     BillingAccountSerializer,
@@ -32,6 +34,8 @@ from ..serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+User = get_user_model()
 
 
 class PlanViewSet(mixins.RetrieveModelMixin, mixins.ListModelMixin, GenericViewSet):
@@ -174,4 +178,17 @@ class BillingAccountMemberViewSet(
     lookup_field = "public_id"
     queryset = BillingAccountMember.objects.all()
     serializer_class = BillingAccountMemberSerializer
-    permission_classes = [IsSuperUser]
+    permission_classes = [IsSuperUser | ObjectPermissions]
+    filter_backends = [
+        ObjectPermissionsFilter,
+        BillingAccountMemberPermissionsFilter,
+    ]
+
+    def check_permissions(self, request):
+        request.user = User.objects.get(pk=request.user.pk)
+        # if self.request.method == "POST":
+        #     serializer = self.get_serializer()
+        #     billing_account = serializer.data["billing_account"]
+        #     if not request.user.has_perm("add_billingaccountmembers", billing_account):
+        #         return self.permission_denied(request)
+        return super(BillingAccountMemberViewSet, self).check_permissions(request)

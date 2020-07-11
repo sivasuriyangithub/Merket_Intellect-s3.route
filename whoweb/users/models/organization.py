@@ -124,7 +124,7 @@ class Seat(ObscureIdMixin, AbstractOrganizationUser):
 
     def __unicode__(self):
         return "{0} ({1})".format(
-            self.name or ("User: " + self.user_id), self.organization.name
+            self.name or f"User: {self.user_id}", self.organization.name
         )
 
     @property

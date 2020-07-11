@@ -122,24 +122,23 @@ class BillingAccount(
     def admin_authgroup(self):
         group, created = self.get_or_create_auth_group("admin")
         if created:
-            assign_perm("payments.view_billingaccount", group)
-            assign_perm("payments.change_billingaccount", group)
             assign_perm("payments.view_billingaccount", group, self)
             assign_perm("payments.change_billingaccount", group, self)
+            assign_perm("payments.view_billingaccount", group)
+            assign_perm("payments.change_billingaccount", group)
         return group
 
     @property
     def members_admin_authgroup(self):
         group, created = self.get_or_create_auth_group("members_admin")
         if created:
-            assign_perm("payments.add_billingaccountmember", group)
-            assign_perm("payments.view_billingaccountmember", group)
-            assign_perm("payments.delete_billingaccountmember", group)
             assign_perm("add_billingaccountmembers", group, self)
             assign_perm("view_billingaccountmembers", group, self)
             assign_perm("delete_billingaccountmembers", group, self)
-
             assign_perm("change_membercredits", group, self)
+            assign_perm("payments.add_billingaccountmember", group)
+            assign_perm("payments.view_billingaccountmember", group)
+            assign_perm("payments.delete_billingaccountmember", group)
         return group
 
     @property

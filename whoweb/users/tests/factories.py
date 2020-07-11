@@ -65,7 +65,7 @@ class SeatFactory(DjangoModelFactory):
         model = Seat
 
 
-class GroupOwnerFactory(DjangoModelFactory):
+class NetworkOwnerFactory(DjangoModelFactory):
 
     organization_user = SubFactory(SeatFactory)
     organization = SelfAttribute("organization_user.organization")

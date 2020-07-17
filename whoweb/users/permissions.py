@@ -1,4 +1,4 @@
-from contrib.rest_framework.filters import BaseFilterBackend
+from whoweb.contrib.rest_framework.filters import BaseFilterBackend
 from whoweb.users.models import Group
 
 

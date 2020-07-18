@@ -2,17 +2,22 @@ from secrets import token_urlsafe, token_hex
 
 from allauth.account.models import EmailAddress
 from django.db import models, transaction
-from django.db.transaction import atomic
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.utils.translation import ugettext_lazy as _
 from django_cryptography.fields import encrypt
 from guardian.models import UserObjectPermissionBase, GroupObjectPermissionBase
 from guardian.shortcuts import assign_perm
+from model_utils import FieldTracker
 from model_utils.models import TimeStampedModel
 from organizations.abstract import AbstractOrganizationOwner, AbstractOrganization
 from organizations.abstract import AbstractOrganizationUser
 
 from whoweb.contrib.fields import ObscureIdMixin
-from whoweb.contrib.organizations.models import PermissionsAbstractOrganization
+from whoweb.contrib.organizations.models import (
+    PermissionsAbstractOrganization,
+    permissions_org_user_post_save,
+)
 
 
 class Group(ObscureIdMixin, PermissionsAbstractOrganization, AbstractOrganization):
@@ -42,7 +47,6 @@ class Group(ObscureIdMixin, PermissionsAbstractOrganization, AbstractOrganizatio
         return [
             self.credentials_admin_authgroup,
             self.seat_admin_authgroup,
-            self.billing_account_authgroup,
         ]
 
     @property
@@ -117,6 +121,7 @@ class Seat(ObscureIdMixin, AbstractOrganizationUser):
         help_text="How this seat should be labeled within their organization.",
     )
     is_active = models.BooleanField(_("active"), default=True)
+    tracker = FieldTracker(fields=["is_admin"])
 
     class Meta:
         verbose_name = _("seat")
@@ -199,3 +204,6 @@ class DeveloperKeyUserObjectPermission(UserObjectPermissionBase):
 
 class DeveloperKeyGroupObjectPermission(GroupObjectPermissionBase):
     content_object = models.ForeignKey(DeveloperKey, on_delete=models.CASCADE)
+
+
+receiver(post_save, sender=Seat)(permissions_org_user_post_save)

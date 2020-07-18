@@ -2,6 +2,7 @@ from django.contrib.auth.models import Group
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.translation import ugettext_lazy as _
+from model_utils import FieldTracker
 from organizations.signals import user_added
 
 
@@ -75,3 +76,26 @@ class PermissionsAbstractOrganization(models.Model):
         )
         user.groups.remove(*list(auth_groups))
         super().remove_user(user)
+
+    @atomic
+    def make_admin(self, user):
+        user.groups.add(*self.default_admin_permission_groups)
+
+    @atomic
+    def revoke_admin(self, user):
+        all_auth_groups = list(
+            user.groups.filter(name__startswith=f"{self.permissions_scope}:")
+        )
+        user.groups.remove(*all_auth_groups)
+        user.groups.add(*self.default_permission_groups)
+
+
+def permissions_org_user_post_save(sender, instance, created, **kwargs):
+    if created:
+        if instance.is_admin:
+            instance.organization.make_admin(instance.user)
+    elif instance.tracker.has_changed("is_admin"):
+        if instance.is_admin == True:
+            instance.organization.make_admin(instance.user)
+        else:
+            instance.organization.revoke_admin(instance.user)

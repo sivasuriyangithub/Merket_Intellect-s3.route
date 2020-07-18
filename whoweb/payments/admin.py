@@ -35,6 +35,14 @@ class MemberInline(admin.TabularInline):
 class BillingAccountAdmin(BaseOrganizationAdmin):
     inlines = [OwnerInline, MemberInline]
     list_display = ("pk", "public_id", "name", "network", "credit_pool")
+    actions = ["grant_default_permissions_to_all_members"]
+
+    def grant_default_permissions_to_all_members(self, request, queryset):
+        for acct in queryset:
+            for member in acct.organization_users.all():
+                member.user.groups.add(*acct.default_permission_groups)
+                if member.is_admin:
+                    member.user.groups.add(*acct.default_admin_permission_groups)
 
 
 class BillingAccountMemberAdmin(BaseOrganizationUserAdmin):

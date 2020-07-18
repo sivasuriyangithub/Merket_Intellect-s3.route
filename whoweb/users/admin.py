@@ -78,11 +78,10 @@ class GroupAdmin(GuardedModelAdminMixin, BaseOrganizationAdmin):
 
     def grant_default_permissions_to_all_seats(self, request, queryset):
         for group in queryset:
-            print(group)
             for seat in group.organization_users.all():
-                print(seat)
-                print(group.default_permission_groups)
                 seat.user.groups.add(*group.default_permission_groups)
+                if seat.is_admin:
+                    seat.user.groups.add(*group.default_admin_permission_groups)
 
 
 class SeatAdmin(GuardedModelAdminMixin, BaseOrganizationUserAdmin):

@@ -7,7 +7,9 @@ from django.contrib.postgres.fields import JSONField
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F, Q
+from django.db.models.signals import post_save
 from django.db.transaction import atomic
+from django.dispatch import receiver
 from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import ugettext_lazy as _
@@ -16,6 +18,7 @@ from djstripe.enums import SubscriptionStatus
 from djstripe.exceptions import MultipleSubscriptionException
 from djstripe.models import Customer, StripeModel, Subscription, SubscriptionItem
 from guardian.shortcuts import assign_perm
+from model_utils import FieldTracker
 from organizations.abstract import (
     AbstractOrganizationUser,
     AbstractOrganizationOwner,
@@ -34,7 +37,10 @@ from whoweb.accounting.ledgers import (
 )
 from whoweb.accounting.models import LedgerEntry
 from whoweb.contrib.fields import ObscureIdMixin
-from whoweb.contrib.organizations.models import PermissionsAbstractOrganization
+from whoweb.contrib.organizations.models import (
+    PermissionsAbstractOrganization,
+    permissions_org_user_post_save,
+)
 from whoweb.users.models import Seat, Group
 from .plans import WKPlan, WKPlanPreset
 
@@ -339,7 +345,9 @@ class BillingAccount(
         return valid_items, plan_preset, total_credits
 
 
-class BillingAccountMember(ObscureIdMixin, AbstractOrganizationUser):
+class BillingAccountMember(
+    ObscureIdMixin, AbstractOrganizationUser,
+):
     seat = models.OneToOneField(
         Seat,
         verbose_name="group seat",
@@ -348,6 +356,7 @@ class BillingAccountMember(ObscureIdMixin, AbstractOrganizationUser):
     )
     seat_credits = models.IntegerField(default=0)
     pool_credits = models.BooleanField(default=False)
+    tracker = FieldTracker(fields=["is_admin"])
 
     class Meta:
         verbose_name = _("billing account member")
@@ -649,3 +658,6 @@ def record_transaction_expire_credits(
         kind=transaction_kind,
         posted_timestamp=posted_at,
     )
+
+
+receiver(post_save, sender=BillingAccountMember)(permissions_org_user_post_save)

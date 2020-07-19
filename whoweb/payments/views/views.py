@@ -11,6 +11,7 @@ from rest_framework import status, mixins
 from rest_framework.decorators import action
 from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
@@ -88,10 +89,16 @@ class BillingAccountViewSet(
         methods=["post", "patch"],
         name="Subscription",
         request_serializer_class=BillingAccountSubscriptionSerializer,
+        permission_classes=[IsAuthenticated],
+        filter_backends=[DjangoFilterBackend, ObjectPermissionsFilter],
         url_path="subscription",
     )
     def subscription(self, request, public_id=None):
         billing_account: BillingAccount = self.get_object()
+
+        if not request.user.has_perm("change_billingaccount", billing_account):
+            self.permission_denied(request)
+
         serializer = BillingAccountSubscriptionSerializer(
             data=request.data, context={"request": request}
         )
@@ -122,6 +129,8 @@ class BillingAccountViewSet(
     @subscription.mapping.delete
     def cancel_subscription(self, request, public_id=None):
         billing_account: BillingAccount = self.get_object()
+        if not request.user.has_perm("change_billingaccount", billing_account):
+            self.permission_denied(request)
         billing_account.subscription.cancel(at_period_end=CANCELLATION_AT_PERIOD_END)
         return Response(
             BillingAccountSerializer(billing_account, context={"request": request}).data
@@ -185,7 +194,10 @@ class BillingAccountMemberViewSet(
     ]
 
     def check_permissions(self, request):
-        request.user = User.objects.get(pk=request.user.pk)
+        try:
+            request.user = User.objects.get(pk=request.user.pk)
+        except User.DoesNotExist:
+            pass
         # if self.request.method == "POST":
         #     serializer = self.get_serializer()
         #     billing_account = serializer.data["billing_account"]

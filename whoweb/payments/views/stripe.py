@@ -4,6 +4,7 @@ from django.utils.timezone import now
 from djstripe.enums import SubscriptionStatus
 from djstripe.models import Customer
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -13,6 +14,9 @@ from ..serializers import AddPaymentSourceSerializer
 
 class PaymentSourceAPIView(APIView):
     # TODO: user passes test Can Edit Customer
+
+    permission_classes = [IsAuthenticated]
+
     def post(self, request, **kwargs):
         serializer = AddPaymentSourceSerializer(
             data=request.data, context={"request": request}

@@ -340,7 +340,8 @@ class BaseCampaignRunner(
             for log_entry in campaign.click_log.get("log", []):
                 if "web_id" in log_entry:
                     responders.add(log_entry["web_id"])
-            for log_entry in campaign.reply_log:
+            replies = campaign.reply_log or []
+            for log_entry in replies:
                 if "web_id" in log_entry:
                     responders.add(log_entry["web_id"])
         return responders

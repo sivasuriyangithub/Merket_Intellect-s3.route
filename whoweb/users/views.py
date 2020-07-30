@@ -2,9 +2,11 @@ from django.contrib.auth import get_user_model
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, mixins, status
 from rest_framework.response import Response
+from rest_framework.settings import api_settings
 from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet
 from rest_framework_guardian.filters import ObjectPermissionsFilter
+from rest_framework_simplejwt.views import TokenObtainSlidingView
 from slugify import slugify
 
 from whoweb.contrib.rest_framework.permissions import ObjectPermissions, IsSuperUser
@@ -15,6 +17,7 @@ from whoweb.users.serializers import (
     NetworkSerializer,
     UserSerializer,
     AuthManagementSerializer,
+    ImpersonatedTokenObtainSlidingSerializer,
 )
 
 User = get_user_model()
@@ -56,6 +59,17 @@ class DeveloperKeyViewSet(
     serializer_class = DeveloperKeySerializer
     permission_classes = [IsSuperUser | ObjectPermissions]
     filter_backends = [DjangoFilterBackend, ObjectPermissionsFilter]
+
+
+class ImpersonatedTokenObtainSlidingView(TokenObtainSlidingView):
+    """
+    Takes a set of user credentials and returns a sliding JSON web token to
+    prove the authentication of those credentials.
+    """
+
+    serializer_class = ImpersonatedTokenObtainSlidingSerializer
+    permission_classes = [IsSuperUser]
+    authentication_classes = api_settings.DEFAULT_AUTHENTICATION_CLASSES
 
 
 class ManageUserAuthenticationAPIView(APIView):

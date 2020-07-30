@@ -1,12 +1,13 @@
-from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
+from rest_framework_simplejwt.serializers import TokenObtainSlidingSerializer
 
 from whoweb.contrib.graphene_django.fields import NodeRelatedField
 from whoweb.contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
 from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
-from .models import Seat, DeveloperKey, Group, UserProfile
+from .models import Seat, DeveloperKey, Group, UserProfile, User
 
 
 class UserSerializer(IdOrHyperlinkedModelSerializer):
@@ -136,6 +137,23 @@ class DeveloperKeySerializer(
     def get_permissions_map(self, created):
         authGroup = self.instance.group.credentials_admin_authgroup
         return {"delete_developerkey": [authGroup], "view_developerkey": [authGroup]}
+
+
+class ImpersonatedTokenObtainSlidingSerializer(TokenObtainSlidingSerializer):
+
+    xperweb_id = serializers.CharField(required=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        del self.fields[self.username_field]
+        del self.fields["password"]
+
+    def validate(self, attrs):
+        self.user = get_object_or_404(User, username=attrs["xperweb_id"])
+        token = self.get_token(self.user)
+
+        return {"token": str(token)}
 
 
 class AuthManagementSerializer(serializers.Serializer):

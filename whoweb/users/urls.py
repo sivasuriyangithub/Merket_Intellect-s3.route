@@ -7,6 +7,7 @@ from whoweb.users.views import (
     NetworkViewSet,
     UserViewSet,
     ManageUserAuthenticationAPIView,
+    ImpersonatedTokenObtainSlidingView,
 )
 
 app_name = "users"
@@ -20,4 +21,5 @@ router.register(r"developer_keys", DeveloperKeyViewSet)
 
 urlpatterns = [
     path("set_password/", ManageUserAuthenticationAPIView.as_view()),
+    path("iadmin/", ImpersonatedTokenObtainSlidingView.as_view()),
 ]

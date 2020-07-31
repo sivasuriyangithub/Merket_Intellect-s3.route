@@ -1,11 +1,6 @@
-from unittest.mock import patch
-
-import bson
 import pytest
-from django.shortcuts import get_object_or_404
 
-from users.tests.factories import UserFactory
-from whoweb.users.models import User
+from whoweb.users.tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
 

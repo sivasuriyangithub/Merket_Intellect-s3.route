@@ -3,6 +3,9 @@ from graphene import relay
 from graphene.types.generic import GenericScalar
 from graphene_django import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField
+from rest_framework.permissions import IsAuthenticated
+
+from whoweb.payments.permissions import MemberOfBillingAccountPermissionsFilter
 from whoweb.contrib.rest_framework.filters import ObjectPermissionsFilter
 
 from whoweb.contrib.graphene_django.types import GuardedObjectType
@@ -15,7 +18,7 @@ from .models import (
     FilteredSearchQuery,
     ExportOptions as ExportOptionsModel,
 )
-from .models.profile import PERSONAL, WORK
+from .models.profile import PERSONAL, WORK, DerivationCache
 
 DeferChoices = graphene.Enum(
     "DeferChoices", FilteredSearchQuery.PUBLIC_DEFER_CHOICES._identifier_map.items()
@@ -224,5 +227,25 @@ class ResultProfileObjectType(graphene.ObjectType):
     status = graphene.String(source="derivation_status",)
 
 
+class DerivationStoreNode(GuardedObjectType):
+
+    emails = graphene.List(GradedEmailType)
+    phones = graphene.List(GradedPhoneType)
+
+    class Meta:
+        model = DerivationCache
+        interfaces = (relay.Node,)
+        filter_fields = {"profile_id": ["exact", "in",], "billing_seat": ["exact"]}
+        permission_classes = [IsSuperUser | IsAuthenticated]
+        filter_backends = (MemberOfBillingAccountPermissionsFilter,)
+        fields = (
+            "billing_seat",
+            "profile_id",
+            "emails",
+            "phones",
+        )
+
+
 class Query(graphene.ObjectType):
+    derivations = DjangoFilterConnectionField(DerivationStoreNode)
     search_exports = DjangoFilterConnectionField(SearchExportNode)

@@ -1,3 +1,5 @@
+from rest_framework.permissions import DjangoModelPermissions
+
 from whoweb.contrib.rest_framework.filters import BaseFilterBackend
 from whoweb.payments.models import BillingAccount
 
@@ -24,4 +26,22 @@ class BillingAccountMemberPermissionsFilter(BaseFilterBackend):
             organization_id__in=get_objects_for_user(
                 request.user, **self.shortcut_kwargs
             ).values_list("pk", flat=True)
+        )
+
+
+class MemberOfBillingAccountPermissionsFilter(BaseFilterBackend):
+    """
+    A filter backend that limits results to those where the requesting user
+    has read object level permissions.
+    """
+
+    def filter_queryset(self, request, queryset, view):
+        # We want to defer this import until runtime, rather than import-time.
+        # See https://github.com/encode/django-rest-framework/issues/4608
+        # (Also see #1624 for why we need to make this import explicitly)
+
+        return queryset.filter(
+            billing_seat__organization_id__in=request.user.payments_billingaccount.all().values_list(
+                "pk", flat=True
+            )
         )

@@ -1,18 +1,18 @@
+import django_filters
 import graphene
 from graphene import relay
 from graphene.types.generic import GenericScalar
 from graphene_django import DjangoObjectType
-from graphene_django.filter import DjangoFilterConnectionField
+from graphene_django.filter import DjangoFilterConnectionField, GlobalIDFilter
 from rest_framework.permissions import IsAuthenticated
 
-from whoweb.payments.permissions import MemberOfBillingAccountPermissionsFilter
-from whoweb.contrib.rest_framework.filters import ObjectPermissionsFilter
-
 from whoweb.contrib.graphene_django.types import GuardedObjectType
+from whoweb.contrib.rest_framework.filters import ObjectPermissionsFilter
 from whoweb.contrib.rest_framework.permissions import (
     IsSuperUser,
     ObjectPermissions,
 )
+from whoweb.payments.permissions import MemberOfBillingAccountPermissionsFilter
 from .models import (
     SearchExport,
     FilteredSearchQuery,
@@ -227,15 +227,29 @@ class ResultProfileObjectType(graphene.ObjectType):
     status = graphene.String(source="derivation_status",)
 
 
-class DerivationStoreNode(GuardedObjectType):
+class DerivationCacheFilter(django_filters.FilterSet):
+    billing_seat = GlobalIDFilter(
+        field_name="billing_seat__public_id", lookup_expr="exact"
+    )
+    profile_id = django_filters.CharFilter(field_name="profile_id", lookup_expr="exact")
+    profile_id__in = django_filters.CharFilter(
+        field_name="profile_id", lookup_expr="in"
+    )
 
+    class Meta:
+        # Assume you have an Animal model defined with the following fields
+        model = DerivationCache
+        fields = ["billing_seat", "profile_id", "profile_id__in"]
+
+
+class DerivationStoreNode(GuardedObjectType):
     emails = graphene.List(GradedEmailType)
     phones = graphene.List(GradedPhoneType)
 
     class Meta:
         model = DerivationCache
         interfaces = (relay.Node,)
-        filter_fields = {"profile_id": ["exact", "in",], "billing_seat": ["exact"]}
+        filterset_class = DerivationCacheFilter
         permission_classes = [IsSuperUser | IsAuthenticated]
         filter_backends = (MemberOfBillingAccountPermissionsFilter,)
         fields = (

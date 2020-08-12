@@ -227,14 +227,16 @@ class ResultProfileObjectType(graphene.ObjectType):
     status = graphene.String(source="derivation_status",)
 
 
+class IDInFilter(django_filters.BaseInFilter, django_filters.CharFilter):
+    pass
+
+
 class DerivationCacheFilter(django_filters.FilterSet):
     billing_seat = GlobalIDFilter(
         field_name="billing_seat__public_id", lookup_expr="exact"
     )
     profile_id = django_filters.CharFilter(field_name="profile_id", lookup_expr="exact")
-    profile_id__in = django_filters.CharFilter(
-        field_name="profile_id", lookup_expr="in"
-    )
+    profile_id__in = IDInFilter(field_name="profile_id")
 
     class Meta:
         # Assume you have an Animal model defined with the following fields

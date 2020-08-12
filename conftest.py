@@ -1,6 +1,10 @@
 import pytest
+from django.core.handlers.wsgi import WSGIRequest
 from django.test import RequestFactory
-from rest_framework.test import APIClient, APIRequestFactory, RequestsClient
+from graphene.test import Client
+from rest_framework.test import APIClient, APIRequestFactory
+
+from config.schema import schema
 
 pytest_plugins = [
     "whoweb.users.tests.fixtures",
@@ -52,6 +56,16 @@ def api_factory() -> APIRequestFactory:
 @pytest.fixture
 def api_client() -> APIClient:
     return APIClient()
+
+
+@pytest.fixture
+def gqlclient() -> Client:
+    return Client(schema)
+
+
+@pytest.fixture
+def context(request_factory) -> WSGIRequest:
+    return request_factory.get("/ww/graphql")
 
 
 @pytest.fixture

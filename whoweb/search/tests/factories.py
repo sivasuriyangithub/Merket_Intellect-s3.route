@@ -16,7 +16,7 @@ from faker.providers import internet
 from whoweb.payments.tests.factories import BillingAccountMemberFactory
 from whoweb.search.models import SearchExport, ResultProfile
 from whoweb.search.models.export import SearchExportPage
-from whoweb.search.models.profile import GradedEmail
+from whoweb.search.models.profile import GradedEmail, DerivationCache
 from whoweb.search.tests.fixtures import done
 
 fake = NonFactoryFaker()
@@ -65,3 +65,8 @@ class ResultProfileFactory(Factory):
 
     class Meta:
         model = ResultProfile
+
+
+class DerivationCacheRecordFactory(DjangoModelFactory):
+    class Meta:
+        model = DerivationCache

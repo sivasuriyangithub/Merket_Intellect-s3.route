@@ -10,7 +10,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.filters import BaseFilterBackend
 from rest_framework.permissions import BasePermission
 
-from contrib.rest_framework.permissions import modify_method_for_permissions
+from whoweb.contrib.rest_framework.permissions import modify_method_for_permissions
 
 logger = logging.getLogger(__name__)
 

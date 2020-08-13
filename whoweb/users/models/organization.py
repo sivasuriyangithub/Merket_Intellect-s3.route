@@ -120,6 +120,9 @@ class Seat(ObscureIdMixin, AbstractOrganizationUser):
         max_length=255,
         help_text="How this seat should be labeled within their organization.",
     )
+    title = models.CharField(
+        blank=True, max_length=255, help_text="Title within organization"
+    )
     is_active = models.BooleanField(_("active"), default=True)
     tracker = FieldTracker(fields=["is_admin"])
 

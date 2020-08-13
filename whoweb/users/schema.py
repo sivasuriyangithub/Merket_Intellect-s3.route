@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from graphene import relay
 from graphene_django import DjangoConnectionField
 from graphene_django.filter import DjangoFilterConnectionField
+from graphql_jwt.decorators import login_required
 
 from whoweb.contrib.graphene_django.types import GuardedObjectType, ObscureIdNode
 from whoweb.contrib.rest_framework.filters import ObjectPermissionsFilter
@@ -55,6 +56,10 @@ class UserNode(GuardedObjectType):
 
 
 class NetworkNode(GuardedObjectType):
+    seats = DjangoFilterConnectionField(
+        "whoweb.users.schema.SeatNode", source="organization_users"
+    )
+
     class Meta:
         model = Group
         fields = (
@@ -62,10 +67,11 @@ class NetworkNode(GuardedObjectType):
             "slug",
             "created",
             "modified",
-            "organization_users",
+            "seats",
             "credentials",
         )
         filter_fields = {
+            "id": ["exact"],
             "slug": ["exact", "icontains", "istartswith"],
             "name": ["exact", "icontains", "istartswith"],
         }
@@ -76,14 +82,20 @@ class NetworkNode(GuardedObjectType):
 
 class SeatNode(GuardedObjectType):
     network = graphene.Field(NetworkNode, source="organization")
+    user = graphene.Field(
+        UserNode
+    )  # TODO: ensure we want view_seat to incorporate view_user, or verify obj perm chk
 
     class Meta:
         model = Seat
         filter_fields = {
             "display_name": ["exact", "icontains", "istartswith"],
             "user": ["exact"],
+            "user__email": ["exact", "icontains", "istartswith"],
+            "title": ["exact", "icontains", "istartswith"],
         }
         fields = (
+            "title",
             "created",
             "modified",
             "is_admin",

@@ -145,7 +145,7 @@ class BillingAccountMemberNode(GuardedObjectType):
         filter_backends = (
             ObjectPermissionsFilter | BillingAccountMemberPermissionsFilter,
         )
-        fields = ("seat", "pool_credits")
+        fields = ("seat", "pool_credits", "is_admin")
 
 
 class Query(graphene.ObjectType):

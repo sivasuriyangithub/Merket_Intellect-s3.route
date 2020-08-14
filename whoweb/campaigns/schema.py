@@ -6,7 +6,7 @@ from graphene.types.generic import GenericScalar
 from graphene_django import DjangoConnectionField
 from graphene_django.filter import DjangoFilterConnectionField, GlobalIDFilter
 
-from payments.permissions import MemberOfBillingAccountPermissionsFilter
+from whoweb.payments.permissions import MemberOfBillingAccountPermissionsFilter
 from whoweb.campaigns import models
 from whoweb.coldemail import models as coldemail_models
 from whoweb.contrib.graphene_django.types import GuardedObjectType

@@ -2,6 +2,7 @@ from collections import OrderedDict
 from unittest.mock import patch
 
 import pytest
+from graphql_relay import to_global_id
 
 from whoweb.payments.tests.factories import BillingAccountMemberFactory
 from whoweb.search.tests.factories import DerivationCacheRecordFactory
@@ -70,7 +71,7 @@ def test_derive_profile_shows_in_feed(gqlclient, context, user):
       }
     }
     """
-    ).substitute(billing=seat.public_id)
+    ).substitute(billing=to_global_id("BillingAccountMemberNode", seat.public_id))
 
     context.user = user
     executed = gqlclient.execute(gql, context=context)

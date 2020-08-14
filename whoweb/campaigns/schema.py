@@ -1,14 +1,51 @@
+import django_filters
 import graphene
+from django_filters.rest_framework import FilterSet
 from graphene import relay
 from graphene.types.generic import GenericScalar
-from graphene_django.filter import DjangoFilterConnectionField
+from graphene_django import DjangoConnectionField
+from graphene_django.filter import DjangoFilterConnectionField, GlobalIDFilter
 
+from payments.permissions import MemberOfBillingAccountPermissionsFilter
 from whoweb.campaigns import models
 from whoweb.coldemail import models as coldemail_models
 from whoweb.contrib.graphene_django.types import GuardedObjectType
 from whoweb.contrib.rest_framework.permissions import IsSuperUser, ObjectPermissions
 from whoweb.search.schema import FilteredSearchQueryObjectType
-from whoweb.contrib.rest_framework.filters import ObjectPermissionsFilter
+
+CampaignRunnerStatusChoices = graphene.Enum(
+    "CampaignRunnerStatusChoices",
+    models.BaseCampaignRunner.STATUS._identifier_map.items(),
+)
+
+
+class TagsFilter(django_filters.BaseInFilter, django_filters.CharFilter):
+    pass
+
+
+class CampaignRunnerFilter(FilterSet):
+    status = django_filters.TypedChoiceFilter(
+        choices=[(c[1], c[0]) for c in models.BaseCampaignRunner.STATUS._triples],
+        coerce=lambda x: getattr(models.BaseCampaignRunner.STATUS, x),
+    )
+    published = django_filters.DateRangeFilter(field_name="published",)
+    published_after = django_filters.DateFilter(
+        field_name="published", lookup_expr="gt"
+    )
+    published_before = django_filters.DateFilter(
+        field_name="published", lookup_expr="lt"
+    )
+    tags = TagsFilter(field_name="tags__name")
+    id = GlobalIDFilter(field_name="public_id", lookup_expr="exact")
+
+    class Meta:
+        model = models.BaseCampaignRunner
+        fields = (
+            "status",
+            "published",
+            "billing_seat",
+            "id",
+        )
 
 
 class Message(GuardedObjectType):
@@ -33,9 +70,15 @@ class Campaign(GuardedObjectType):
     open_log = graphene.List(ProfileLogEntry, name="openProfiles")
     reply_log = graphene.List(ProfileLogEntry, name="replyProfiles")
     good_log = graphene.List(ProfileLogEntry, name="goodProfiles")
+    sent_profiles = graphene.List(graphene.String)
 
     class Meta:
+        interfaces = (relay.Node,)
         model = coldemail_models.ColdCampaign
+        fields = ("click_log", "open_log", "reply_log", "good_log", "sent_profiles")
+
+    def resolve_sent_profiles(self, info):
+        return (profile.id for profile in self.campaign_list.export.get_profiles())
 
 
 class SendingRule(GuardedObjectType):
@@ -56,21 +99,19 @@ class TrackingParam(graphene.ObjectType):
 class SimpleCampaignRunnerNode(GuardedObjectType):
     query = graphene.Field(FilteredSearchQueryObjectType)
     sending_rules = graphene.List(SendingRule)
-    drips = graphene.List(DripRecord)
-    campaigns = graphene.List(Campaign)
-    get_status_display = graphene.String(name="status_name")
-    tags = graphene.List(graphene.String)
+    drips = graphene.List(DripRecord, source="drip_records")
+    campaigns = DjangoConnectionField(Campaign)
+    tags = graphene.List(graphene.String, resolver=lambda x, i: x.tags.all())
     transactions = GenericScalar()
     tracking_params = graphene.List(TrackingParam)
+    status = graphene.Field(CampaignRunnerStatusChoices)
 
     class Meta:
         model = models.SimpleDripCampaignRunner
         interfaces = (relay.Node,)
-        filter_fields = [
-            "billing_seat",
-        ]
+        filterset_class = CampaignRunnerFilter
         permission_classes = [IsSuperUser | ObjectPermissions]
-        filter_backends = (ObjectPermissionsFilter,)
+        filter_backends = (MemberOfBillingAccountPermissionsFilter,)
         fields = (
             "budget",
             "query",
@@ -85,32 +126,32 @@ class SimpleCampaignRunnerNode(GuardedObjectType):
             "use_credits_method",
             "open_credit_budget",
             "from_name",
-            "get_status_display",
+            "status",
             "status_changed",
             "published",
             "title",
-            "status",
+            "created",
         )
 
 
 class IntervalCampaignRunnerNode(GuardedObjectType):
     query = graphene.Field(FilteredSearchQueryObjectType)
     sending_rules = graphene.List(SendingRule)
-    drips = graphene.List(DripRecord)
-    campaigns = graphene.List(Campaign)
-    get_status_display = graphene.String(name="status_name")
+    drips = graphene.List(DripRecord, source="drip_records")
+    campaigns = DjangoConnectionField(Campaign)
     tags = graphene.List(graphene.String)
     transactions = GenericScalar()
     tracking_params = graphene.List(TrackingParam)
+    status = graphene.Field(CampaignRunnerStatusChoices)
 
     class Meta:
         model = models.IntervalCampaignRunner
         interfaces = (relay.Node,)
-        filter_fields = [
-            "billing_seat",
-        ]
+        filterset_class = CampaignRunnerFilter
+
         permission_classes = [IsSuperUser | ObjectPermissions]
-        filter_backends = (ObjectPermissionsFilter,)
+        filter_backends = (MemberOfBillingAccountPermissionsFilter,)
+
         fields = (
             "query",
             "billing_seat",
@@ -126,9 +167,10 @@ class IntervalCampaignRunnerNode(GuardedObjectType):
             "max_sends",
             "from_name",
             "status",
-            "get_status_display",
             "status_changed",
             "published",
+            "created",
+            "modified",
         )
 
 

@@ -8,7 +8,7 @@ from whoweb.contrib.rest_framework.permissions import (
     IsSuperUser,
     ObjectPermissions,
 )
-from whoweb.users.schema import NetworkNode
+from whoweb.users.schema import NetworkNode, SeatNode
 from .models import WKPlan, BillingAccount, BillingAccountMember, MultiPlanSubscription
 from .permissions import BillingAccountMemberPermissionsFilter
 
@@ -122,6 +122,7 @@ class BillingAccountNode(GuardedObjectType):
     network = graphene.Field(NetworkNode)
     subscription = graphene.Field(SubscriptionObjectType)
     rest_id = graphene.ID(source="public_id")
+    seats = DjangoFilterConnectionField(SeatNode)
 
     class Meta:
         model = BillingAccount
@@ -129,7 +130,7 @@ class BillingAccountNode(GuardedObjectType):
         filter_fields = []
         permission_classes = [IsSuperUser | ObjectPermissions]
         filter_backends = (ObjectPermissionsFilter,)
-        fields = ("seats", "plan", "credit_pool", "customer_type")
+        fields = ("plan", "credit_pool", "customer_type")
 
 
 class BillingAccountMemberNode(GuardedObjectType):

@@ -38,9 +38,10 @@ class AND:
         self.op2 = op2
 
     def filter_queryset(self, request, queryset, view):
-        return self.op1.filter_queryset(
-            request, queryset, view
-        ) & self.op2.filter_queryset(request, queryset, view)
+        return (
+            self.op1.filter_queryset(request, queryset, view).filter()
+            & self.op2.filter_queryset(request, queryset, view).filter()
+        )
 
     def __repr__(self):
         return f"{self.op1} & {self.op2}"
@@ -52,9 +53,10 @@ class OR:
         self.op2 = op2
 
     def filter_queryset(self, request, queryset, view):
-        return self.op1.filter_queryset(
-            request, queryset, view
-        ) | self.op2.filter_queryset(request, queryset, view)
+        return (
+            self.op1.filter_queryset(request, queryset, view).filter()
+            | self.op2.filter_queryset(request, queryset, view).filter()
+        )
 
     def __repr__(self):
         return f"{self.op1} | {self.op2}"

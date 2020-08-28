@@ -20,6 +20,7 @@ from whoweb.search.models import (
     FilteredSearchFilterElement,
     ResultProfile,
     DerivationCache,
+    FilterValueList,
 )
 from whoweb.search.models.profile import (
     WORK,
@@ -379,3 +380,44 @@ class BatchProfileEnrichmentSerializer(serializers.Serializer):
 
     class Meta:
         depth = 1
+
+
+class FilterValueListSerializer(
+    TaggableMixin, IdOrHyperlinkedModelSerializer
+):
+    id = serializers.CharField(source="public_id", read_only=True)
+    name = serializers.CharField(source="name")
+    description = serializers.CharField(source="description")
+    type = serializers.CharField(source="type")
+    tags = TagulousField(required=False)
+    values = serializers.ListField(serializers.CharField())
+    billing_seat = IdOrHyperlinkedRelatedField(
+        view_name="billingaccountmember-detail",
+        lookup_field="public_id",
+        queryset=BillingAccountMember.objects.all(),
+        required=True,
+        allow_null=False,
+    )
+
+    class Meta:
+        model = FilterValueList
+        extra_kwargs = {
+            "url": {"lookup_field": "public_id"},
+        }
+        depth = 1
+        fields = [
+            "url",
+            "id",
+            "name",
+            "description",
+            "type",
+            "tags",
+            "values",
+            "billing_seat",
+            "created",
+            "modified",
+        ]
+        read_only_fields = [
+            "created",
+            "modified",
+        ]

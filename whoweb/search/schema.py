@@ -17,6 +17,7 @@ from .models import (
     SearchExport,
     FilteredSearchQuery,
     ExportOptions as ExportOptionsModel,
+    FilterValueList,
 )
 from .models.profile import PERSONAL, WORK, DerivationCache
 
@@ -265,3 +266,25 @@ class DerivationStoreNode(GuardedObjectType):
 class Query(graphene.ObjectType):
     derivations = DjangoFilterConnectionField(DerivationStoreNode)
     search_exports = DjangoFilterConnectionField(SearchExportNode)
+
+
+
+class FilterValueList(graphene.ObjectType):
+    name = graphene.String()
+    description = graphene.String()
+    type = graphene.String()
+    tags = graphene.List(graphene.String)
+    values = graphene.List(graphene.String)
+
+    class Meta:
+        model = FilterValueList
+        filter_fields = []
+        permission_classes = [IsSuperUser | ObjectPermissions]
+        filter_backends = (ObjectPermissionsFilter,)
+        fields = (
+            "name",
+            "description",
+            "type",
+            "tags",
+            "values",
+        )

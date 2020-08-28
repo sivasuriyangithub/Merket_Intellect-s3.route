@@ -3,7 +3,7 @@ from graphene_django.rest_framework.mutation import SerializerMutation
 from graphql_jwt.decorators import login_required
 
 from .schema import ResultProfileObjectType
-from .serializers import DeriveContactSerializer
+from .serializers import DeriveContactSerializer, FilterValueListSerializer
 
 
 class DeriveContact(SerializerMutation):
@@ -25,6 +25,28 @@ class DeriveContact(SerializerMutation):
         }
 
 
+class FilterValueListMutation(NodeSerializerMutation):
+    class Meta:
+        serializer_class = FilterValueListSerializer
+        model_operations = (
+            "create",
+            "update",
+            "delete",
+        )
+        only_fields = (
+            "name",
+            "description",
+            "type",
+            "tags",
+            "values",
+            "billing_seat",
+        )
+
+
+
+
 class Mutation(graphene.ObjectType):
 
     derive_contact = DeriveContact.Field()
+    filter_value_list = FilterValueListMutation.Field()
+

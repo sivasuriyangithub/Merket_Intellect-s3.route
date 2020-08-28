@@ -1,17 +1,18 @@
-from typing import Optional, List, Dict, Any
-
-from django.contrib.auth import get_user_model
-from pydantic import BaseModel
+from django.contrib.postgres.fields import ArrayField
+from django.db import models
+from model_utils.models import TimeStampedModel
+from tagulous.models import TagField
 
 from whoweb.payments.models import BillingAccountMember
-from whoweb.users.models import Seat
-
-User = get_user_model()
+from whoweb.coldemail.models import ColdEmailTagModel
 
 
-class FilterValueList(BaseModel):
-    name: str
-    description: Optional[str] = None
-    type: Optional[str] = None
-    tags: List[str] = []
-    values: List[str] = []
+class FilterValueList(TimeStampedModel):
+    name = models.CharField(max_length=255)
+    description = models.TextField(default="", blank=True)
+    type = models.CharField(max_length=255, default="", blank=True)
+    tags = TagField(to=ColdEmailTagModel)
+    values = ArrayField(models.CharField(max_length=255))
+    billing_seat = models.ForeignKey(
+        BillingAccountMember, on_delete=models.CASCADE
+    )

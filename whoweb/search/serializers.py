@@ -6,9 +6,9 @@ from whoweb.accounting.serializers import TransactionSerializer
 from whoweb.contrib.rest_framework.fields import (
     MultipleChoiceListField,
     PublicPrivateMultipleChoiceListField,
-    IdOrHyperlinkedRelatedField,
+    IdOrHyperlinkedRelatedField, TagulousField,
 )
-from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
+from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer, TaggableMixin
 from whoweb.core.router import router
 from whoweb.payments.exceptions import PaymentRequired, SubscriptionError
 from whoweb.payments.models import BillingAccountMember
@@ -385,12 +385,8 @@ class BatchProfileEnrichmentSerializer(serializers.Serializer):
 class FilterValueListSerializer(
     TaggableMixin, IdOrHyperlinkedModelSerializer
 ):
-    id = serializers.CharField(source="public_id", read_only=True)
-    name = serializers.CharField(source="name")
-    description = serializers.CharField(source="description")
-    type = serializers.CharField(source="type")
     tags = TagulousField(required=False)
-    values = serializers.ListField(serializers.CharField())
+    #values = serializers.ListField(serializers.CharField())
     billing_seat = IdOrHyperlinkedRelatedField(
         view_name="billingaccountmember-detail",
         lookup_field="public_id",
@@ -401,12 +397,8 @@ class FilterValueListSerializer(
 
     class Meta:
         model = FilterValueList
-        extra_kwargs = {
-            "url": {"lookup_field": "public_id"},
-        }
         depth = 1
         fields = [
-            "url",
             "id",
             "name",
             "description",

@@ -24,6 +24,11 @@ router.register(
     views.BatchEnrichProfileViewSet,
     basename="enrich_profile_batch",
 )
+router.register(
+    r"search/filter_value_list",
+    views.FilterValueListViewSet,
+    basename="filter_value_list",
+)
 
 app_name = "search"
 urlpatterns = [

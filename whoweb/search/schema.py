@@ -263,28 +263,32 @@ class DerivationStoreNode(GuardedObjectType):
         )
 
 
-class Query(graphene.ObjectType):
-    derivations = DjangoFilterConnectionField(DerivationStoreNode)
-    search_exports = DjangoFilterConnectionField(SearchExportNode)
-
-
-
-class FilterValueList(graphene.ObjectType):
-    name = graphene.String()
-    description = graphene.String()
-    type = graphene.String()
+class FilterValueListNode(DjangoObjectType):
     tags = graphene.List(graphene.String)
-    values = graphene.List(graphene.String)
 
     class Meta:
         model = FilterValueList
         filter_fields = []
+        interfaces = (relay.Node,)
         permission_classes = [IsSuperUser | ObjectPermissions]
-        filter_backends = (ObjectPermissionsFilter,)
+        filter_backends = (MemberOfBillingAccountPermissionsFilter,)
         fields = (
+            "id",
             "name",
             "description",
             "type",
             "tags",
             "values",
+            "created",
+            "modified",
         )
+
+
+
+class Query(graphene.ObjectType):
+    derivations = DjangoFilterConnectionField(DerivationStoreNode)
+    search_exports = DjangoFilterConnectionField(SearchExportNode)
+    filter_value_lists = DjangoFilterConnectionField(FilterValueListNode)
+
+
+

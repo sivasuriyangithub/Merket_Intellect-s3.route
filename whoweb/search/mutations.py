@@ -2,6 +2,7 @@ import graphene
 from graphene_django.rest_framework.mutation import SerializerMutation
 from graphql_jwt.decorators import login_required
 
+from contrib.graphene_django.mutation import NodeSerializerMutation
 from .schema import ResultProfileObjectType
 from .serializers import DeriveContactSerializer, FilterValueListSerializer
 
@@ -32,14 +33,6 @@ class FilterValueListMutation(NodeSerializerMutation):
             "create",
             "update",
             "delete",
-        )
-        only_fields = (
-            "name",
-            "description",
-            "type",
-            "tags",
-            "values",
-            "billing_seat",
         )
 
 

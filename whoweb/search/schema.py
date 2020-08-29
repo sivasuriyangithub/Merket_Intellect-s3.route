@@ -271,7 +271,7 @@ class FilterValueListNode(GuardedObjectType):
         filter_fields = []
         interfaces = (relay.Node,)
         permission_classes = [IsSuperUser | ObjectPermissions]
-        filter_backends = (MemberOfBillingAccountPermissionsFilter,)
+        filter_backends = (ObjectPermissionsFilter,)
         fields = (
             "id",
             "name",

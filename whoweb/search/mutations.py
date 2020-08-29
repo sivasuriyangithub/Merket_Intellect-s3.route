@@ -2,7 +2,7 @@ import graphene
 from graphene_django.rest_framework.mutation import SerializerMutation
 from graphql_jwt.decorators import login_required
 
-from contrib.graphene_django.mutation import NodeSerializerMutation
+from whoweb.contrib.graphene_django.mutation import NodeSerializerMutation
 from .schema import ResultProfileObjectType
 from .serializers import DeriveContactSerializer, FilterValueListSerializer
 

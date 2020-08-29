@@ -378,4 +378,5 @@ class FilterValueListAdmin(ActionsModelAdmin):
         "type",
         "tags",
         "values",
+        "billing_seat",
     )

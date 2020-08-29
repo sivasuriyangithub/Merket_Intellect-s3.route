@@ -263,7 +263,7 @@ class DerivationStoreNode(GuardedObjectType):
         )
 
 
-class FilterValueListNode(DjangoObjectType):
+class FilterValueListNode(GuardedObjectType):
     tags = graphene.List(graphene.String)
 
     class Meta:
@@ -279,6 +279,7 @@ class FilterValueListNode(DjangoObjectType):
             "type",
             "tags",
             "values",
+            "billing_seat",
             "created",
             "modified",
         )

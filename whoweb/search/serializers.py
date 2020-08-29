@@ -242,8 +242,8 @@ class DeriveContactSerializer(serializers.Serializer):
         if not (
             attrs.get("_id")
             or all(
-                [attrs.get("first_name"), attrs.get("last_name"), attrs.get("company")]
-            )
+            [attrs.get("first_name"), attrs.get("last_name"), attrs.get("company")]
+        )
         ):
             raise ValidationError(
                 "Must provide an id or all of first_name, last_name, and company."
@@ -386,7 +386,7 @@ class FilterValueListSerializer(
     TaggableMixin, IdOrHyperlinkedModelSerializer
 ):
     tags = TagulousField(required=False)
-    #values = serializers.ListField(serializers.CharField())
+    # values = serializers.ListField(serializers.CharField())
     billing_seat = IdOrHyperlinkedRelatedField(
         view_name="billingaccountmember-detail",
         lookup_field="public_id",

@@ -8,7 +8,6 @@ from .serializers import DeriveContactSerializer, FilterValueListSerializer
 
 
 class DeriveContact(SerializerMutation):
-
     profile = graphene.Field(ResultProfileObjectType)
 
     class Meta:
@@ -36,10 +35,6 @@ class FilterValueListMutation(NodeSerializerMutation):
         )
 
 
-
-
 class Mutation(graphene.ObjectType):
-
     derive_contact = DeriveContact.Field()
     filter_value_list = FilterValueListMutation.Field()
-

@@ -200,6 +200,7 @@ class BatchResultViewSet(mixins.RetrieveModelMixin, GenericViewSet):
     serializer_class = BatchResultSerializer
     permission_classes = []
 
+
 class FilterValueListViewSet(viewsets.ModelViewSet):
     serializer_class = FilterValueListSerializer
     queryset = FilterValueList.objects.all()

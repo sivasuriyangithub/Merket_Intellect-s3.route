@@ -144,7 +144,7 @@ class LatestPageModificationFilter(admin.SimpleListFilter):
             ),
             (
                 _("More than 7 days ago"),
-                {self.lookup_kwarg_until: str(today - datetime.timedelta(days=7)),},
+                {self.lookup_kwarg_until: str(today - datetime.timedelta(days=7)), },
             ),
         )
         super().__init__(request, params, model, model_admin)
@@ -253,13 +253,13 @@ class ExportAdmin(ActionsModelAdmin):
     def get_queryset(self, request):
         return (
             super()
-            .get_queryset(request)
-            .annotate(
+                .get_queryset(request)
+                .annotate(
                 _working_count=Sum("pages__progress_counter"),
                 _rows_enqueued=Sum("pages__pending_count"),
                 _page_modified=Max("pages__modified"),
             )
-            .annotate(
+                .annotate(
                 _latest_page_modified=Case(
                     When(_page_modified__isnull=False, then="_page_modified"),
                     default=Value(epoch),  # sorts null to bottom

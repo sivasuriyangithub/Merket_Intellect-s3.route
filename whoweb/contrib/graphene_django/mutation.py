@@ -12,6 +12,7 @@ from graphene_django.rest_framework.mutation import fields_for_serializer
 from graphene_django.rest_framework.serializer_converter import convert_serializer_field
 from graphene_django.types import ErrorType
 from rest_framework.serializers import Serializer
+from graphql_relay import from_global_id
 
 from whoweb.contrib.rest_framework.permissions import modify_method_for_permissions
 
@@ -106,7 +107,9 @@ class NodeSerializerMutation(ClientIDMutation):
         if "update" in cls._meta.model_operations and "id" in input:
             info.context.method = "PATCH"
             with modify_method_for_permissions(info.context, "PATCH"):
-                instance = object_type.get_node(info, input["id"])
+                _type, _id = from_global_id(input["id"])
+                instance = object_type.get_node(info, _id).get()
+
             if not instance:
                 raise Http404(
                     "No %s matches the given query."
@@ -135,13 +138,14 @@ class NodeSerializerMutation(ClientIDMutation):
         delete = input.pop("deleted", False)
         if "delete" in cls._meta.model_operations and lookup_field in input and delete:
             with modify_method_for_permissions(info.context, "DELETE"):
-                instance = object_type.get_node(info, input[lookup_field])
+                _type, _id = from_global_id(input[lookup_field])
+                instance = object_type.get_node(info, _id)
             if not instance:
                 raise Http404(
                     "No %s matches the given query."
                     % object_type._meta.model._meta.object_name
                 )
-            instance.delete()
+            instance.then(lambda o:o.delete())
             return cls(errors=None, node=None)
         kwargs = cls.get_serializer_kwargs(root, info, **input)
         serializer = cls._meta.serializer_class(**kwargs)

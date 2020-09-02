@@ -7,9 +7,13 @@ from whoweb.accounting.serializers import TransactionSerializer
 from whoweb.contrib.rest_framework.fields import (
     MultipleChoiceListField,
     PublicPrivateMultipleChoiceListField,
-    IdOrHyperlinkedRelatedField, TagulousField,
+    IdOrHyperlinkedRelatedField,
+    TagulousField,
 )
-from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer, TaggableMixin
+from whoweb.contrib.rest_framework.serializers import (
+    IdOrHyperlinkedModelSerializer,
+    TaggableMixin,
+)
 from whoweb.core.router import router
 from whoweb.payments.exceptions import PaymentRequired, SubscriptionError
 from whoweb.payments.models import BillingAccountMember
@@ -59,7 +63,7 @@ class FilteredSearchFiltersSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FilteredSearchFilters
-        fields = "__all__"
+        fields = ("limit", "skip", "required", "desired", "profiles")
 
     def to_representation(self, instance):
         return instance.serialize()
@@ -80,7 +84,14 @@ class FilteredSearchQuerySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FilteredSearchQuery
-        fields = "__all__"
+        fields = (
+            "filters",
+            "export",
+            "defer",
+            "contact_filters",
+            "user_id",
+            "with_invites",
+        )
 
     def to_representation(self, instance):
         return instance.serialize()
@@ -243,8 +254,8 @@ class DeriveContactSerializer(serializers.Serializer):
         if not (
             attrs.get("_id")
             or all(
-            [attrs.get("first_name"), attrs.get("last_name"), attrs.get("company")]
-        )
+                [attrs.get("first_name"), attrs.get("last_name"), attrs.get("company")]
+            )
         ):
             raise ValidationError(
                 "Must provide an id or all of first_name, last_name, and company."
@@ -416,9 +427,9 @@ class FilterValueListSerializer(
         ]
 
     def get_permissions_map(self, created):
-        current_user = self.context['request'].user
+        current_user = self.context["request"].user
         return {
-            'view_filtervaluelist': [current_user],
-            'change_filtervaluelist': [current_user],
-            'delete_filtervaluelist': [current_user]
+            "view_filtervaluelist": [current_user],
+            "change_filtervaluelist": [current_user],
+            "delete_filtervaluelist": [current_user],
         }

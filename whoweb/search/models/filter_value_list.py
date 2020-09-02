@@ -13,6 +13,4 @@ class FilterValueList(TimeStampedModel):
     type = models.CharField(max_length=255, default="", blank=True)
     tags = TagField(to=ColdEmailTagModel)
     values = ArrayField(models.CharField(max_length=255))
-    billing_seat = models.ForeignKey(
-        BillingAccountMember, on_delete=models.CASCADE
-    )
+    billing_seat = models.ForeignKey(BillingAccountMember, on_delete=models.CASCADE)

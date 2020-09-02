@@ -192,7 +192,7 @@ class DiversityType(graphene.ObjectType):
 
 
 class ResultProfileObjectType(graphene.ObjectType):
-    id = graphene.String(source="_id", )
+    id = graphene.String(source="_id",)
     relevance_score = graphene.String()
     first_name = graphene.String()
     last_name = graphene.String()
@@ -225,7 +225,7 @@ class ResultProfileObjectType(graphene.ObjectType):
     skills = graphene.List(SkillType)
     attenuated_skills = GenericScalar()
 
-    status = graphene.String(source="derivation_status", )
+    status = graphene.String(source="derivation_status",)
 
 
 class IDInFilter(django_filters.BaseInFilter, django_filters.CharFilter):

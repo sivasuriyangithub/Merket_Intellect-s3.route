@@ -3,12 +3,12 @@ from collections import OrderedDict
 import graphene
 from django.db.models import Model
 from django.http import Http404
-from django.shortcuts import get_object_or_404
 from graphene.relay.mutation import ClientIDMutation
 from graphene.types import Field, InputField
 from graphene.types.mutation import MutationOptions
 from graphene.types.objecttype import yank_fields_from_attrs
 from graphene_django.registry import get_global_registry, Registry
+from graphene_django.rest_framework.mutation import fields_for_serializer
 from graphene_django.rest_framework.serializer_converter import convert_serializer_field
 from graphene_django.types import ErrorType
 from rest_framework.serializers import Serializer
@@ -23,34 +23,6 @@ class SerializerMutationOptions(MutationOptions):
     serializer_class: Serializer = None
     object_type: graphene.ObjectType = None
     registry: Registry = None
-
-
-def fields_for_serializer(
-    serializer,
-    only_fields,
-    exclude_fields,
-    is_input=False,
-    convert_choices_to_enum=True,
-):
-    fields = OrderedDict()
-    for name, field in serializer.fields.items():
-        is_not_in_only = only_fields and name not in only_fields
-        is_excluded = any(
-            [
-                name in exclude_fields,
-                field.write_only
-                and not is_input,  # don't show write_only fields in Query
-                field.read_only and is_input,  # don't show read_only fields in Input
-            ]
-        )
-
-        if is_not_in_only or is_excluded:
-            continue
-
-        fields[name] = convert_serializer_field(
-            field, is_input=is_input, convert_choices_to_enum=convert_choices_to_enum
-        )
-    return fields
 
 
 class NodeSerializerMutation(ClientIDMutation):
@@ -73,7 +45,7 @@ class NodeSerializerMutation(ClientIDMutation):
         convert_choices_to_enum=True,
         object_type=None,
         registry=None,
-        **options
+        **options,
     ):
 
         if not serializer_class:
@@ -120,7 +92,8 @@ class NodeSerializerMutation(ClientIDMutation):
         _meta.fields = yank_fields_from_attrs(output_fields, _as=Field)
 
         input_fields = yank_fields_from_attrs(input_fields, _as=InputField)
-
+        if "update" in model_operations:
+            input_fields["id"] = graphene.ID()
         if "delete" in model_operations:
             input_fields["deleted"] = graphene.Boolean(default=False)
         super(NodeSerializerMutation, cls).__init_subclass_with_meta__(
@@ -129,12 +102,11 @@ class NodeSerializerMutation(ClientIDMutation):
 
     @classmethod
     def get_serializer_kwargs(cls, root, info, **input):
-        lookup_field = cls._meta.lookup_field
         object_type = cls._meta.object_type
-        if "update" in cls._meta.model_operations and lookup_field in input:
+        if "update" in cls._meta.model_operations and "id" in input:
             info.context.method = "PATCH"
             with modify_method_for_permissions(info.context, "PATCH"):
-                instance = object_type.get_node(info, input[lookup_field])
+                instance = object_type.get_node(info, input["id"])
             if not instance:
                 raise Http404(
                     "No %s matches the given query."
@@ -147,9 +119,7 @@ class NodeSerializerMutation(ClientIDMutation):
             partial = False
         else:
             raise Exception(
-                'Invalid update operation. Input parameter "{}" required.'.format(
-                    lookup_field
-                )
+                'Invalid update operation. Input parameter "{}" required.'.format("id")
             )
         return {
             "instance": instance,

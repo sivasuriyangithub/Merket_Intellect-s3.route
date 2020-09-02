@@ -1,6 +1,7 @@
 from django.http import Http404
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
+from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 
 from whoweb.accounting.serializers import TransactionSerializer
 from whoweb.contrib.rest_framework.fields import (
@@ -383,7 +384,7 @@ class BatchProfileEnrichmentSerializer(serializers.Serializer):
 
 
 class FilterValueListSerializer(
-    TaggableMixin, IdOrHyperlinkedModelSerializer
+    ObjectPermissionsAssignmentMixin, TaggableMixin, IdOrHyperlinkedModelSerializer
 ):
     tags = TagulousField(required=False)
     # values = serializers.ListField(serializers.CharField())
@@ -413,3 +414,11 @@ class FilterValueListSerializer(
             "created",
             "modified",
         ]
+
+    def get_permissions_map(self, created):
+        current_user = self.context['request'].user
+        return {
+            'view_filtervaluelist': [current_user],
+            'change_filtervaluelist': [current_user],
+            'delete_filtervaluelist': [current_user]
+        }

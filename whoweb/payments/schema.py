@@ -87,7 +87,7 @@ class SubscriptionObjectType(GuardedObjectType):
     )
     can_charge = graphene.Boolean()
     is_valid = graphene.Boolean()
-    status = graphene.String(source="get_status_display")
+    status = graphene.String()
 
     class Meta:
         model = MultiPlanSubscription

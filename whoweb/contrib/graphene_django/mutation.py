@@ -145,7 +145,7 @@ class NodeSerializerMutation(ClientIDMutation):
                     "No %s matches the given query."
                     % object_type._meta.model._meta.object_name
                 )
-            instance.then(lambda o:o.delete())
+            instance.then(lambda o: o.delete())
             return cls(errors=None, node=None)
         kwargs = cls.get_serializer_kwargs(root, info, **input)
         serializer = cls._meta.serializer_class(**kwargs)

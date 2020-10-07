@@ -1,3 +1,4 @@
+from django.urls import path
 from rest_framework import routers
 
 from .views import (
@@ -7,6 +8,7 @@ from .views import (
     AdminBillingAccountViewSet,
     BillingAccountMemberViewSet,
     PlanPresetViewSet,
+    find_billing_seat_by_xperweb_id,
 )
 
 app_name = "payments"
@@ -21,4 +23,10 @@ router.register(
     r"admin/billing_accounts", AdminBillingAccountViewSet, basename="accountadmin"
 )
 
-urlpatterns = []
+urlpatterns = [
+    path(
+        "by_legacy_id/<str:xperweb_id>",
+        view=find_billing_seat_by_xperweb_id,
+        name="legacy_id_lookup",
+    ),
+]

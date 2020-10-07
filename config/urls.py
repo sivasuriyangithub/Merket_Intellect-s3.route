@@ -42,6 +42,7 @@ urlpatterns = [
     path("graphql", csrf_exempt(GraphQLView.as_view(graphiql=True))),
     # Your stuff: custom urls includes go here.
     path("accounts/", include("whoweb.users.urls", namespace="users")),
+    path("billing/", include("whoweb.payments.urls", namespace="billing")),
     path("search/", include("whoweb.search.urls", namespace="search")),
     path("reply/", include("whoweb.coldemail.urls", namespace="coldemail")),
     path(

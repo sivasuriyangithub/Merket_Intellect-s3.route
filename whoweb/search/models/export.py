@@ -7,6 +7,7 @@ from io import TextIOWrapper, StringIO
 from math import ceil
 from typing import Optional, List, Iterable, Dict, Iterator, Tuple
 
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 
 import requests
@@ -195,6 +196,10 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
     @classmethod
     def create_from_query(cls, billing_seat: Seat, query: dict, **kwargs):
+        """
+        :raises SubscriptionError: Billing seat must be subscribed with enough credits to complete the requested export.
+        :raises ValidationError: Query must include contact filters for export.
+        """
         export = cls(billing_seat=billing_seat, query=query, **kwargs)
         if not export.should_derive_email:
             export.charge = False
@@ -207,7 +212,10 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
             fee_per_row = 0
             filters = export.query.contact_filters
-            assert filters, "An export with derivations must specify contact filters."
+            if not filters:
+                raise ValidationError(
+                    "An export with derivations must specify contact filters."
+                )
             if FilteredSearchQuery.CONTACT_FILTER_CHOICES.WORK in filters:
                 fee_per_row += plan.credits_per_work_email
             if FilteredSearchQuery.CONTACT_FILTER_CHOICES.PERSONAL in filters:

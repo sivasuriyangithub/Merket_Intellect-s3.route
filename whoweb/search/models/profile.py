@@ -560,7 +560,13 @@ class ResultProfile(BaseModel):
                 raise Http404("Unable to find a profile matching the supplied id.")
             profile = ResultProfile(**profiles[0])
         else:
-            profile = profile._search_for_this()
+            if found := profile._search_for_this():
+                profile = found
+            else:
+                raise Http404(
+                    "Unable to find a profile matching the provided information."
+                )
+
         profile.derive_contact(
             defer=defer, filters=filters, include_social=include_social, timeout=timeout
         )
@@ -603,7 +609,8 @@ class ResultProfile(BaseModel):
             profile.li_url = linkedin_url
 
         if "profile_id" not in profile_data:
-            profile = profile._search_for_this()
+            if found := profile._search_for_this():
+                profile = found
 
         if linkedin_url and not filter(
             lambda x: x.typeName == "linkedin", profile.social_links
@@ -642,7 +649,7 @@ class ResultProfile(BaseModel):
             if profiles := router.unified_search(json=query).get("results"):
                 found_profile = ResultProfile(**profiles[0])
                 return found_profile
-        return self
+        return None
 
     @staticmethod
     def clean_proper_name(name):

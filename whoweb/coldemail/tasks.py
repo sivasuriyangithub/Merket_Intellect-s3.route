@@ -90,7 +90,7 @@ def update_validation(pk, should_orphan=False):
 def spawn_fetch_campaign_stats():
     late = ColdCampaign.objects.filter(
         Q(published__gte=now() - timedelta(days=14))
-        & (Q(stats_fetched__lte=now() - timedelta(hours=4)) | Q(stats=None))
+        & (Q(stats_fetched__lte=now() - timedelta(hours=4)) | Q(stats_fetched=None))
     ).only("pk")
     for campaign in late:
         fetch_campaign_stats.delay(campaign.pk)

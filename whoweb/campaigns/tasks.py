@@ -71,7 +71,7 @@ def ensure_stats(pk):
 def catch_missed_drips():
 
     for runner in (
-        BaseCampaignRunner.objects.filter(status=BaseCampaignRunner.STATUS.published)
+        BaseCampaignRunner.objects.filter(messages="published")
         .exclude(messages=None)
         .exclude(campaigns=None)
     ):

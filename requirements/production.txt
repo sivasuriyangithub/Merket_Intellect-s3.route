@@ -3,11 +3,11 @@
 -r ./base.txt
 
 gunicorn==20.0.4  # https://github.com/benoitc/gunicorn
-psycopg2==2.8.6 --no-binary psycopg2  # https://github.com/psycopg/psycopg2
-sentry-sdk==0.19.1  # https://github.com/getsentry/sentry-python
+psycopg2==2.8.5 --no-binary psycopg2  # https://github.com/psycopg/psycopg2
+sentry-sdk==0.16.4  # https://github.com/getsentry/sentry-python
 google-cloud-logging # https://cloud.google.com/logging/docs/reference/libraries#client-libraries-install-python
 
 # Django
 # ------------------------------------------------------------------------------
-django-storages[google]==1.10.1  # https://github.com/jschneier/django-storages
-django-anymail[mailgun]==8.1  # https://github.com/anymail/django-anymail
+django-storages[google]==1.9.1  # https://github.com/jschneier/django-storages
+django-anymail[mailgun]==7.2.1  # https://github.com/anymail/django-anymail

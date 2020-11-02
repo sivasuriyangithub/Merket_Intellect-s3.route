@@ -75,6 +75,6 @@ def catch_missed_drips():
         .exclude(messages=None)
         .exclude(campaigns=None)
     ):
-        for campaign in runner.campaigns:
+        for campaign in runner.campaigns.all():
             if drip_tasks := runner.resume_drip_tasks(root_campaign=campaign):
                 drip_tasks.apply_async()

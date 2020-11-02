@@ -7,11 +7,6 @@ import model_utils.fields
 
 class Migration(migrations.Migration):
 
-    replaces = [
-        ("search", "0006_auto_20191123_0053"),
-        ("search", "0007_auto_20191123_0057"),
-    ]
-
     dependencies = [("search", "0005_auto_20191120_2231")]
 
     operations = [

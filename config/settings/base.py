@@ -82,7 +82,6 @@ THIRD_PARTY_APPS = [
     "graphene_django",
     "djstripe",
     "django_celery_beat",
-    "django_celery_results",
     "django_filters",
     "guardian",
     "organizations",

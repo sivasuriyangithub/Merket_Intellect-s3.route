@@ -1,20 +1,20 @@
-six==1.14.0
-ipython==7.13.0
-pytz==2019.3  # https://github.com/stub42/pytz
-python-slugify==4.0.0  # https://github.com/un33k/python-slugify
-Pillow==7.0.0  # https://github.com/python-pillow/Pillow
-argon2-cffi==19.2.0  # https://github.com/hynek/argon2_cffi
-whitenoise==5.0.1  # https://github.com/evansd/whitenoise
+six==1.15.0
+ipython==7.19.0
+pytz==2020.4  # https://github.com/stub42/pytz
+python-slugify==4.0.1  # https://github.com/un33k/python-slugify
+Pillow==8.0.1  # https://github.com/python-pillow/Pillow
+argon2-cffi==20.1.0  # https://github.com/hynek/argon2_cffi
+whitenoise==5.2.0  # https://github.com/evansd/whitenoise
 redis==3.5.3  # https://github.com/antirez/redis
-celery[gevent,tblib]==4.4.7  # pyup: < 5.0  # https://github.com/celery/celery
-django-celery-beat==2.0.0  # https://github.com/celery/django-celery-beat
-django-celery-results==1.2.1 # https://github.com/celery/django-celery-results
+celery[gevent,tblib]==5.0.2  # pyup: < 5.0  # https://github.com/celery/celery
+django-celery-beat==2.1.0  # https://github.com/celery/django-celery-beat
+#django-celery-results==1.2.1 # https://github.com/celery/django-celery-results no 5.0 compat
 flower==0.9.5  # https://github.com/mher/flower
 pymongo==3.10.1 # for bson utils
-dnspython==1.16.0
+dnspython==2.0.0
 requests-cache
 python-dateutil==2.8.1
-pydantic==1.6.1 # https://github.com/samuelcolvin/pydantic
+pydantic==1.7.2 # https://github.com/samuelcolvin/pydantic
 django-cryptography==1.0 # https://github.com/georgemarshall/django-cryptography
 
 # Django
@@ -22,7 +22,7 @@ django-cryptography==1.0 # https://github.com/georgemarshall/django-cryptography
 django==2.2.10  # pyup: < 3.0  # https://www.djangoproject.com/
 django-environ==0.4.5  # https://github.com/joke2k/django-environ
 django-model-utils==4.0.0  # https://github.com/jazzband/django-model-utils
-django-allauth==0.42.0  # https://github.com/pennersr/django-allauth
+django-allauth==0.43.0  # https://github.com/pennersr/django-allauth
 django-crispy-forms==1.9.2  # https://github.com/django-crispy-forms/django-crispy-forms
 django-redis==4.12.1  # https://github.com/niwinz/django-redis
 django-organizations==1.1.2 # https://github.com/bennylope/django-organizations

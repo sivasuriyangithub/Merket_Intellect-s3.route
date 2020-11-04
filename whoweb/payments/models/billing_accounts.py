@@ -23,6 +23,7 @@ from organizations.abstract import (
     AbstractOrganizationUser,
     AbstractOrganizationOwner,
     AbstractOrganization,
+    AbstractOrganizationInvitation,
 )
 from proxy_overrides.related import ProxyForeignKey
 from rest_framework.reverse import reverse
@@ -409,6 +410,10 @@ class BillingAccountOwner(AbstractOrganizationOwner):
     class Meta:
         verbose_name = _("billing account owner")
         verbose_name_plural = _("billing account owners")
+
+
+class BillingAccountInvitation(AbstractOrganizationInvitation):
+    pass
 
 
 class MultiPlanCustomer(Customer):

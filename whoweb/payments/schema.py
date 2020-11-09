@@ -121,7 +121,6 @@ class SubscriptionObjectType(GuardedObjectType):
 class BillingAccountNode(GuardedObjectType):
     network = graphene.Field(NetworkNode)
     subscription = graphene.Field(SubscriptionObjectType)
-    rest_id = graphene.ID(source="public_id")
     seats = DjangoFilterConnectionField(SeatNode)
 
     class Meta:
@@ -136,7 +135,6 @@ class BillingAccountNode(GuardedObjectType):
 class BillingAccountMemberNode(GuardedObjectType):
     billing_account = graphene.Field(BillingAccountNode, source="organization")
     credits = graphene.Int()
-    rest_id = graphene.ID(source="public_id")
 
     class Meta:
         model = BillingAccountMember

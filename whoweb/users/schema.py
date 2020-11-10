@@ -38,6 +38,8 @@ class UserNode(GuardedObjectType):
     emails = DjangoConnectionField(EmailAddressType)
     username = graphene.String()
     seats = DjangoConnectionField("whoweb.users.schema.SeatNode")
+    first_name = graphene.String(resolver=lambda x, i: x.user.first_name)
+    last_name = graphene.String(resolver=lambda x, i: x.user.last_name)
 
     class Meta:
         model = UserProfile

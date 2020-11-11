@@ -25,7 +25,7 @@ def test_org_owner_can_create_billing_account(user, api_client):
     )
     billing_account = resp.json()["url"]
     create_member = api_client.post(
-        f"/ww/api/account_members/",
+        f"/ww/api/billing_seats/",
         {"seat": seat.public_id, "billing_account": billing_account,},
         format="json",
     )

@@ -1,9 +1,13 @@
+import django_filters
 import graphene
 from djstripe.models import SubscriptionItem, Plan, Product
-from graphene_django.filter import DjangoFilterConnectionField
+from graphene_django.filter import DjangoFilterConnectionField, GlobalIDFilter
 
 from whoweb.contrib.graphene_django.types import GuardedObjectType, ObscureIdNode
-from whoweb.contrib.rest_framework.filters import ObjectPermissionsFilter
+from whoweb.contrib.rest_framework.filters import (
+    ObjectPermissionsFilter,
+    ObscureIdFilterSet,
+)
 from whoweb.contrib.rest_framework.permissions import (
     IsSuperUser,
     ObjectPermissions,
@@ -118,6 +122,14 @@ class SubscriptionObjectType(GuardedObjectType):
         return self.customer.can_charge()
 
 
+class BillingAccountFilterSet(ObscureIdFilterSet):
+    network = GlobalIDFilter(field_name="network__public_id")
+
+    class Meta:
+        model = BillingAccount
+        fields = ("id", "network")
+
+
 class BillingAccountNode(GuardedObjectType):
     network = graphene.Field(NetworkNode)
     subscription = graphene.Field(SubscriptionObjectType)
@@ -126,10 +138,18 @@ class BillingAccountNode(GuardedObjectType):
     class Meta:
         model = BillingAccount
         interfaces = (ObscureIdNode,)
-        filter_fields = []
+        filterset_class = BillingAccountFilterSet
         permission_classes = [IsSuperUser | ObjectPermissions]
         filter_backends = (ObjectPermissionsFilter,)
         fields = ("plan", "credit_pool", "customer_type")
+
+
+class BillingAccountMemberFilterSet(ObscureIdFilterSet):
+    seat = GlobalIDFilter(field_name="seat__public_id")
+
+    class Meta:
+        model = BillingAccountMember
+        fields = ("id", "seat")
 
 
 class BillingAccountMemberNode(GuardedObjectType):
@@ -139,7 +159,7 @@ class BillingAccountMemberNode(GuardedObjectType):
     class Meta:
         model = BillingAccountMember
         interfaces = (ObscureIdNode,)
-        filter_fields = []
+        filterset_class = BillingAccountMemberFilterSet
         permission_classes = [IsSuperUser | ObjectPermissions]
         filter_backends = (
             ObjectPermissionsFilter | BillingAccountMemberPermissionsFilter,

@@ -193,6 +193,10 @@ class BillingAccount(
         )
         self.credit_pool = 0
         self.save()
+        for member in self.organization_users.filter(seat_credits__gt=0):
+            member.expire_all_remaining_credits(
+                initiated_by=initiated_by, evidence=evidence + (self,), **kwargs
+            )
 
     @atomic
     def replenish_credits(self, amount, initiated_by, evidence=(), **kwargs):
@@ -404,6 +408,19 @@ class BillingAccountMember(
         record_transaction_refund_credits(
             amount, *args, evidence=evidence + (self,), **kwargs
         )
+
+    @atomic
+    def expire_all_remaining_credits(self, initiated_by, evidence=(), **kwargs):
+        if self.seat_credits == 0:
+            return
+        record_transaction_expire_credits(
+            amount=int(self.seat_credits),
+            initiated_by=initiated_by,
+            evidence=evidence + (self,),
+            **kwargs,
+        )
+        self.seat_credits = 0
+        self.save()
 
 
 class BillingAccountOwner(AbstractOrganizationOwner):

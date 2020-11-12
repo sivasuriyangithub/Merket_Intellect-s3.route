@@ -189,8 +189,9 @@ class BillingAccountMemberSerializer(IdOrHyperlinkedModelSerializer):
             return member
 
         if member.pool_credits is False and validated_data.get("credits"):
-            billing_account.allocate_credits_to_member(
+            if billing_account.allocate_credits_to_member(
                 member=member, amount=validated_data["credits"]
-            )
+            ):
+                member.refresh_from_db()
 
         return member

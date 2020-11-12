@@ -1,5 +1,7 @@
 import pytest
-from whoweb.payments.tests.factories import WKPlanFactory
+
+from whoweb.payments.models import BillingAccount
+from whoweb.payments.tests.factories import WKPlanFactory, BillingAccountOwnerFactory
 from whoweb.search.models.profile import GradedPhone
 from whoweb.search.tests.factories import ResultProfileFactory, GradedEmailFactory
 
@@ -51,3 +53,21 @@ def test_charges_phone():
         graded_phones=[GradedPhone(number="1")], graded_emails=[]
     )
     assert plan.compute_contact_credit_use(profile) == 400
+
+
+def test_expire_all_remaining_credits(su):
+    billing_owner = BillingAccountOwnerFactory(
+        organization_user__seat_credits=100,
+        organization_user__pool_credits=False,
+        organization_user__organization__credit_pool=500,
+    )
+    billing_member = billing_owner.organization_user
+    billing_account: BillingAccount = billing_owner.organization
+
+    assert billing_member.credits == 100
+    assert billing_account.credit_pool == 500
+    billing_account.expire_all_remaining_credits(initiated_by=su)
+    billing_member.refresh_from_db()
+    billing_account.refresh_from_db()
+    assert billing_member.credits == 0
+    assert billing_account.credits == 0

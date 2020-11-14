@@ -134,7 +134,13 @@ class GradedPhoneType(graphene.ObjectType):
 
 class SocialLinkType(graphene.ObjectType):
     url = graphene.String()
-    type_id = graphene.String(source="typeId")
+    type_id = graphene.String()
+
+    def resolve_type_id(self, info):
+        try:
+            return self.typeName
+        except AttributeError:
+            return self.get("typeName")
 
 
 class HistoryEntry(graphene.Interface):
@@ -192,7 +198,7 @@ class DiversityType(graphene.ObjectType):
 
 
 class ResultProfileObjectType(graphene.ObjectType):
-    id = graphene.String(source="_id",)
+    id = graphene.String()
     relevance_score = graphene.String()
     first_name = graphene.String()
     last_name = graphene.String()
@@ -226,6 +232,12 @@ class ResultProfileObjectType(graphene.ObjectType):
     attenuated_skills = GenericScalar()
 
     status = graphene.String(source="derivation_status",)
+
+    def resolve_id(self, info):
+        try:
+            return self._id
+        except AttributeError:
+            return self.get("_id")
 
 
 class IDInFilter(django_filters.BaseInFilter, django_filters.CharFilter):

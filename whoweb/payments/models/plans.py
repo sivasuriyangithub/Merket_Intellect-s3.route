@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
@@ -12,12 +14,21 @@ from whoweb.contrib.fields import ObscureIdMixin
 if TYPE_CHECKING:
     from whoweb.search.models import ResultProfile
 
+User = get_user_model()
+
 
 class AbstractPlanModel(ObscureIdMixin, models.Model):
     class Meta:
         abstract = True
 
     marketing_name = models.CharField(max_length=150, blank=True)
+
+    permission_group = models.ForeignKey(
+        Group,
+        null=True,
+        on_delete=models.PROTECT,
+        help_text="Permissions group users will be placed in when on an active subscription to this plan.",
+    )
 
     credits_per_enrich = models.IntegerField(
         default=5,
@@ -143,3 +154,13 @@ class WKPlanPreset(AbstractPlanModel):
         if not at_least_one_non_addon_product:
             raise ValidationError("Invalid items.")
         return valid_items, total_credits
+
+
+class BillingPermissionGrant(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="billing_permission_grants"
+    )
+    permission_group = models.ForeignKey(Group, on_delete=models.CASCADE)
+    plan = models.ForeignKey(
+        WKPlan, on_delete=models.CASCADE, related_name="permission_grants"
+    )

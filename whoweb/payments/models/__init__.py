@@ -139,3 +139,19 @@ def on_payment_succeed_replenish_customer_credits(event: Event, **kwargs):
     acct.replenish_credits(
         amount=quantity, initiated_by=get_stripe_webhook_user(), evidence=(event,)
     )
+
+
+@receiver(WEBHOOK_SIGNALS["customer.subscription.updated"], sender=Event)
+def on_subscription_update_ensure_permissions(event: Event, **kwargs):
+    if acct := event.customer.subscriber:
+        try:
+            subscription: Optional[MultiPlanSubscription] = acct.subscription
+        except MultipleSubscriptionException as e:
+            logger.exception(e)
+            return
+        else:
+            if not subscription:
+                return
+        subscription.ensure_member_permissions()
+    else:
+        return

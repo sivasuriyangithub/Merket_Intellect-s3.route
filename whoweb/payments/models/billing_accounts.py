@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import JSONField
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import F, Q
+from django.db.models import F, Q, Count
 from django.db.models.signals import post_save
 from django.db.transaction import atomic
 from django.dispatch import receiver
@@ -43,7 +43,9 @@ from whoweb.contrib.organizations.models import (
     permissions_org_user_post_save,
 )
 from whoweb.users.models import Seat, Group
-from .plans import WKPlan, WKPlanPreset
+from .plans import WKPlan, WKPlanPreset, BillingPermissionGrant
+
+User = get_user_model()
 
 
 class BillingAccount(
@@ -252,6 +254,37 @@ class BillingAccount(
 
     def set_pool_for_all_members(self):
         return self.organization_users.update(pool_credits=True)
+
+    @atomic
+    def grant_plan_permissions_for_members(self):
+        permission_group = self.plan.permission_group
+        if not permission_group:
+            return
+        users = self.users.all()
+        permission_group.user_set.add(*users)
+        BillingPermissionGrant.objects.bulk_create(
+            [
+                BillingPermissionGrant(
+                    user=user, permission_group=permission_group, plan=self.plan
+                )
+                for user in users
+            ]
+        )
+
+    @atomic
+    def revoke_plan_permissions_for_members(self):
+        permission_group = self.plan.permission_group
+        if not permission_group:
+            return
+        # ensure we only revoke for users who only have the grant via this account
+        users = User.objects.annotate(
+            grant_count=Count(
+                "billing_permission_grants",
+                filter=Q(billing_permission_grants__permission_group=permission_group),
+            )
+        ).filter(billing_permission_grants__plan=self.plan, grant_count=1)
+        permission_group.user_set.remove(*users)
+        BillingPermissionGrant.objects.filter(plan=self.plan).delete()
 
     def subscribe(
         self,
@@ -594,8 +627,12 @@ class MultiPlanSubscription(Subscription):
                 if e.http_status == 404:
                     item.delete()
 
-
-User = get_user_model()
+    def ensure_member_permissions(self):
+        account: BillingAccount = self.customer.subscriber
+        if self.is_valid():
+            account.grant_plan_permissions_for_members()
+        else:
+            account.revoke_plan_permissions_for_members()
 
 
 def record_transaction_consume_credits(

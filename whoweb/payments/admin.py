@@ -43,6 +43,7 @@ class BillingAccountAdmin(BaseOrganizationAdmin):
                 member.user.groups.add(*acct.default_permission_groups)
                 if member.is_admin:
                     member.user.groups.add(*acct.default_admin_permission_groups)
+            acct.grant_plan_permissions_for_members()
 
 
 class BillingAccountMemberAdmin(BaseOrganizationUserAdmin):
@@ -103,6 +104,7 @@ class WKPlanAdmin(admin.ModelAdmin):
         "credits_per_work_email",
         "credits_per_personal_email",
         "credits_per_phone",
+        "permission_group",
     )
     readonly_fields = (
         "pk",

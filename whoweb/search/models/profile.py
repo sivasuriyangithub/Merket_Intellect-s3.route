@@ -628,7 +628,7 @@ class ResultProfile(BaseModel):
             )
 
         if self.company:
-            desired.append({"field": "company", "value": self.company, "truth": True})
+            required.append({"field": "company", "value": self.company, "truth": True})
 
         if self.title:
             desired.append({"field": "title", "value": self.title, "truth": True})

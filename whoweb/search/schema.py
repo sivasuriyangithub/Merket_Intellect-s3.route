@@ -276,7 +276,7 @@ class DerivationStoreNode(GuardedObjectType):
 
 
 class FilterValueListNode(GuardedObjectType):
-    tags = graphene.List(graphene.String)
+    tags = graphene.List(graphene.String, resolver=lambda x, i: x.tags.all())
 
     class Meta:
         model = FilterValueList

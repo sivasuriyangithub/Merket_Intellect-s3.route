@@ -125,6 +125,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         "attenuated_skills",
         "geo_loc",
         "picture_url",
+        "picture",
         "seniority_level",
         "time_at_current_company",
         "time_at_current_position",

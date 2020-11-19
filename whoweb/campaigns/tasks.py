@@ -71,10 +71,10 @@ def ensure_stats(pk):
 def catch_missed_drips():
 
     for runner in (
-        BaseCampaignRunner.objects.filter(messages="published")
+        BaseCampaignRunner.objects.filter(status=BaseCampaignRunner.STATUS.published)
         .exclude(messages=None)
         .exclude(campaigns=None)
     ):
-        for campaign in runner.campaigns:
+        for campaign in runner.campaigns.all():
             if drip_tasks := runner.resume_drip_tasks(root_campaign=campaign):
                 drip_tasks.apply_async()

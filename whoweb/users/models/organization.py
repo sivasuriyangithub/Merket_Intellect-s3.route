@@ -2,16 +2,26 @@ from secrets import token_urlsafe, token_hex
 
 from allauth.account.models import EmailAddress
 from django.db import models, transaction
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.utils.translation import ugettext_lazy as _
 from django_cryptography.fields import encrypt
 from guardian.models import UserObjectPermissionBase, GroupObjectPermissionBase
 from guardian.shortcuts import assign_perm
+from model_utils import FieldTracker
 from model_utils.models import TimeStampedModel
-from organizations.abstract import AbstractOrganizationOwner, AbstractOrganization
+from organizations.abstract import (
+    AbstractOrganizationOwner,
+    AbstractOrganization,
+    AbstractOrganizationInvitation,
+)
 from organizations.abstract import AbstractOrganizationUser
 
 from whoweb.contrib.fields import ObscureIdMixin
-from whoweb.contrib.organizations.models import PermissionsAbstractOrganization
+from whoweb.contrib.organizations.models import (
+    PermissionsAbstractOrganization,
+    permissions_org_user_post_save,
+)
 
 
 class Group(ObscureIdMixin, PermissionsAbstractOrganization, AbstractOrganization):
@@ -19,6 +29,7 @@ class Group(ObscureIdMixin, PermissionsAbstractOrganization, AbstractOrganizatio
         verbose_name = _("network")
         verbose_name_plural = _("networks")
         permissions = (
+            ("add_billing", "May add billing accounts in this organization"),
             ("add_developerkeys", "May add API credentials for this organization"),
             ("view_developerkeys", "May view all API credentials in this organization"),
             (
@@ -37,12 +48,15 @@ class Group(ObscureIdMixin, PermissionsAbstractOrganization, AbstractOrganizatio
     @property
     @transaction.atomic
     def default_admin_permission_groups(self):
-        return [self.credentials_admin_authgroup, self.seat_admin_authgroup]
+        return [
+            self.credentials_admin_authgroup,
+            self.seat_admin_authgroup,
+        ]
 
     @property
     @transaction.atomic
     def default_permission_groups(self):
-        return [self.seat_viewers, self.network_viewers]
+        return [self.seat_viewers, self.network_viewers, self.billing_account_authgroup]
 
     @property
     def credentials_admin_authgroup(self):
@@ -66,6 +80,15 @@ class Group(ObscureIdMixin, PermissionsAbstractOrganization, AbstractOrganizatio
             assign_perm("users.add_seat", group)
             assign_perm("users.view_seat", group)
             assign_perm("users.delete_seat", group)
+        return group
+
+    @property
+    def billing_account_authgroup(self):
+        group, created = self.get_or_create_auth_group("org_billing_manager")
+        if created:
+            assign_perm("add_billing", group, self)
+            assign_perm("payments.add_billingaccount", group)
+            assign_perm("payments.view_billingaccount", group)
         return group
 
     @property
@@ -101,7 +124,11 @@ class Seat(ObscureIdMixin, AbstractOrganizationUser):
         max_length=255,
         help_text="How this seat should be labeled within their organization.",
     )
+    title = models.CharField(
+        blank=True, max_length=255, help_text="Title within organization"
+    )
     is_active = models.BooleanField(_("active"), default=True)
+    tracker = FieldTracker(fields=["is_admin"])
 
     class Meta:
         verbose_name = _("seat")
@@ -109,7 +136,7 @@ class Seat(ObscureIdMixin, AbstractOrganizationUser):
 
     def __unicode__(self):
         return "{0} ({1})".format(
-            self.name or ("User: " + self.user_id), self.organization.name
+            self.name or f"User: {self.user_id}", self.organization.name
         )
 
     @property
@@ -137,6 +164,10 @@ class GroupOwner(AbstractOrganizationOwner):
     @property
     def user(self):
         return self.organization_user.user
+
+
+class NetworkInvitation(AbstractOrganizationInvitation):
+    pass
 
 
 def make_key():
@@ -184,3 +215,6 @@ class DeveloperKeyUserObjectPermission(UserObjectPermissionBase):
 
 class DeveloperKeyGroupObjectPermission(GroupObjectPermissionBase):
     content_object = models.ForeignKey(DeveloperKey, on_delete=models.CASCADE)
+
+
+receiver(post_save, sender=Seat)(permissions_org_user_post_save)

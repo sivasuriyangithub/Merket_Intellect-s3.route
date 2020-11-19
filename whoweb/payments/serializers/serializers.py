@@ -1,5 +1,7 @@
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
+from slugify import slugify
 
 from whoweb.contrib.graphene_django.fields import NodeRelatedField
 from whoweb.contrib.rest_framework.fields import IdOrHyperlinkedRelatedField
@@ -7,6 +9,8 @@ from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerial
 from whoweb.users.models import Group
 from .stripe import SubscriptionSerializer, StripePlanSerializer
 from ..models import BillingAccount, BillingAccountMember, WKPlan, WKPlanPreset
+
+User = get_user_model()
 
 
 class PlanSerializer(IdOrHyperlinkedModelSerializer):
@@ -64,6 +68,7 @@ class BillingAccountSerializer(IdOrHyperlinkedModelSerializer):
         lookup_field="public_id",
         queryset=Group.objects.all(),
     )
+    created_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     class Meta:
         model = BillingAccount
@@ -73,6 +78,7 @@ class BillingAccountSerializer(IdOrHyperlinkedModelSerializer):
         }
         depth = 2
         fields = (
+            "customer_type",
             "network",
             "name",
             "slug",
@@ -82,12 +88,24 @@ class BillingAccountSerializer(IdOrHyperlinkedModelSerializer):
             "plan",
             "credit_pool",
             "subscription",
+            "created_by",
         )
         read_only_fields = (
+            "slug",
             "plan",
             "credit_pool",
             "subscription",
+            "customer_type",
         )
+
+    def create(self, validated_data):
+        creator = validated_data.pop("created_by")
+        name = validated_data["name"]
+        account, created = BillingAccount.objects.get_or_create(
+            slug=slugify(name), **validated_data
+        )
+        creator.groups.add(*account.default_admin_permission_groups)
+        return account
 
 
 class PlanQuantitySerializer(serializers.Serializer):
@@ -106,6 +124,7 @@ class BillingAccountSubscriptionSerializer(serializers.Serializer):
     trial_days = serializers.IntegerField(
         required=False, default=None, allow_null=True, write_only=True
     )
+    customer_type = serializers.CharField(write_only=True, required=False)
     charge_immediately = serializers.NullBooleanField(required=False, write_only=True)
     initiated_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
@@ -137,7 +156,7 @@ class BillingAccountMemberSerializer(IdOrHyperlinkedModelSerializer):
         lookup_field="public_id",
         queryset=BillingAccount.objects.all(),
     )
-    credits = serializers.IntegerField()
+    credits = serializers.IntegerField(required=False)
     subscription = SubscriptionSerializer(
         read_only=True, source="organization.subscription"
     )
@@ -160,17 +179,19 @@ class BillingAccountMemberSerializer(IdOrHyperlinkedModelSerializer):
         )
 
     def create(self, validated_data):
-        billing_account: BillingAccount = validated_data["billing_account"]
+        print(validated_data)
+        billing_account: BillingAccount = validated_data["organization"]
         seat = validated_data["seat"]
         member, created = billing_account.get_or_add_user(
-            seat.user, seat=seat, pool_credits=validated_data.get("pool_credits")
+            seat.user, seat=seat, pool_credits=validated_data.get("pool_credits", True)
         )
         if not created:
             return member
 
         if member.pool_credits is False and validated_data.get("credits"):
-            billing_account.allocate_credits_to_member(
+            if billing_account.allocate_credits_to_member(
                 member=member, amount=validated_data["credits"]
-            )
+            ):
+                member.refresh_from_db()
 
         return member

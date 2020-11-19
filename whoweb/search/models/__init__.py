@@ -7,6 +7,7 @@ from .embedded import (
 from .scroll import ScrollSearch
 from .export import SearchExport
 from .profile import ResultProfile, DerivedContact, DerivationCache
+from .filter_value_list import FilterValueList
 
 __all__ = [
     "FilteredSearchQuery",
@@ -18,4 +19,5 @@ __all__ = [
     "DerivedContact",
     "ExportOptions",
     "DerivationCache",
+    "FilterValueList",
 ]

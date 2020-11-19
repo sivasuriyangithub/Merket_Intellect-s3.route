@@ -7,6 +7,7 @@ from io import TextIOWrapper, StringIO
 from math import ceil
 from typing import Optional, List, Iterable, Dict, Iterator, Tuple
 
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 
 import requests
@@ -21,7 +22,6 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
-from django_celery_results.models import TaskResult
 from dns import resolver
 from google.cloud import storage
 from model_utils import Choices
@@ -195,6 +195,10 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
     @classmethod
     def create_from_query(cls, billing_seat: Seat, query: dict, **kwargs):
+        """
+        :raises SubscriptionError: Billing seat must be subscribed with enough credits to complete the requested export.
+        :raises ValidationError: Query must include contact filters for export.
+        """
         export = cls(billing_seat=billing_seat, query=query, **kwargs)
         if not export.should_derive_email:
             export.charge = False
@@ -207,7 +211,10 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
             fee_per_row = 0
             filters = export.query.contact_filters
-            assert filters, "An export with derivations must specify contact filters."
+            if not filters:
+                raise ValidationError(
+                    "An export with derivations must specify contact filters."
+                )
             if FilteredSearchQuery.CONTACT_FILTER_CHOICES.WORK in filters:
                 fee_per_row += plan.credits_per_work_email
             if FilteredSearchQuery.CONTACT_FILTER_CHOICES.PERSONAL in filters:
@@ -689,7 +696,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         if not export.status <= SearchExport.STATUS.validated:
             self.log_event(VALIDATION_COMPLETE_LOCKED, task=task_context)
             return False
-        results = list(export.get_validation_results(only_valid=True))
+        results = export.get_validation_results(only_valid=True)
         export.apply_validation_to_profiles_in_pages(validation=results)
         export.status = SearchExport.STATUS.validated
         export.save()
@@ -817,28 +824,11 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             page.save()
 
     def return_validation_results_to_cache(self):
-        upload_limit = 250
-        results_gen = self.get_validation_results(only_valid=False)
-        while True:
-            secondary_validations = []
-            i = 0
-            for row in results_gen:
-                i += 1
-                secondary_validations.append(row)
-                if i == upload_limit:
-                    break
-
-            if secondary_validations:
-                try:
-                    router.update_validations(
-                        json={"bulk_validations": secondary_validations},
-                        timeout=90,
-                        request_producer=f"whoweb.search.export/{self.pk}",
-                    )
-                except Exception as e:
-                    logger.exception("Error setting validation cache: %s " % e)
-            else:
-                return True
+        return router.update_validations(
+            json={"from_datavalidation": self.validation_list_id},
+            timeout=90,
+            request_producer=f"whoweb.search.export/{self.pk}",
+        )
 
     def get_mx_task_group(self):
         from whoweb.search.tasks import fetch_mx_domains
@@ -1009,9 +999,6 @@ class SearchExportPage(TimeStampedModel):
         default=0, help_text="Number of profiles completed and saved."
     )
     count = models.IntegerField(default=0)
-    derivation_group: TaskResult = models.ForeignKey(
-        TaskResult, on_delete=models.SET_NULL, null=True, blank=True
-    )
     status = models.IntegerField(
         _("status"), choices=STATUS, blank=True, default=STATUS.created
     )

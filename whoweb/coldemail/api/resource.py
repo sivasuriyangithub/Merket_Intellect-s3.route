@@ -531,9 +531,9 @@ class CampaignList(CreateableResource, DeleteableResource, ListableResource):
             None,
             {
                 "log": [
-                    {"email": row.good_email()}
+                    {"email": row.email}
                     for row in self.records
-                    if not row.good_email()
+                    if row.email and not row.good_email()
                 ]
             },
             None,

@@ -98,7 +98,7 @@ class TransactionQuerySet(models.QuerySet):
                         related_objects__related_object_content_type=(
                             content_types[type(related_object)]
                         ),
-                        related_objects__related_object_id=related_object.id,
+                        related_objects__related_object_id=related_object.pk,
                     )
                     for related_object in related_objects
                 ],
@@ -113,7 +113,7 @@ class TransactionQuerySet(models.QuerySet):
                     related_objects__related_object_content_type=(
                         content_types[type(related_object)]
                     ),
-                    related_objects__related_object_id=related_object.id,
+                    related_objects__related_object_id=related_object.pk,
                 )
             return qs
         elif match_type == MatchType.NONE:
@@ -122,7 +122,7 @@ class TransactionQuerySet(models.QuerySet):
                     related_objects__related_object_content_type=(
                         content_types[type(related_object)]
                     ),
-                    related_objects__related_object_id=related_object.id,
+                    related_objects__related_object_id=related_object.pk,
                 )
             return qs
         elif match_type == MatchType.EXACT:
@@ -131,12 +131,12 @@ class TransactionQuerySet(models.QuerySet):
                     related_objects__related_object_content_type=(
                         content_types[type(related_object)]
                     ),
-                    related_objects__related_object_id=related_object.id,
+                    related_objects__related_object_id=related_object.pk,
                 ).prefetch_related("related_objects")
 
             exact_matches = []
             related_objects_id_tuples = {
-                (related_object.id, content_types[type(related_object)].id)
+                (related_object.pk, content_types[type(related_object)].pk)
                 for related_object in related_objects
             }
             for matched in qs:
@@ -145,7 +145,7 @@ class TransactionQuerySet(models.QuerySet):
                     for tro in matched.related_objects.all()
                 }
                 if matched_objects == related_objects_id_tuples:
-                    exact_matches.append(matched.id)
+                    exact_matches.append(matched.pk)
             return qs.filter(id__in=exact_matches)
         else:
             raise ValueError("Invalid match_type.")
@@ -182,7 +182,7 @@ def get_or_create_manual_transaction_kind_id():
     """
     Callable for getting or creating the default `TransactionKind` id.
     """
-    return get_or_create_manual_transaction_kind().id
+    return get_or_create_manual_transaction_kind().pk
 
 
 class Transaction(models.Model):

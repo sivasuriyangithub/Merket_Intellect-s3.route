@@ -18,7 +18,7 @@ from django.utils.translation import gettext_lazy as _
 
 from whoweb.core.admin import EventTabularInline
 from whoweb.search.events import ENQUEUED_FROM_ADMIN
-from whoweb.search.models import SearchExport, ScrollSearch
+from whoweb.search.models import SearchExport, ScrollSearch, FilterValueList
 from whoweb.search.models.export import SearchExportPage
 
 epoch = datetime.datetime(1970, 1, 1, 0, 0, 0, tzinfo=timezone.get_default_timezone())
@@ -368,3 +368,15 @@ class ScrollSearchAdmin(ActionsModelAdmin):
         return obj.query.serialize()
 
     query_serialized.short_description = "query"
+
+
+@admin.register(FilterValueList)
+class FilterValueListAdmin(ActionsModelAdmin):
+    fields = (
+        "name",
+        "description",
+        "type",
+        "tags",
+        "values",
+        "billing_seat",
+    )

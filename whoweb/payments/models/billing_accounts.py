@@ -6,8 +6,10 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import JSONField
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import F, Q
+from django.db.models import F, Q, Count
+from django.db.models.signals import post_save
 from django.db.transaction import atomic
+from django.dispatch import receiver
 from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import ugettext_lazy as _
@@ -16,10 +18,12 @@ from djstripe.enums import SubscriptionStatus
 from djstripe.exceptions import MultipleSubscriptionException
 from djstripe.models import Customer, StripeModel, Subscription, SubscriptionItem
 from guardian.shortcuts import assign_perm
+from model_utils import FieldTracker
 from organizations.abstract import (
     AbstractOrganizationUser,
     AbstractOrganizationOwner,
     AbstractOrganization,
+    AbstractOrganizationInvitation,
 )
 from proxy_overrides.related import ProxyForeignKey
 from rest_framework.reverse import reverse
@@ -34,9 +38,14 @@ from whoweb.accounting.ledgers import (
 )
 from whoweb.accounting.models import LedgerEntry
 from whoweb.contrib.fields import ObscureIdMixin
-from whoweb.contrib.organizations.models import PermissionsAbstractOrganization
+from whoweb.contrib.organizations.models import (
+    PermissionsAbstractOrganization,
+    permissions_org_user_post_save,
+)
 from whoweb.users.models import Seat, Group
-from .plans import WKPlan, WKPlanPreset
+from .plans import WKPlan, WKPlanPreset, BillingPermissionGrant
+
+User = get_user_model()
 
 
 class BillingAccount(
@@ -50,6 +59,7 @@ class BillingAccount(
     plan = models.OneToOneField(WKPlan, on_delete=models.SET_NULL, null=True)
     plan_history = JSONField(null=True, blank=True, default=dict)
     credit_pool = models.IntegerField(default=0, blank=True)
+    customer_type = models.CharField(max_length=50, blank=True)
 
     class Meta:
         verbose_name = _("billing account")
@@ -92,7 +102,12 @@ class BillingAccount(
             return MultiPlanCustomer.objects.get(pk=cus.pk)
 
     def get_or_create_customer(self):
-        cus, _ = Customer.get_or_create(self)
+        cus, created = Customer.get_or_create(self)
+        if created or "customer_key" not in cus.metadata:
+            if cus.metadata is None:
+                cus.metadata = {}
+            cus.metadata["customer_key"] = self.owner.organization_user.user.username
+            cus.save()
         return MultiPlanCustomer.objects.get(pk=cus.pk)
 
     @property
@@ -116,24 +131,23 @@ class BillingAccount(
     def admin_authgroup(self):
         group, created = self.get_or_create_auth_group("admin")
         if created:
-            assign_perm("payments.view_billingaccount", group)
-            assign_perm("payments.change_billingaccount", group)
             assign_perm("payments.view_billingaccount", group, self)
             assign_perm("payments.change_billingaccount", group, self)
+            assign_perm("payments.view_billingaccount", group)
+            assign_perm("payments.change_billingaccount", group)
         return group
 
     @property
     def members_admin_authgroup(self):
         group, created = self.get_or_create_auth_group("members_admin")
         if created:
-            assign_perm("payments.add_billingaccountmember", group)
-            assign_perm("payments.view_billingaccountmember", group)
-            assign_perm("payments.delete_billingaccountmember", group)
             assign_perm("add_billingaccountmembers", group, self)
             assign_perm("view_billingaccountmembers", group, self)
             assign_perm("delete_billingaccountmembers", group, self)
-
             assign_perm("change_membercredits", group, self)
+            assign_perm("payments.add_billingaccountmember", group)
+            assign_perm("payments.view_billingaccountmember", group)
+            assign_perm("payments.delete_billingaccountmember", group)
         return group
 
     @property
@@ -181,6 +195,10 @@ class BillingAccount(
         )
         self.credit_pool = 0
         self.save()
+        for member in self.organization_users.filter(seat_credits__gt=0):
+            member.expire_all_remaining_credits(
+                initiated_by=initiated_by, evidence=evidence + (self,), **kwargs
+            )
 
     @atomic
     def replenish_credits(self, amount, initiated_by, evidence=(), **kwargs):
@@ -237,6 +255,37 @@ class BillingAccount(
     def set_pool_for_all_members(self):
         return self.organization_users.update(pool_credits=True)
 
+    @atomic
+    def grant_plan_permissions_for_members(self):
+        permission_group = self.plan.permission_group
+        if not permission_group:
+            return
+        users = self.users.all()
+        permission_group.user_set.add(*users)
+        BillingPermissionGrant.objects.bulk_create(
+            [
+                BillingPermissionGrant(
+                    user=user, permission_group=permission_group, plan=self.plan
+                )
+                for user in users
+            ]
+        )
+
+    @atomic
+    def revoke_plan_permissions_for_members(self):
+        permission_group = self.plan.permission_group
+        if not permission_group:
+            return
+        # ensure we only revoke for users who only have the grant via this account
+        users = User.objects.annotate(
+            grant_count=Count(
+                "billing_permission_grants",
+                filter=Q(billing_permission_grants__permission_group=permission_group),
+            )
+        ).filter(billing_permission_grants__plan=self.plan, grant_count=1)
+        permission_group.user_set.remove(*users)
+        BillingPermissionGrant.objects.filter(plan=self.plan).delete()
+
     def subscribe(
         self,
         plan_id,
@@ -245,6 +294,7 @@ class BillingAccount(
         stripe_token=None,
         trial_days=None,
         charge_immediately=False,
+        customer_type=None,
         **kwargs,
     ):
         valid_items, plan_preset, total_credits = self._get_valid_items(
@@ -279,6 +329,8 @@ class BillingAccount(
             with_credits = min(total_credits, 1000)
         else:
             with_credits = total_credits
+        if customer_type:
+            self.customer_type = customer_type
         self.update_plan(
             initiated_by=initiated_by,
             new_plan=plan_preset.create(),
@@ -287,7 +339,13 @@ class BillingAccount(
         return subscription
 
     def update_subscription(
-        self, plan_id, items, initiated_by, stripe_token=None, **kwargs
+        self,
+        plan_id,
+        items,
+        initiated_by,
+        stripe_token=None,
+        customer_type=None,
+        **kwargs,
     ):
         customer = self.customer
         if stripe_token:
@@ -305,6 +363,8 @@ class BillingAccount(
             with_credits = min(total_credits, 1000)
         else:
             with_credits = total_credits
+        if customer_type:
+            self.customer_type = customer_type
         self.update_plan(
             initiated_by=initiated_by,
             new_plan=plan_preset.create(),
@@ -323,7 +383,9 @@ class BillingAccount(
         return valid_items, plan_preset, total_credits
 
 
-class BillingAccountMember(ObscureIdMixin, AbstractOrganizationUser):
+class BillingAccountMember(
+    ObscureIdMixin, AbstractOrganizationUser,
+):
     seat = models.OneToOneField(
         Seat,
         verbose_name="group seat",
@@ -332,6 +394,7 @@ class BillingAccountMember(ObscureIdMixin, AbstractOrganizationUser):
     )
     seat_credits = models.IntegerField(default=0)
     pool_credits = models.BooleanField(default=False)
+    tracker = FieldTracker(fields=["is_admin"])
 
     class Meta:
         verbose_name = _("billing account member")
@@ -379,11 +442,28 @@ class BillingAccountMember(ObscureIdMixin, AbstractOrganizationUser):
             amount, *args, evidence=evidence + (self,), **kwargs
         )
 
+    @atomic
+    def expire_all_remaining_credits(self, initiated_by, evidence=(), **kwargs):
+        if self.seat_credits == 0:
+            return
+        record_transaction_expire_credits(
+            amount=int(self.seat_credits),
+            initiated_by=initiated_by,
+            evidence=evidence + (self,),
+            **kwargs,
+        )
+        self.seat_credits = 0
+        self.save()
+
 
 class BillingAccountOwner(AbstractOrganizationOwner):
     class Meta:
         verbose_name = _("billing account owner")
         verbose_name_plural = _("billing account owners")
+
+
+class BillingAccountInvitation(AbstractOrganizationInvitation):
+    pass
 
 
 class MultiPlanCustomer(Customer):
@@ -547,8 +627,12 @@ class MultiPlanSubscription(Subscription):
                 if e.http_status == 404:
                     item.delete()
 
-
-User = get_user_model()
+    def ensure_member_permissions(self):
+        account: BillingAccount = self.customer.subscriber
+        if self.is_valid():
+            account.grant_plan_permissions_for_members()
+        else:
+            account.revoke_plan_permissions_for_members()
 
 
 def record_transaction_consume_credits(
@@ -633,3 +717,6 @@ def record_transaction_expire_credits(
         kind=transaction_kind,
         posted_timestamp=posted_at,
     )
+
+
+receiver(post_save, sender=BillingAccountMember)(permissions_org_user_post_save)

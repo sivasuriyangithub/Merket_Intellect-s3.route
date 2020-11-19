@@ -10,8 +10,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.schemas import get_schema_view
 from rest_framework_extensions.routers import ExtendedDefaultRouter
 from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
     TokenRefreshSlidingView,
     TokenObtainSlidingView,
 )
@@ -44,6 +42,7 @@ urlpatterns = [
     path("graphql", csrf_exempt(GraphQLView.as_view(graphiql=True))),
     # Your stuff: custom urls includes go here.
     path("accounts/", include("whoweb.users.urls", namespace="users")),
+    path("billing/", include("whoweb.payments.urls", namespace="billing")),
     path("search/", include("whoweb.search.urls", namespace="search")),
     path("reply/", include("whoweb.coldemail.urls", namespace="coldemail")),
     path(

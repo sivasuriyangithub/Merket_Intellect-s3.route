@@ -8,6 +8,7 @@ from .views import (
 from .su_passthrough import (
     AdminBillingSeatViewSet,
     AdminBillingAccountViewSet,
+    find_billing_seat_by_xperweb_id,
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "BillingAccountMemberViewSet",
     "AdminBillingSeatViewSet",
     "AdminBillingAccountViewSet",
+    "find_billing_seat_by_xperweb_id",
 ]

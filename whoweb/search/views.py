@@ -4,18 +4,20 @@ import itertools
 from django.http import StreamingHttpResponse, Http404, HttpResponseBadRequest
 from django.shortcuts import redirect
 from django.views.decorators.http import require_GET
-from rest_framework import mixins
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import mixins, viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
-from whoweb.contrib.rest_framework.permissions import IsSuperUser
+from whoweb.contrib.rest_framework.filters import ObjectPermissionsFilter
+from whoweb.contrib.rest_framework.permissions import IsSuperUser, ObjectPermissions
 from whoweb.search.models import ResultProfile
 from whoweb.search.models.export import SearchExportPage
 from .events import DOWNLOAD_VALIDATION, DOWNLOAD
-from .models import SearchExport
+from .models import SearchExport, FilterValueList
 from .serializers import (
     SearchExportSerializer,
     SearchExportDataSerializer,
@@ -24,6 +26,7 @@ from .serializers import (
     BatchDeriveContactSerializer,
     BatchResultSerializer,
     BatchProfileEnrichmentSerializer,
+    FilterValueListSerializer,
 )
 
 
@@ -196,3 +199,10 @@ class BatchEnrichProfileViewSet(mixins.CreateModelMixin, GenericViewSet):
 class BatchResultViewSet(mixins.RetrieveModelMixin, GenericViewSet):
     serializer_class = BatchResultSerializer
     permission_classes = []
+
+
+class FilterValueListViewSet(viewsets.ModelViewSet):
+    serializer_class = FilterValueListSerializer
+    queryset = FilterValueList.objects.all()
+    permission_classes = [IsSuperUser | ObjectPermissions]
+    filter_backends = [DjangoFilterBackend, ObjectPermissionsFilter]

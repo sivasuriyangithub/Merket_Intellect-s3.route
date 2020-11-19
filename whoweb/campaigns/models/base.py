@@ -1,9 +1,10 @@
 import uuid
-from datetime import timedelta, datetime
+from datetime import timedelta
 from typing import List
 
 from django.contrib.postgres.fields import JSONField
 from django.db import models, transaction
+from django.utils.timezone import now
 from model_utils import Choices
 from model_utils.fields import MonitorField
 from model_utils.models import SoftDeletableModel, TimeStampedModel
@@ -151,7 +152,7 @@ class BaseCampaignRunner(
     )
     status_changed = MonitorField("status changed", monitor="status")
     is_removed_changed = MonitorField("deleted at", monitor="is_removed")
-    published_at = MonitorField(
+    published = MonitorField(
         monitor="status", when=[STATUS.published], null=True, default=None, blank=True
     )
 
@@ -220,7 +221,7 @@ class BaseCampaignRunner(
         # and the CURRENT time is not after the last campaign send time plus a minimum buffer,
         # fail the list/export creation
         if rule.trigger == SendingRule.TRIGGER.datetime:
-            delta = datetime.utcnow() - following.send_time
+            delta = now() - following.send_time
             if delta < self.MIN_DRIP_DELAY:
                 remaining = self.MIN_DRIP_DELAY - max(timedelta(0), delta)
                 raise DripTooSoonError(countdown=int(remaining.total_seconds()))
@@ -239,7 +240,7 @@ class BaseCampaignRunner(
         title = campaign_kwargs.setdefault("title", self.title)
         campaign_kwargs.update(
             message=rule.message,
-            send_time=datetime.utcnow() + timedelta(seconds=300),
+            send_time=now() + timedelta(seconds=300),
             campaign_list=campaign_list,
             title="{} - m{}".format(title, rule.index),
         )
@@ -328,7 +329,7 @@ class BaseCampaignRunner(
             record.drip
             for record in DripRecord.objects.filter(
                 runner=self,
-                root_campaign=root_campaign,
+                root=root_campaign,
                 drip__status__gte=ColdCampaign.STATUS.published,
                 drip__stats_fetched__isnull=False,
             ).prefetch_related("drip")
@@ -339,7 +340,8 @@ class BaseCampaignRunner(
             for log_entry in campaign.click_log.get("log", []):
                 if "web_id" in log_entry:
                     responders.add(log_entry["web_id"])
-            for log_entry in campaign.reply_log:
+            replies = campaign.reply_log or []
+            for log_entry in replies:
                 if "web_id" in log_entry:
                     responders.add(log_entry["web_id"])
         return responders
@@ -371,7 +373,7 @@ class BaseCampaignRunner(
             if campaign.status == ColdCampaign.STATUS.pending:
                 yield campaign.modified
             elif campaign.status == ColdCampaign.STATUS.published:
-                yield campaign.published_at
+                yield campaign.published
             continue
 
     @property

@@ -1,5 +1,6 @@
 import logging
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as CoreValidationError
 from django.db.models import Q
 from django.http import Http404
@@ -10,6 +11,7 @@ from rest_framework import status, mixins
 from rest_framework.decorators import action
 from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
@@ -22,6 +24,7 @@ from ..models import (
     BillingAccount,
     BillingAccountMember,
 )
+from ..permissions import BillingAccountMemberPermissionsFilter
 from ..serializers import (
     PlanSerializer,
     BillingAccountSerializer,
@@ -32,6 +35,8 @@ from ..serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+User = get_user_model()
 
 
 class PlanViewSet(mixins.RetrieveModelMixin, mixins.ListModelMixin, GenericViewSet):
@@ -84,10 +89,16 @@ class BillingAccountViewSet(
         methods=["post", "patch"],
         name="Subscription",
         request_serializer_class=BillingAccountSubscriptionSerializer,
+        permission_classes=[IsAuthenticated],
+        filter_backends=[DjangoFilterBackend, ObjectPermissionsFilter],
         url_path="subscription",
     )
     def subscription(self, request, public_id=None):
         billing_account: BillingAccount = self.get_object()
+
+        if not request.user.has_perm("change_billingaccount", billing_account):
+            self.permission_denied(request)
+
         serializer = BillingAccountSubscriptionSerializer(
             data=request.data, context={"request": request}
         )
@@ -118,6 +129,8 @@ class BillingAccountViewSet(
     @subscription.mapping.delete
     def cancel_subscription(self, request, public_id=None):
         billing_account: BillingAccount = self.get_object()
+        if not request.user.has_perm("change_billingaccount", billing_account):
+            self.permission_denied(request)
         billing_account.subscription.cancel(at_period_end=CANCELLATION_AT_PERIOD_END)
         return Response(
             BillingAccountSerializer(billing_account, context={"request": request}).data
@@ -174,4 +187,20 @@ class BillingAccountMemberViewSet(
     lookup_field = "public_id"
     queryset = BillingAccountMember.objects.all()
     serializer_class = BillingAccountMemberSerializer
-    permission_classes = [IsSuperUser]
+    permission_classes = [IsSuperUser | ObjectPermissions]
+    filter_backends = [
+        ObjectPermissionsFilter,
+        BillingAccountMemberPermissionsFilter,
+    ]
+
+    def check_permissions(self, request):
+        try:
+            request.user = User.objects.get(pk=request.user.pk)
+        except User.DoesNotExist:
+            pass
+        # if self.request.method == "POST":
+        #     serializer = self.get_serializer()
+        #     billing_account = serializer.data["billing_account"]
+        #     if not request.user.has_perm("add_billingaccountmembers", billing_account):
+        #         return self.permission_denied(request)
+        return super(BillingAccountMemberViewSet, self).check_permissions(request)

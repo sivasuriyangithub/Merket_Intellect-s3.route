@@ -1,14 +1,19 @@
 from django.http import Http404
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
+from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 
 from whoweb.accounting.serializers import TransactionSerializer
 from whoweb.contrib.rest_framework.fields import (
     MultipleChoiceListField,
     PublicPrivateMultipleChoiceListField,
     IdOrHyperlinkedRelatedField,
+    TagulousField,
 )
-from whoweb.contrib.rest_framework.serializers import IdOrHyperlinkedModelSerializer
+from whoweb.contrib.rest_framework.serializers import (
+    IdOrHyperlinkedModelSerializer,
+    TaggableMixin,
+)
 from whoweb.core.router import router
 from whoweb.payments.exceptions import PaymentRequired, SubscriptionError
 from whoweb.payments.models import BillingAccountMember
@@ -20,6 +25,7 @@ from whoweb.search.models import (
     FilteredSearchFilterElement,
     ResultProfile,
     DerivationCache,
+    FilterValueList,
 )
 from whoweb.search.models.profile import (
     WORK,
@@ -57,7 +63,7 @@ class FilteredSearchFiltersSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FilteredSearchFilters
-        fields = "__all__"
+        fields = ("limit", "skip", "required", "desired", "profiles")
 
     def to_representation(self, instance):
         return instance.serialize()
@@ -78,7 +84,14 @@ class FilteredSearchQuerySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FilteredSearchQuery
-        fields = "__all__"
+        fields = (
+            "filters",
+            "export",
+            "defer",
+            "contact_filters",
+            "user_id",
+            "with_invites",
+        )
 
     def to_representation(self, instance):
         return instance.serialize()
@@ -214,10 +227,12 @@ class DeriveContactSerializer(serializers.Serializer):
         queryset=BillingAccountMember.objects.all(),
         write_only=True,
     )
-    id = serializers.CharField(source="_id", required=False, write_only=True)
-    first_name = serializers.CharField(required=False, write_only=True)
-    last_name = serializers.CharField(required=False, write_only=True)
-    company = serializers.CharField(required=False, write_only=True)
+    id = serializers.CharField(
+        source="_id", required=False, write_only=True, allow_null=True
+    )
+    first_name = serializers.CharField(required=False, write_only=True, allow_null=True)
+    last_name = serializers.CharField(required=False, write_only=True, allow_null=True)
+    company = serializers.CharField(required=False, write_only=True, allow_null=True)
     timeout = serializers.IntegerField(
         required=False, initial=28, default=28, write_only=True
     )
@@ -227,6 +242,7 @@ class DeriveContactSerializer(serializers.Serializer):
         default=[WORK, SOCIAL, PERSONAL, PROFILE],
         write_only=True,
     )
+    include_social = serializers.BooleanField(default=True, initial=True)
     credits_used = serializers.IntegerField(read_only=True)
     credits_remaining = serializers.IntegerField(read_only=True)
     profile = ResultProfileSerializer(read_only=True)
@@ -236,8 +252,10 @@ class DeriveContactSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if not (
-            "_id" in attrs
-            or all(["first_name" in attrs, "last_name" in attrs, "company" in attrs])
+            attrs.get("_id")
+            or all(
+                [attrs.get("first_name"), attrs.get("last_name"), attrs.get("company")]
+            )
         ):
             raise ValidationError(
                 "Must provide an id or all of first_name, last_name, and company."
@@ -374,3 +392,44 @@ class BatchProfileEnrichmentSerializer(serializers.Serializer):
 
     class Meta:
         depth = 1
+
+
+class FilterValueListSerializer(
+    ObjectPermissionsAssignmentMixin, TaggableMixin, IdOrHyperlinkedModelSerializer
+):
+    tags = TagulousField(required=False)
+    # values = serializers.ListField(serializers.CharField())
+    billing_seat = IdOrHyperlinkedRelatedField(
+        view_name="billingaccountmember-detail",
+        lookup_field="public_id",
+        queryset=BillingAccountMember.objects.all(),
+        required=True,
+        allow_null=False,
+    )
+
+    class Meta:
+        model = FilterValueList
+        depth = 1
+        fields = [
+            "id",
+            "name",
+            "description",
+            "type",
+            "tags",
+            "values",
+            "billing_seat",
+            "created",
+            "modified",
+        ]
+        read_only_fields = [
+            "created",
+            "modified",
+        ]
+
+    def get_permissions_map(self, created):
+        current_user = self.context["request"].user
+        return {
+            "view_filtervaluelist": [current_user],
+            "change_filtervaluelist": [current_user],
+            "delete_filtervaluelist": [current_user],
+        }

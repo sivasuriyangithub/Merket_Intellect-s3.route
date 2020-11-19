@@ -57,4 +57,4 @@ class User(GuardianUserMixin, AbstractUser):
 
     def get_full_name(self):
         """Return the username for this User."""
-        return self.get_username()
+        return super().get_full_name() or self.get_username()

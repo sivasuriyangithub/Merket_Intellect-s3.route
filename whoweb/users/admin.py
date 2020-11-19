@@ -1,7 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth import admin as auth_admin
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Group as AuthGroup
+from django.contrib.auth.admin import GroupAdmin as AuthGroupAdmin
 from django.utils.translation import gettext_lazy as _
 from guardian.admin import GuardedModelAdminMixin, GuardedModelAdmin
 from organizations.base_admin import (
@@ -22,6 +23,8 @@ class UserProfileInline(admin.StackedInline):
     model = UserProfile
     can_delete = False
     verbose_name = "profile"
+    fields = ("pk", "public_id")
+    readonly_fields = fields
 
 
 @admin.register(User)
@@ -51,6 +54,9 @@ class UserAdmin(GuardedModelAdminMixin, auth_admin.UserAdmin):
         ),
         (_("Important dates"), {"fields": ("last_login", "date_joined")}),
     )
+    inlines = [
+        UserProfileInline,
+    ]
     readonly_fields = ("last_login", "date_joined")
 
 
@@ -59,8 +65,23 @@ class GroupOwnerInline(BaseOwnerInline):
     form = GroupOwnerAdminForm
 
 
+class SeatInline(admin.TabularInline):
+    model = Seat
+    form = SeatAdminForm
+    extra = 0
+    raw_id_fields = ("user",)
+
+
 class GroupAdmin(GuardedModelAdminMixin, BaseOrganizationAdmin):
-    inlines = [GroupOwnerInline]
+    inlines = [GroupOwnerInline, SeatInline]
+    actions = ["grant_default_permissions_to_all_seats"]
+
+    def grant_default_permissions_to_all_seats(self, request, queryset):
+        for group in queryset:
+            for seat in group.organization_users.all():
+                seat.user.groups.add(*group.default_permission_groups)
+                if seat.is_admin:
+                    seat.user.groups.add(*group.default_admin_permission_groups)
 
 
 class SeatAdmin(GuardedModelAdminMixin, BaseOrganizationUserAdmin):
@@ -71,11 +92,18 @@ class GroupOwnerAdmin(GuardedModelAdminMixin, BaseOrganizationOwnerAdmin):
     form = GroupOwnerAdminForm
 
 
+#
+# class PermissionsAuthGroupAdmin(GuardedModelAdminMixin, AuthGroupAdmin):
+#     pass
+#
+
 admin.site.unregister(Organization)
 admin.site.unregister(OrganizationUser)
 admin.site.unregister(OrganizationOwner)
+# admin.site.unregister(AuthGroup)
+
 admin.site.register(Group, GroupAdmin)
 admin.site.register(Seat, SeatAdmin)
 admin.site.register(GroupOwner, GroupOwnerAdmin)
 admin.site.register(DeveloperKey, GuardedModelAdmin)
-admin.site.register(Permission)
+# admin.site.register(AuthGroup, PermissionsAuthGroupAdmin)

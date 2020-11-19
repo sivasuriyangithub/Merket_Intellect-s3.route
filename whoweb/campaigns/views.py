@@ -2,6 +2,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
+from whoweb.payments.exceptions import SubscriptionError, PaymentRequired
 from whoweb.contrib.rest_framework.permissions import IsSuperUser
 from .models import SimpleDripCampaignRunner, IntervalCampaignRunner
 from .serializers import (
@@ -19,7 +20,10 @@ class RunnerViewSet(object):
     )
     def publish(self, request, public_id=None):
         runner = self.get_object()
-        runner.publish()
+        try:
+            runner.publish()
+        except SubscriptionError as e:
+            raise PaymentRequired(detail=e)
         runner.refresh_from_db()
         return Response(self.get_serializer(runner).data)
 

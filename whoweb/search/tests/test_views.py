@@ -1,9 +1,11 @@
+from collections import OrderedDict
 from unittest.mock import patch
 
 import pytest
+from graphql_relay import to_global_id
 
-from whoweb.coldemail.tests.factories import CampaignMessageFactory
 from whoweb.payments.tests.factories import BillingAccountMemberFactory
+from whoweb.search.tests.factories import DerivationCacheRecordFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -47,6 +49,35 @@ def test_derive_profile_cached_charges(derive_mock, su_client, raw_derived):
     resp2 = su_client.post("/ww/api/profiles/derive/", payload, format="json",)
     assert resp2.status_code == 201
     assert resp2.json()["credits_used"] == 0
+
+
+from string import Template
+
+
+@pytest.mark.django_db
+def test_derive_profile_shows_in_feed(gqlclient, context, user):
+    seat = BillingAccountMemberFactory(seat_credits=10000, user=user)
+    _included = DerivationCacheRecordFactory(billing_seat=seat, profile_id="wp:1")
+    _excluded = DerivationCacheRecordFactory(billing_seat=BillingAccountMemberFactory())
+    gql = Template(
+        """
+    query {
+      derivations(billingSeat:"$billing", profileId_In:"wp:1,wp:2"){
+        edges{
+          node{
+            profileId
+          }
+        }
+      }
+    }
+    """
+    ).substitute(billing=to_global_id("BillingAccountMemberNode", seat.public_id))
+
+    context.user = user
+    executed = gqlclient.execute(gql, context=context)
+    assert executed["data"]["derivations"] == OrderedDict(
+        [("edges", [OrderedDict([("node", OrderedDict([("profileId", "wp:1")]))])],)]
+    )
 
 
 @patch("whoweb.core.router.Router.unified_search")

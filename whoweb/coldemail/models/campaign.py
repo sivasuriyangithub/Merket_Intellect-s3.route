@@ -157,10 +157,14 @@ class ColdCampaign(ColdemailBaseModel):
             bad_log = []
         validations = []
         for entry in good_log:
+            if not ("email" in entry and "web_id" in entry):
+                continue
             validations.append(
                 {"email": entry["email"], "profile_id": entry["web_id"], "grade": "A+"}
             )
         for entry in bad_log:
+            if not ("email" in entry and "web_id" in entry):
+                continue
             validations.append(
                 {"email": entry["email"], "profile_id": entry["web_id"], "grade": "F-"}
             )
@@ -259,4 +263,4 @@ class CampaignEmailLookup(models.Model):
         ColdCampaign, on_delete=models.CASCADE, related_name="email_lookups"
     )
     email = models.EmailField()
-    web_id = models.CharField(max_length=160)
+    web_id = models.CharField(max_length=255)

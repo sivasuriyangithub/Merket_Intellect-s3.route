@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock, Mock
 
 import pytest
 from celery.exceptions import Retry
-from celery.task import Task
+from celery import Task
 from django.utils.timezone import now
 
 from whoweb.coldemail.api.tests.fixtures import campaign_detail

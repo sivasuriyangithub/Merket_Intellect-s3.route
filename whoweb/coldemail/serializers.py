@@ -40,9 +40,9 @@ class CampaignMessageSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
             "status",
             "status_name",
             "status_changed",
-            "published_at",
+            "published",
         )
-        read_only_fields = ("status", "status_changed", "status_name", "published_at")
+        read_only_fields = ("status", "status_changed", "status_name", "published")
 
 
 class CampaignMessageTemplateSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
@@ -92,9 +92,9 @@ class CampaignListSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
             "status",
             "status_name",
             "status_changed",
-            "published_at",
+            "published",
         )
-        read_only_fields = ("status", "status_changed", "status_name", "published_at")
+        read_only_fields = ("status", "status_changed", "status_name", "published")
 
 
 class CampaignSerializer(serializers.ModelSerializer):
@@ -122,7 +122,7 @@ class CampaignSerializer(serializers.ModelSerializer):
             "status",
             "status_name",
             "status_changed",
-            "published_at",
+            "published",
         )
         read_only_fields = fields
 

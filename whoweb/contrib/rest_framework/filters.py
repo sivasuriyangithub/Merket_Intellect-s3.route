@@ -1,3 +1,5 @@
+from django_filters.rest_framework import FilterSet
+from graphene_django.filter import GlobalIDFilter
 from rest_framework.compat import coreapi, coreschema
 from rest_framework.filters import OrderingFilter as DefaultOrderingFilter
 from rest_framework.filters import SearchFilter as DefaultSearchFilter
@@ -38,9 +40,13 @@ class AND:
         self.op2 = op2
 
     def filter_queryset(self, request, queryset, view):
-        return self.op1.filter_queryset(
-            request, queryset, view
-        ) & self.op2.filter_queryset(request, queryset, view)
+        return (
+            self.op1.filter_queryset(request, queryset, view).filter()
+            & self.op2.filter_queryset(request, queryset, view).filter()
+        )
+
+    def __repr__(self):
+        return f"{self.op1} & {self.op2}"
 
 
 class OR:
@@ -49,9 +55,13 @@ class OR:
         self.op2 = op2
 
     def filter_queryset(self, request, queryset, view):
-        return self.op1.filter_queryset(
-            request, queryset, view
-        ) | self.op2.filter_queryset(request, queryset, view)
+        return (
+            self.op1.filter_queryset(request, queryset, view).filter()
+            | self.op2.filter_queryset(request, queryset, view).filter()
+        )
+
+    def __repr__(self):
+        return f"{self.op1} | {self.op2}"
 
 
 class BasePermissionMetaclass(OperationHolderMixin, type):
@@ -88,6 +98,20 @@ class SearchFilter(DefaultSearchFilter, metaclass=BasePermissionMetaclass):
 
 class OrderingFilter(DefaultOrderingFilter, metaclass=BasePermissionMetaclass):
     pass
+
+
+class ObscureIdFilterSet(FilterSet):
+    id = GlobalIDFilter(field_name="public_id", lookup_expr="exact")
+
+
+def id_filterset_class_for(model):
+    AutoFilterSet = type(
+        "{}IdFilterSet".format(model.__name__).title(),
+        (ObscureIdFilterSet,),
+        {"Meta": type("Meta", (), dict(model=model, fields=("id",)),)},
+    )
+
+    return AutoFilterSet
 
 
 class ObjectPermissionsFilter(BaseFilterBackend):

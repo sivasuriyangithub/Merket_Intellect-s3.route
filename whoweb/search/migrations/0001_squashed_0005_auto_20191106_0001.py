@@ -16,14 +16,6 @@ import whoweb.search.models.embedded
 
 class Migration(migrations.Migration):
 
-    replaces = [
-        ("search", "0001_initial"),
-        ("search", "0002_auto_20190912_2355"),
-        ("search", "0003_searchexport_valid_count"),
-        ("search", "0004_auto_20190918_0025"),
-        ("search", "0005_auto_20191106_0001"),
-    ]
-
     initial = True
 
     dependencies = [("users", "0001_initial")]

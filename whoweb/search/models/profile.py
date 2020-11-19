@@ -65,6 +65,7 @@ class SocialLink(BaseModel):
 class ResultExperience(BaseModel):
     company_name: str = ""
     title: str = ""
+    description: str = ""
 
     @validator(
         "*", pre=True, always=True,
@@ -76,6 +77,9 @@ class ResultExperience(BaseModel):
 class ResultEducation(BaseModel):
     school: str = ""
     degree: str = ""
+    major: str = ""
+    course: str = ""
+    institution: str = ""
 
     @validator(
         "*", pre=True, always=True,
@@ -472,7 +476,9 @@ class ResultProfile(BaseModel):
             if graded not in self.graded_emails:
                 self.graded_emails.append(graded)
 
-    def derive_contact(self, defer=(), filters=None, timeout=120, producer=None):
+    def derive_contact(
+        self, defer=(), filters=None, include_social=True, timeout=120, producer=None
+    ):
         if self.derivation_status == VALIDATED:
             return self.derivation_status
 
@@ -480,7 +486,7 @@ class ResultProfile(BaseModel):
             email = self.id.split("email:")[-1]
         elif self.web_id:
             url_args = {
-                "include_social": True,
+                "include_social": include_social,
                 "is_paid": True,
                 "is_domain": False,
                 "first": self.clean_proper_name(self.first_name),
@@ -539,6 +545,7 @@ class ResultProfile(BaseModel):
         company=None,
         defer=(),
         filters=(),
+        include_social=True,
         timeout=28,
     ) -> "ResultProfile":
         profile = ResultProfile(
@@ -554,7 +561,9 @@ class ResultProfile(BaseModel):
             profile = ResultProfile(**profiles[0])
         else:
             profile = profile._search_for_this()
-        profile.derive_contact(defer=defer, filters=filters, timeout=timeout)
+        profile.derive_contact(
+            defer=defer, filters=filters, include_social=include_social, timeout=timeout
+        )
         return profile
 
     @classmethod
@@ -619,7 +628,7 @@ class ResultProfile(BaseModel):
             )
 
         if self.company:
-            desired.append({"field": "company", "value": self.company, "truth": True})
+            required.append({"field": "company", "value": self.company, "truth": True})
 
         if self.title:
             desired.append({"field": "title", "value": self.title, "truth": True})
@@ -710,7 +719,7 @@ class ResultProfile(BaseModel):
 
 class DerivationCache(TimeStampedModel):
     billing_seat = models.ForeignKey(BillingAccountMember, on_delete=models.CASCADE)
-    profile_id = models.CharField(max_length=180)
+    profile_id = models.CharField(max_length=255)
     emails = JSONField(default=list)
     phones = JSONField(default=list)
 

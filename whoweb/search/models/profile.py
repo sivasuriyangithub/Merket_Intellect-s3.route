@@ -573,10 +573,29 @@ class ResultProfile(BaseModel):
         linkedin_url=None,
         user_id=None,
         profile_id=None,
+        update=False,
         min_confidence=None,
         get_web_profile=True,
         no_cache=None,
     ) -> "ResultProfile":
+
+        if profile_id is None:
+            profile_id = ""
+
+        if not user_id and profile_id.startswith("user"):
+            user_id = profile_id
+
+        if not linkedin_url and "/" in profile_id:
+            linkedin_url = profile_id
+            if linkedin_url.endswith("/"):
+                linkedin_url = linkedin_url[:-1]
+
+        if not email and profile_id.startswith("email"):
+            email = profile_id
+
+        if not profile_id.startswith("wp:"):
+            profile_id = None
+
         search = router.profile_lookup(
             json={
                 "email": email,
@@ -586,7 +605,9 @@ class ResultProfile(BaseModel):
                 "no_cache": no_cache,
                 "min_confidence": min_confidence,
                 "get_web_profile": get_web_profile,
-            }
+                "update": update,
+            },
+            timeout=110,
         )
         results = search.get("results")
         if not results:

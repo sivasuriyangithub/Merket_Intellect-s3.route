@@ -140,3 +140,45 @@ def test_enrich_profile(
     assert resp.status_code == 201
     assert "industry" in resp.json()["profile"]
     assert resp.json()["credits_used"] == 25
+
+
+@patch("whoweb.core.router.Router.unified_search")
+@patch("whoweb.core.router.Router.profile_lookup")
+def test_expand_profile(
+    profile_search_mock, unified_search_mock, su_client, search_results
+):
+    seat = BillingAccountMemberFactory(seat_credits=10000)
+    unified_search_mock.return_value = {"results": search_results}
+    profile_search_mock.return_value = {"results": search_results}
+    resp = su_client.post(
+        "/ww/api/profiles/expand/",
+        {
+            "profile_id": search_results[0]["profile_id"],
+            "billing_seat": seat.public_id,
+        },
+        format="json",
+    )
+    assert resp.status_code == 201
+    assert "industry" in resp.json()["profile"]
+    assert resp.json()["credits_used"] == 25
+
+
+@patch("whoweb.core.router.Router.unified_search")
+@patch("whoweb.core.router.Router.profile_lookup")
+def test_expand_contact_profile(
+    profile_search_mock, unified_search_mock, su_client, search_results
+):
+    seat = BillingAccountMemberFactory(seat_credits=10000)
+    unified_search_mock.return_value = {"results": search_results}
+    profile_search_mock.return_value = {"results": search_results}
+    resp = su_client.post(
+        "/ww/api/profiles/expand/",
+        {
+            "profile_id": search_results[0]["profile_id"],
+            "billing_seat": seat.public_id,
+        },
+        format="json",
+    )
+    assert resp.status_code == 201
+    assert "industry" in resp.json()["profile"]
+    assert resp.json()["credits_used"] == 25

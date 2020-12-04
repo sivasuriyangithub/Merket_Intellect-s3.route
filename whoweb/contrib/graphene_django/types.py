@@ -1,3 +1,4 @@
+import graphene
 import logging
 from collections import OrderedDict
 from typing import List
@@ -130,6 +131,7 @@ class ObscureIdNode(relay.Node):
     id = GlobalID(
         source="public_id", description="The ID of the object."
     )  # this may not do anything.
+    rest_id = graphene.ID(source="public_id")
 
     class Meta:
         name = "GraphNode"

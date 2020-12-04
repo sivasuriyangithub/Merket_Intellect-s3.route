@@ -10,7 +10,11 @@ from guardian.models import UserObjectPermissionBase, GroupObjectPermissionBase
 from guardian.shortcuts import assign_perm
 from model_utils import FieldTracker
 from model_utils.models import TimeStampedModel
-from organizations.abstract import AbstractOrganizationOwner, AbstractOrganization
+from organizations.abstract import (
+    AbstractOrganizationOwner,
+    AbstractOrganization,
+    AbstractOrganizationInvitation,
+)
 from organizations.abstract import AbstractOrganizationUser
 
 from whoweb.contrib.fields import ObscureIdMixin
@@ -160,6 +164,10 @@ class GroupOwner(AbstractOrganizationOwner):
     @property
     def user(self):
         return self.organization_user.user
+
+
+class NetworkInvitation(AbstractOrganizationInvitation):
+    pass
 
 
 def make_key():

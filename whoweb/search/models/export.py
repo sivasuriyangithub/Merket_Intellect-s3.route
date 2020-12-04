@@ -22,7 +22,6 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
-from django_celery_results.models import TaskResult
 from dns import resolver
 from google.cloud import storage
 from model_utils import Choices
@@ -126,6 +125,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         "attenuated_skills",
         "geo_loc",
         "picture_url",
+        "picture",
         "seniority_level",
         "time_at_current_company",
         "time_at_current_position",
@@ -1000,9 +1000,6 @@ class SearchExportPage(TimeStampedModel):
         default=0, help_text="Number of profiles completed and saved."
     )
     count = models.IntegerField(default=0)
-    derivation_group: TaskResult = models.ForeignKey(
-        TaskResult, on_delete=models.SET_NULL, null=True, blank=True
-    )
     status = models.IntegerField(
         _("status"), choices=STATUS, blank=True, default=STATUS.created
     )

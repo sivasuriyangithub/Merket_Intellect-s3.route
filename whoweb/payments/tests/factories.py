@@ -1,6 +1,6 @@
 import factory
 from djstripe.models import Plan
-from factory import DjangoModelFactory, SubFactory, SelfAttribute, Faker, RelatedFactory
+from factory import DjangoModelFactory, SubFactory, SelfAttribute, Faker
 
 from whoweb.payments.models import (
     BillingAccountMember,
@@ -9,7 +9,7 @@ from whoweb.payments.models import (
     WKPlan,
     WKPlanPreset,
 )
-from whoweb.users.tests.factories import SeatFactory
+from whoweb.users.tests.factories import SeatFactory, GroupFactory
 
 
 class WKPlanFactory(DjangoModelFactory):
@@ -17,6 +17,7 @@ class WKPlanFactory(DjangoModelFactory):
     credits_per_work_email = 100
     credits_per_personal_email = 200
     credits_per_phone = 400
+    permission_group = SubFactory(GroupFactory)
 
     class Meta:
         model = WKPlan

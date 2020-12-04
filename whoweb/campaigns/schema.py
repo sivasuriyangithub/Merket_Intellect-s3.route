@@ -54,7 +54,7 @@ class Message(GuardedObjectType):
 
 
 class MessageTemplate(GuardedObjectType):
-    tags = graphene.List(graphene.String)
+    tags = graphene.List(graphene.String, resolver=lambda x, i: x.tags.all())
 
     class Meta:
         model = coldemail_models.CampaignMessageTemplate
@@ -139,7 +139,7 @@ class IntervalCampaignRunnerNode(GuardedObjectType):
     sending_rules = graphene.List(SendingRule)
     drips = graphene.List(DripRecord, source="drip_records")
     campaigns = DjangoConnectionField(Campaign)
-    tags = graphene.List(graphene.String)
+    tags = graphene.List(graphene.String, resolver=lambda x, i: x.tags.all())
     transactions = GenericScalar()
     tracking_params = graphene.List(TrackingParam)
     status = graphene.Field(CampaignRunnerStatusChoices)

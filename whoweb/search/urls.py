@@ -20,6 +20,9 @@ router.register(
     r"profiles/enrich", views.EnrichProfileViewSet, basename="enrich_profile"
 )
 router.register(
+    r"profiles/expand", views.ExpandProfileViewSet, basename="expand_profile"
+)
+router.register(
     r"profiles/enrich/batch",
     views.BatchEnrichProfileViewSet,
     basename="enrich_profile_batch",

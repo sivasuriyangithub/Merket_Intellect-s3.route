@@ -2,6 +2,7 @@ from typing import Any, Sequence
 
 from allauth.account.models import EmailAddress
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group as PermissionGroup
 from factory import (
     DjangoModelFactory,
     Faker,
@@ -15,7 +16,6 @@ from whoweb.users.models import Group, GroupOwner, Seat
 
 
 class EmailAddressFactory(DjangoModelFactory):
-
     user = SubFactory("whoweb.users.tests.factories.UserFactory")
     email = Faker("email")
     verified = True
@@ -26,7 +26,6 @@ class EmailAddressFactory(DjangoModelFactory):
 
 
 class UserFactory(DjangoModelFactory):
-
     username = Faker("user_name")
     email = Faker("email")
     emails = RelatedFactory(EmailAddressFactory, "user")
@@ -48,8 +47,14 @@ class UserFactory(DjangoModelFactory):
         django_get_or_create = ["username"]
 
 
-class NetworkFactory(DjangoModelFactory):
+class GroupFactory(DjangoModelFactory):
+    name = Faker("slug")
 
+    class Meta:
+        model = PermissionGroup
+
+
+class NetworkFactory(DjangoModelFactory):
     name = Faker("company")
 
     class Meta:
@@ -66,7 +71,6 @@ class SeatFactory(DjangoModelFactory):
 
 
 class NetworkOwnerFactory(DjangoModelFactory):
-
     organization_user = SubFactory(SeatFactory)
     organization = SelfAttribute("organization_user.organization")
 

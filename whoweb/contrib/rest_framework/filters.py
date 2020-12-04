@@ -1,3 +1,5 @@
+from django_filters.rest_framework import FilterSet
+from graphene_django.filter import GlobalIDFilter
 from rest_framework.compat import coreapi, coreschema
 from rest_framework.filters import OrderingFilter as DefaultOrderingFilter
 from rest_framework.filters import SearchFilter as DefaultSearchFilter
@@ -96,6 +98,20 @@ class SearchFilter(DefaultSearchFilter, metaclass=BasePermissionMetaclass):
 
 class OrderingFilter(DefaultOrderingFilter, metaclass=BasePermissionMetaclass):
     pass
+
+
+class ObscureIdFilterSet(FilterSet):
+    id = GlobalIDFilter(field_name="public_id", lookup_expr="exact")
+
+
+def id_filterset_class_for(model):
+    AutoFilterSet = type(
+        "{}IdFilterSet".format(model.__name__).title(),
+        (ObscureIdFilterSet,),
+        {"Meta": type("Meta", (), dict(model=model, fields=("id",)),)},
+    )
+
+    return AutoFilterSet
 
 
 class ObjectPermissionsFilter(BaseFilterBackend):

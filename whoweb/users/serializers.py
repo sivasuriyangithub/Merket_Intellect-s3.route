@@ -88,13 +88,13 @@ class SeatSerializer(ObjectPermissionsAssignmentMixin, IdOrHyperlinkedModelSeria
     def create(self, validated_data):
         profile = validated_data.pop("user", None)
         if profile is not None:
-            validated_data["user"] = profile.user
+            validated_data["user"] = profile["profile"].user
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
         profile = validated_data.pop("user", None)
         if profile is not None:
-            validated_data["user"] = profile.user
+            validated_data["user"] = profile["profile"].user
         return super().update(instance, validated_data)
 
 

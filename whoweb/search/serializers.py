@@ -320,6 +320,36 @@ class BatchDeriveContactSerializer(serializers.Serializer):
         depth = 1
 
 
+class ProfileSerializer(serializers.Serializer):
+    initiated_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    billing_seat = IdOrHyperlinkedRelatedField(
+        view_name="billingaccountmember-detail",
+        lookup_field="public_id",
+        queryset=BillingAccountMember.objects.all(),
+        write_only=True,
+    )
+    profile_id = serializers.CharField(allow_null=True, required=False)
+    credits_used = serializers.IntegerField(read_only=True)
+    credits_remaining = serializers.IntegerField(read_only=True)
+    profile = ResultProfileSerializer(read_only=True)
+    status = serializers.CharField(read_only=True)
+
+    def create(self, validated_data):
+        initiated_by = validated_data.pop("initiated_by")
+        billing_seat = validated_data.pop("billing_seat")
+        profile = ResultProfile.enrich(update=True, **validated_data)
+        charge = billing_seat.plan.credits_per_enrich
+        if charge > 0:
+            billing_seat.consume_credits(
+                amount=charge, evidence=(), initiated_by=initiated_by
+            )
+
+        validated_data["profile"] = profile.dict()
+        validated_data["credits_used"] = charge
+        validated_data["credits_remaining"] = billing_seat.credits
+        return validated_data
+
+
 class ProfileEnrichmentSerializer(serializers.Serializer):
     initiated_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
     billing_seat = IdOrHyperlinkedRelatedField(

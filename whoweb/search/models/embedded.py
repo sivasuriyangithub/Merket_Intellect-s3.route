@@ -91,7 +91,7 @@ class FilteredSearchQuery(AbstractEmbeddedModel):
         ("rocketreach", "ROCKETREACH", "Rocketreach Service"),
         ("toofr", "TOOFR", "Toofr (Find Emails) Service"),
         ("anymail", "ANYMAIL", "Anymail Service"),
-        ("talentiq", "TALENTIQ", "TalentIQ Service"),
+        ("pdl", "PDL", "PDL Service"),
         ("fullcontact", "FULLCONTACT", "Fullcontact Service"),
         ("pipl", "PIPL", "Pipl Service"),
         ("hunter", "HUNTER", "Hunter (pattern) Service"),

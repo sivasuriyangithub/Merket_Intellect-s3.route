@@ -8,23 +8,12 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("django_celery_results", "0004_auto_20190516_0412"),
         ("search", "0004_auto_20191119_2317"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
             name="scrollsearch", options={"verbose_name_plural": "Scrolling searches"}
-        ),
-        migrations.AddField(
-            model_name="searchexportpage",
-            name="derivation_group",
-            field=models.ForeignKey(
-                blank=True,
-                null=True,
-                on_delete=django.db.models.deletion.SET_NULL,
-                to="django_celery_results.TaskResult",
-            ),
         ),
         migrations.AlterField(
             model_name="searchexportpage",

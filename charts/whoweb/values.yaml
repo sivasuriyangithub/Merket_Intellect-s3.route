@@ -46,9 +46,9 @@ celeryLow:
   cpuLimit: "4"
   memoryLimit: "4Gi"
   hpa:
-    minReplicas: 2
+    minReplicas: 1
     maxReplicas: 12
-    cpu: 60
+    cpu: 80
     memory: 90
 beat:
   cpuRequest: "100m"

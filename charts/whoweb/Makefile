@@ -29,7 +29,7 @@ clean:
 	rm -rf ${NAME}*.tgz
 
 release: clean
-	helm init --client-only
+	helm init --client-only --stable-repo-url https://charts.helm.sh/stable
 	helm repo add chartmuseum $(CHART_REPO)
 	helm dependency build
 	helm lint

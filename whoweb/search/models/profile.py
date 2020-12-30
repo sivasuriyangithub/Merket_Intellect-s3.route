@@ -2,6 +2,7 @@ import json
 import re
 from enum import Enum
 from typing import Optional, List, Dict, Any
+from datetime import datetime
 from uuid import uuid4
 
 import requests
@@ -66,6 +67,8 @@ class ResultExperience(BaseModel):
     company_name: str = ""
     title: str = ""
     description: str = ""
+    start: Optional[datetime] = None
+    end: Optional[datetime] = None
 
     @validator(
         "*", pre=True, always=True,
@@ -80,6 +83,8 @@ class ResultEducation(BaseModel):
     major: str = ""
     course: str = ""
     institution: str = ""
+    start: Optional[datetime] = None
+    end: Optional[datetime] = None
 
     @validator(
         "*", pre=True, always=True,

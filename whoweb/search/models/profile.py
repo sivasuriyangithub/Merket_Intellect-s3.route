@@ -2,25 +2,24 @@ import json
 import re
 from enum import Enum
 from typing import Optional, List, Dict, Any
-from datetime import datetime
-from uuid import uuid4
 
 import requests
-import six
+from datetime import datetime
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import JSONField
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.http import Http404
+from django.utils import dateparse
 from model_utils.models import TimeStampedModel
 from pydantic import BaseModel, Extra, parse_obj_as, validator, root_validator
 from rest_framework.reverse import reverse
+from uuid import uuid4
 
-from whoweb.payments.models import BillingAccountMember
 from whoweb.core.router import router
 from whoweb.core.utils import PERSONAL_DOMAINS
-from whoweb.users.models import Seat
+from whoweb.payments.models import BillingAccountMember
 
 RETRY = "retry"
 COMPLETE = "complete"
@@ -35,6 +34,15 @@ PROFILE = "profile"
 GRADE_VALUES = {"A+": 100, "A": 90, "B+": 75, "B": 60}
 
 User = get_user_model()
+
+
+def dates(v):
+    try:
+        return dateparse.parse_date(v) if v else None
+    except:
+        # "YYYY-00-00" or "YYYY-01-00"
+        if isinstance(v, str) and "_00" in v:
+            return dateparse.parse_date(v.replace("-00", "-01"))
 
 
 class SocialTypeName(Enum):
@@ -71,10 +79,16 @@ class ResultExperience(BaseModel):
     end: Optional[datetime] = None
 
     @validator(
-        "*", pre=True, always=True,
+        "company_name", "title", "description", pre=True, always=True,
     )
     def set_str_none_to_emptystring(cls, v):
         return v or ""
+
+    @validator(
+        "start", "end", pre=True, always=True,
+    )
+    def dates(cls, v):
+        return dates(v)
 
 
 class ResultEducation(BaseModel):
@@ -87,10 +101,16 @@ class ResultEducation(BaseModel):
     end: Optional[datetime] = None
 
     @validator(
-        "*", pre=True, always=True,
+        "school", "degree", "major", "course", "institution", pre=True, always=True,
     )
     def set_str_none_to_emptystring(cls, v):
         return v or ""
+
+    @validator(
+        "start", "end", pre=True, always=True,
+    )
+    def dates(cls, v):
+        return dates(v)
 
 
 class Skill(BaseModel):

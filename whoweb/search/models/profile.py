@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Optional, List, Dict, Any
 
 import requests
-from datetime import datetime
+from datetime import datetime, date
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import JSONField
@@ -12,6 +12,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.http import Http404
 from django.utils import dateparse
+from django.utils.six import string_types
 from model_utils.models import TimeStampedModel
 from pydantic import BaseModel, Extra, parse_obj_as, validator, root_validator
 from rest_framework.reverse import reverse
@@ -37,12 +38,14 @@ User = get_user_model()
 
 
 def dates(v):
-    try:
-        return dateparse.parse_date(v) if v else None
-    except:
-        # "YYYY-00-00" or "YYYY-01-00"
-        if isinstance(v, str) and "_00" in v:
-            return dateparse.parse_date(v.replace("-00", "-01"))
+    parsed = v
+    if isinstance(v, string_types):
+        try:
+            parsed = dateparse.parse_datetime(v) if v else None
+        except ValueError:
+            if "-00" in v:  # "YYYY-00-00" or "YYYY-01-00"
+                parsed = dateparse.parse_datetime(v.replace("-00", "-01"))
+    return parsed or None
 
 
 class SocialTypeName(Enum):
@@ -647,7 +650,6 @@ class ResultProfile(BaseModel):
 
         if status := profile_data.pop("status", None):
             profile_data["returned_status"] = status
-
         profile = ResultProfile(**profile_data)
         if email and not profile.email:
             profile.email = email

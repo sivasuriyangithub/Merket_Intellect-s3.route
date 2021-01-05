@@ -52,3 +52,4 @@ uritemplate==3.0.1 # https://www.django-rest-framework.org/api-guide/schemas/
 # GraphQL
 graphene-django==2.13.0 # https://github.com/graphql-python/graphene-django
 django-graphql-jwt==0.3.1 # https://github.com/flavors/django-graphql-jwt
+PyJWT==1.7.1 # https://github.com/flavors/django-graphql-jwt/issues/242

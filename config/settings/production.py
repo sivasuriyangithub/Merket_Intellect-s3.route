@@ -231,7 +231,9 @@ sentry_sdk.init(
         RedisIntegration(),
     ],
     environment=env("ENVIRONMENT_NAME"),
-    release="{}@{}".format(env("IMAGE", default="").replace(".", "-"), env("REVISION")),
+    release="{}@{}".format(env("IMAGE", default=""), env("REVISION"))
+    .replace(".", "-")
+    .replace("/", "_"),
     send_default_pii=True,
 )
 

@@ -1,11 +1,11 @@
 from copy import copy, deepcopy
-from datetime import datetime, timedelta
 from typing import Optional, Union
 
+from datetime import datetime, timedelta
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import JSONField
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.db.models import F, Q, Count
 from django.db.models.signals import post_save
 from django.db.transaction import atomic
@@ -14,6 +14,7 @@ from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import ugettext_lazy as _
 from djstripe import settings as djstripe_settings
+from djstripe import webhooks
 from djstripe.enums import SubscriptionStatus
 from djstripe.exceptions import MultipleSubscriptionException
 from djstripe.models import Customer, StripeModel, Subscription, SubscriptionItem
@@ -720,3 +721,10 @@ def record_transaction_expire_credits(
 
 
 receiver(post_save, sender=BillingAccountMember)(permissions_org_user_post_save)
+
+
+@webhooks.handler("customer.subscription")
+def update_plan_permissions(event, **kwargs):
+    acct: BillingAccount = event.customer.subscriber
+    sub: MultiPlanSubscription = acct.subscription
+    transaction.on_commit(sub.ensure_member_permissions)

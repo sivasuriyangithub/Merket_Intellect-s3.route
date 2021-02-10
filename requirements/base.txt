@@ -1,20 +1,20 @@
 six==1.15.0
-ipython==7.19.0
-pytz==2020.4  # https://github.com/stub42/pytz
+ipython==7.20.0
+pytz==2021.1  # https://github.com/stub42/pytz
 python-slugify==4.0.1  # https://github.com/un33k/python-slugify
-Pillow==8.0.1  # https://github.com/python-pillow/Pillow
+Pillow==8.1.0  # https://github.com/python-pillow/Pillow
 argon2-cffi==20.1.0  # https://github.com/hynek/argon2_cffi
 whitenoise==5.2.0  # https://github.com/evansd/whitenoise
 redis==3.5.3  # https://github.com/antirez/redis
-celery[gevent,tblib]==5.0.2  # pyup: < 5.0  # https://github.com/celery/celery
-django-celery-beat==2.1.0  # https://github.com/celery/django-celery-beat
+celery[gevent,tblib]==5.0.5  # pyup: < 5.0  # https://github.com/celery/celery
+django-celery-beat==2.2.0  # https://github.com/celery/django-celery-beat
 #django-celery-results==1.2.1 # https://github.com/celery/django-celery-results no 5.0 compat
-flower==0.9.5  # https://github.com/mher/flower
-pymongo==3.11.0 # for bson utils
-dnspython==2.0.0
+flower==0.9.7  # https://github.com/mher/flower
+pymongo==3.11.3 # for bson utils
+dnspython==2.1.0
 requests-cache
 python-dateutil==2.8.1
-pydantic==1.7.2 # https://github.com/samuelcolvin/pydantic
+pydantic==1.7.3 # https://github.com/samuelcolvin/pydantic
 django-cryptography==1.0 # https://github.com/georgemarshall/django-cryptography
 
 # Django
@@ -42,11 +42,11 @@ drf-extensions==0.6.0 # https://github.com/chibisov/drf-extensions
 coreapi==2.3.3  # https://github.com/core-api/python-client
 django-filter==2.4.0
 markdown==3.3.3
-Pygments==2.7.2
+Pygments==2.7.4
 django-guardian==2.3.0 # http://github.com/django-guardian/django-guardian
 djangorestframework-guardian==0.3.0 # https://github.com/rpkilby/django-rest-framework-guardian
 djangorestframework_simplejwt==4.4.0 # https://github.com/davesque/django-rest-framework-simplejwt
-pyyaml==5.3.1 # https://www.django-rest-framework.org/api-guide/schemas/
+pyyaml==5.4.1 # https://www.django-rest-framework.org/api-guide/schemas/
 uritemplate==3.0.1 # https://www.django-rest-framework.org/api-guide/schemas/
 
 # GraphQL

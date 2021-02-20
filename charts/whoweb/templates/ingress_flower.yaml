@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
   name: {{ printf "%s-%s-flower" .Release.Name .Chart.Name | trunc 63 | trimSuffix "-" }}

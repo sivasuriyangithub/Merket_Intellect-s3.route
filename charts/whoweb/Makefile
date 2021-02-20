@@ -13,7 +13,7 @@ build: clean
 	helm lint
 
 debug:
-	helm template --debug . | awk '/---/,0' - | kubeval - -v 1.13.5
+	helm template --debug . | awk '/---/,0' - | kubeval - 
 
 install: clean build
 	helm install . --name ${NAME}

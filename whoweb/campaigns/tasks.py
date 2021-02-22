@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from celery import shared_task
 
 from requests import HTTPError, Timeout
@@ -76,5 +78,7 @@ def catch_missed_drips():
         .exclude(campaigns=None)
     ):
         for campaign in runner.campaigns.all():
-            if drip_tasks := runner.resume_drip_tasks(root_campaign=campaign):
+            if drip_tasks := runner.resume_drip_tasks(
+                root_campaign=campaign, noop_after=timedelta(weeks=2)
+            ):
                 drip_tasks.apply_async()

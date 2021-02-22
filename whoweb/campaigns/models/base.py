@@ -504,7 +504,9 @@ class BaseCampaignRunner(
         self.save()
 
     # TODO: lock
-    def resume_drip_tasks(self, root_campaign: ColdCampaign):
+    def resume_drip_tasks(
+        self, root_campaign: ColdCampaign, noop_after: timedelta = None
+    ):
         # Detect where in drips we are, and start from there.
         drips = DripRecord.objects.filter(runner=self, root=root_campaign)
         if self.run_id == PAUSE_HEX:
@@ -514,16 +516,21 @@ class BaseCampaignRunner(
         if drips.count() == self.sending_rules().count() - 1:  # All drips done
             return
         if drips.count() == 0:  # Drips haven't started
+            if noop_after is not None:
+                if now() > root_campaign.send_time + noop_after:
+                    return
             return self.drip_tasks(
                 root_campaign=root_campaign,
                 following=root_campaign,
                 run_id=self.run_id,
             )
         # Looks like we're in the middle of drips.
+        following = drips.last().drip
+        if noop_after is not None:
+            if now() > following.send_time + noop_after:
+                return
         return self.drip_tasks(
-            root_campaign=root_campaign,
-            following=drips.last().drip,
-            run_id=self.run_id,
+            root_campaign=root_campaign, following=following, run_id=self.run_id,
         )
 
     def resume(self):

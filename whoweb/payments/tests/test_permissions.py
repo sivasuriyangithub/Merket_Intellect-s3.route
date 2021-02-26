@@ -17,7 +17,7 @@ def test_org_owner_can_create_billing_account(user, api_client):
     resp = api_client.post(
         f"/ww/api/billing_accounts/",
         {
-            "name": f"{user.email} Primary ({user.username})",
+            "name": f"{user.email} Primary ({user.profile.xperweb_id})",
             "network": network.public_id,
         },
         format="json",

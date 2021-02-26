@@ -8,10 +8,7 @@ from organizations.base_admin import BaseOrganizationOwnerAdmin
 from organizations.base_admin import BaseOrganizationUserAdmin
 from organizations.base_admin import BaseOwnerInline
 
-from whoweb.payments.admin_forms import (
-    BillingAccountMemberAdminForm,
-    BillingAccountMemberAdminInlineForm,
-)
+from whoweb.payments.admin_forms import BillingAccountMemberAdminForm
 from whoweb.payments.models import (
     BillingAccountOwner,
     BillingAccount,
@@ -56,6 +53,11 @@ class BillingAccountMemberAdmin(BaseOrganizationUserAdmin):
         "pool_credits",
         "credits",
     )
+    search_fields = (
+        "user__email",
+        "user__profile__xperweb_id",
+        "user__username",
+    )
     exclude = ("user",)
 
     def save_model(self, request, obj, form, change):
@@ -81,7 +83,11 @@ class BillingAccountMemberAdmin(BaseOrganizationUserAdmin):
 
 
 class BillingAccountOwnerAdmin(BaseOrganizationOwnerAdmin):
-    pass
+    search_fields = (
+        "user__email",
+        "user__profile__xperweb_id",
+        "user__username",
+    )
 
 
 class WKPlanAdmin(admin.ModelAdmin):

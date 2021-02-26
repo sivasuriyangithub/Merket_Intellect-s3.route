@@ -12,7 +12,7 @@ from factory import (
     RelatedFactory,
 )
 
-from whoweb.users.models import Group, GroupOwner, Seat
+from whoweb.users.models import Group, GroupOwner, Seat, UserProfile
 
 
 class EmailAddressFactory(DjangoModelFactory):
@@ -25,8 +25,17 @@ class EmailAddressFactory(DjangoModelFactory):
         model = EmailAddress
 
 
+class UserProfileFactory(DjangoModelFactory):
+
+    xperweb_id = Faker("user_name")
+
+    class Meta:
+        model = UserProfile
+
+
 class UserFactory(DjangoModelFactory):
     username = Faker("user_name")
+    profile = RelatedFactory(UserProfileFactory, "user")
     email = Faker("email")
     emails = RelatedFactory(EmailAddressFactory, "user")
 

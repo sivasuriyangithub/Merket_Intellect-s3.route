@@ -119,7 +119,7 @@ def test_owner_can_view_only_own_account(api_client, su, seat):
 def test_passthrough_find_member(su_client):
     member = BillingAccountMemberFactory(seat_credits=0)
     resp = su_client.get(
-        f"/ww/billing/by_legacy_id/{member.user.username}", format="json",
+        f"/ww/billing/by_legacy_id/{member.user.profile.xperweb_id}", format="json",
     )
     assert resp.status_code == 200
     assert member.public_id == resp.json()["id"]

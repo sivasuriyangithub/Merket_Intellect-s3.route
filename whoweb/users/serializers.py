@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
@@ -150,7 +151,11 @@ class ImpersonatedTokenObtainSlidingSerializer(TokenObtainSlidingSerializer):
         del self.fields["password"]
 
     def validate(self, attrs):
-        self.user = get_object_or_404(User, username=attrs["xperweb_id"])
+        self.user = get_object_or_404(
+            User,
+            Q(profile__xperweb_id=attrs["xperweb_id"])
+            | Q(username=attrs["xperweb_id"]),
+        )
         token = self.get_token(self.user)
 
         return {"token": str(token)}

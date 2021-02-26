@@ -94,7 +94,7 @@ class ManageUserAuthenticationAPIView(APIView):
             group_name = serializer.validated_data.get("group_name") or group_id
 
             profile, _ = UserProfile.get_or_create(
-                username=xperweb_id,
+                xperweb_id=xperweb_id,
                 email=email,
                 first_name=first_name,
                 last_name=last_name,

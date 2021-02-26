@@ -13,14 +13,13 @@ class UserProfile(ObscureIdMixin, TimeStampedModel):
     user = models.OneToOneField(
         "User", on_delete=models.CASCADE, related_name="profile"
     )
+    xperweb_id = models.CharField(max_length=24, blank=True, default="")
 
     @classmethod
-    def get_or_create(cls, email, username=None, password=None, **extra_fields):
+    def get_or_create(cls, email, xperweb_id=None, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", False)
         extra_fields.setdefault("is_superuser", False)
         email = User.objects.normalize_email(email)
-        username = User.normalize_username(username or email)
-        extra_fields["username"] = username
         user, created = User.objects.get_or_create(email=email, defaults=extra_fields)
         if created:
             user.set_password(password)
@@ -30,7 +29,9 @@ class UserProfile(ObscureIdMixin, TimeStampedModel):
             email__iexact=email,
             defaults={"email": email, "verified": True, "primary": True},
         )
-        return cls.objects.get_or_create(user=user)
+        return cls.objects.get_or_create(
+            user=user, defaults={"xperweb_id": User.normalize_username(xperweb_id)},
+        )
 
     @cached_property
     def username(self):

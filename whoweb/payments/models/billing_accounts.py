@@ -107,7 +107,9 @@ class BillingAccount(
         if created or "customer_key" not in cus.metadata:
             if cus.metadata is None:
                 cus.metadata = {}
-            cus.metadata["customer_key"] = self.owner.organization_user.user.username
+            cus.metadata[
+                "customer_key"
+            ] = self.owner.organization_user.user.profile.xperweb_id
             cus.save()
         return MultiPlanCustomer.objects.get(pk=cus.pk)
 

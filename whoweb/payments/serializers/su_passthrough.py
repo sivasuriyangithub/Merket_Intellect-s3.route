@@ -99,7 +99,10 @@ class AdminBillingSeatSerializer(IdOrHyperlinkedModelSerializer):
         first_name = validated_data["first_name"]
         last_name = validated_data["last_name"]
         profile, _ = UserProfile.get_or_create(
-            username=xperweb_id, email=email, first_name=first_name, last_name=last_name
+            xperweb_id=xperweb_id,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
         )
         group, _ = Group.objects.get_or_create(name=group_name, slug=slugify(group_id))
         seat, _ = group.get_or_add_user(
@@ -242,7 +245,10 @@ class AdminBillingAccountSerializer(IdOrHyperlinkedModelSerializer):
         first_name = validated_data["first_name"]
         last_name = validated_data["last_name"]
         profile, _ = UserProfile.get_or_create(
-            username=xperweb_id, email=email, first_name=first_name, last_name=last_name
+            xperweb_id=xperweb_id,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
         )
         group, _ = Group.objects.get_or_create(name=group_name, slug=slugify(group_id))
         seat, _ = group.get_or_add_user(

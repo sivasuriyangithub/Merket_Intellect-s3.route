@@ -1,8 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth import admin as auth_admin
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group as AuthGroup
-from django.contrib.auth.admin import GroupAdmin as AuthGroupAdmin
 from django.utils.translation import gettext_lazy as _
 from guardian.admin import GuardedModelAdminMixin, GuardedModelAdmin
 from organizations.base_admin import (
@@ -23,12 +21,25 @@ class UserProfileInline(admin.StackedInline):
     model = UserProfile
     can_delete = False
     verbose_name = "profile"
-    fields = ("pk", "public_id")
-    readonly_fields = fields
+    verbose_name_plural = "profile"
+    fields = (
+        "pk",
+        "public_id",
+        "xperweb_id",
+    )
+    readonly_fields = ("pk", "public_id")
 
 
-@admin.register(User)
 class UserAdmin(GuardedModelAdminMixin, auth_admin.UserAdmin):
+    search_fields = (
+        "email",
+        "first_name",
+        "last_name",
+        "profile__xperweb_id",
+        "username",
+    )
+    list_filter = ("is_active", "is_staff")
+    list_display = ("email", "first_name", "last_name", "is_staff")
     add_fieldsets = (
         (
             None,
@@ -39,7 +50,7 @@ class UserAdmin(GuardedModelAdminMixin, auth_admin.UserAdmin):
         ),
     )
     fieldsets = (
-        (None, {"fields": ("email", "username", "password")}),
+        (None, {"fields": ("email", "password")}),
         (
             _("Permissions"),
             {
@@ -57,7 +68,15 @@ class UserAdmin(GuardedModelAdminMixin, auth_admin.UserAdmin):
     inlines = [
         UserProfileInline,
     ]
-    readonly_fields = ("last_login", "date_joined")
+    readonly_fields = (
+        "last_login",
+        "date_joined",
+    )
+
+    def get_inline_instances(self, request, obj=None):
+        if not obj:
+            return list()
+        return super(UserAdmin, self).get_inline_instances(request, obj)
 
 
 class GroupOwnerInline(BaseOwnerInline):
@@ -86,16 +105,29 @@ class GroupAdmin(GuardedModelAdminMixin, BaseOrganizationAdmin):
 
 class SeatAdmin(GuardedModelAdminMixin, BaseOrganizationUserAdmin):
     form = SeatAdminForm
+    search_fields = (
+        "user__email",
+        "user__profile__xperweb_id",
+        "user__username",
+    )
 
 
 class GroupOwnerAdmin(GuardedModelAdminMixin, BaseOrganizationOwnerAdmin):
     form = GroupOwnerAdminForm
+    search_fields = (
+        "user__email",
+        "user__profile__xperweb_id",
+        "user__username",
+    )
 
 
 #
 # class PermissionsAuthGroupAdmin(GuardedModelAdminMixin, AuthGroupAdmin):
 #     pass
 #
+
+# admin.site.unregister(User)
+admin.site.register(User, UserAdmin)
 
 admin.site.unregister(Organization)
 admin.site.unregister(OrganizationUser)

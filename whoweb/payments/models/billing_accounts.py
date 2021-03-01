@@ -728,5 +728,7 @@ receiver(post_save, sender=BillingAccountMember)(permissions_org_user_post_save)
 @webhooks.handler("customer.subscription")
 def update_plan_permissions(event, **kwargs):
     acct: BillingAccount = event.customer.subscriber
-    sub: MultiPlanSubscription = acct.subscription
-    transaction.on_commit(sub.ensure_member_permissions)
+    if acct:
+        sub: MultiPlanSubscription = acct.subscription
+        if sub:
+            transaction.on_commit(sub.ensure_member_permissions)

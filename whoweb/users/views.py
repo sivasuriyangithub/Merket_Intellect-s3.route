@@ -100,7 +100,7 @@ class ManageUserAuthenticationAPIView(APIView):
                 last_name=last_name,
             )
             group, _ = Group.objects.get_or_create(
-                name=group_name, slug=slugify(group_id)
+                slug=slugify(group_id), defaults={"name": group_name}
             )
             seat, _ = group.get_or_add_user(
                 user=profile.user, display_name=profile.user.get_full_name()

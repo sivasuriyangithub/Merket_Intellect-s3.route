@@ -20,6 +20,7 @@ class UserProfile(ObscureIdMixin, TimeStampedModel):
         extra_fields.setdefault("is_staff", False)
         extra_fields.setdefault("is_superuser", False)
         email = User.objects.normalize_email(email)
+        extra_fields.setdefault("username", email)
         user, created = User.objects.get_or_create(email=email, defaults=extra_fields)
         if created:
             user.set_password(password)

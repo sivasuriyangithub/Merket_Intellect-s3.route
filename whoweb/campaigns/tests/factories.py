@@ -1,5 +1,3 @@
-from typing import Type, TypeVar
-
 from django.utils.timezone import now
 from factory import (
     DjangoModelFactory,
@@ -7,14 +5,18 @@ from factory import (
     LazyAttribute,
     RelatedFactory,
     Sequence,
-    SelfAttribute,
     post_generation,
 )
 from factory.fuzzy import FuzzyInteger
 from faker import Faker as NonFactoryFaker
 from faker.providers import internet
 
-from whoweb.campaigns.models.base import BaseCampaignRunner, SendingRule, DripRecord
+from whoweb.campaigns.models.base import (
+    BaseCampaignRunner,
+    SendingRule,
+    DripRecord,
+)
+from whoweb.campaigns.models.simple import SimpleDripCampaignRunner
 from whoweb.coldemail.tests.factories import CampaignMessageFactory, ColdCampaignFactory
 from whoweb.payments.tests.factories import BillingAccountMemberFactory
 
@@ -81,3 +83,8 @@ class CampaignRunnerWithDripsFactory(CampaignRunnerFactory):
 
     class Meta:
         model = BaseCampaignRunner
+
+
+class SimpleCampaignRunnerWithDripsFactory(CampaignRunnerWithDripsFactory):
+    class Meta:
+        model = SimpleDripCampaignRunner

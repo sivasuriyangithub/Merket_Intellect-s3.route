@@ -103,7 +103,7 @@ class CampaignSerializer(serializers.ModelSerializer):
     class Meta:
         model = ColdCampaign
         fields = (
-            "pk",
+            "public_id",
             "send_time",
             "stats_fetched",
             "sent",

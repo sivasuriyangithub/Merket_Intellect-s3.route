@@ -2,6 +2,12 @@ from unittest.mock import patch
 
 import pytest
 
+from campaigns.tests.factories import (
+    SendingRuleFactory,
+    DripRecordFactory,
+    CampaignRunnerWithDripsFactory,
+    SimpleCampaignRunnerWithDripsFactory,
+)
 from whoweb.coldemail.tests.factories import CampaignMessageFactory
 from whoweb.payments.tests.factories import BillingAccountMemberFactory
 
@@ -120,3 +126,13 @@ def test_publish_intervalcampaign(publish_mock, su_client, query_contact_invites
         url + "publish/", format="json",
     )
     assert publish_mock.call_count == 1
+
+
+def test_get_simplecampaign_drips(su_client):
+    SendingRuleFactory.reset_sequence()
+    DripRecordFactory.reset_sequence()
+    runner: "SimpleDripCampaignRunner" = SimpleCampaignRunnerWithDripsFactory()
+    resp = su_client.get(f"/ww/api/campaign/simple/{runner.public_id}/", format="json",)
+    assert resp.json()
+    print(resp.json())
+    assert resp.json()["drips"][0]

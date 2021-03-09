@@ -131,7 +131,12 @@ class SimpleDripCampaignRunnerAdmin(InlineActionsModelAdminMixin, ActionsModelAd
         "created",
         "modified",
     )
-    search_fields = ("seat__user__email", "seat__user__username", "pk", "public_id")
+    search_fields = (
+        "seat__user__email",
+        "seat__user__username",
+        "pk__exact",
+        "public_id",
+    )
 
     fieldsets = (
         (
@@ -193,7 +198,12 @@ class IntervalCampaignRunnerAdmin(InlineActionsModelAdminMixin, ActionsModelAdmi
         "created",
         "modified",
     )
-    search_fields = ("seat__user__email", "seat__user__username", "pk", "public_id")
+    search_fields = (
+        "seat__user__email",
+        "seat__user__username",
+        "pk__exact",
+        "public_id",
+    )
 
     fieldsets = (
         (

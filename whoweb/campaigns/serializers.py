@@ -38,7 +38,7 @@ class SendingRuleSerializer(IdOrHyperlinkedModelSerializer):
 
 class DripRecordSerializer(serializers.ModelSerializer):
     drip = CampaignSerializer(read_only=True)
-    root = serializers.PrimaryKeyRelatedField(read_only=True)
+    root = serializers.SlugRelatedField(slug_field="public_id", read_only=True)
 
     class Meta:
         model = DripRecord
@@ -71,7 +71,7 @@ class SimpleDripCampaignRunnerSerializer(
         allow_null=False,
     )
     campaigns = CampaignSerializer(many=True, read_only=True)
-    drips = DripRecordSerializer(many=True, read_only=True)
+    drips = DripRecordSerializer(many=True, read_only=True, source="drip_records")
     sending_rules = SendingRuleSerializer(many=True)
     status_name = serializers.CharField(source="get_status_display", read_only=True)
     tags = TagulousField(required=False)

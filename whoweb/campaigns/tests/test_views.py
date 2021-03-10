@@ -2,10 +2,9 @@ from unittest.mock import patch
 
 import pytest
 
-from campaigns.tests.factories import (
+from whoweb.campaigns.tests.factories import (
     SendingRuleFactory,
     DripRecordFactory,
-    CampaignRunnerWithDripsFactory,
     SimpleCampaignRunnerWithDripsFactory,
 )
 from whoweb.coldemail.tests.factories import CampaignMessageFactory

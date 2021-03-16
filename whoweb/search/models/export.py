@@ -17,7 +17,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import JSONField, ArrayField
 from django.core.mail import send_mail
 from django.db import models, transaction
-from django.db.models import F
+from django.db.models import F, Sum
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.functional import cached_property
@@ -359,6 +359,10 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         return Transaction.objects.filter_by_related_objects(
             (self,), match_type=MatchType.ANY
         )
+
+    @property
+    def count(self):
+        return self.pages.all().aggregate(Sum("count"))["count__sum"]
 
     def _set_target(self, save=False):
         limit = self.query.filters.limit or 0
@@ -816,12 +820,14 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         registry = self.make_validation_registry(validation_generator=validation)
         for page in self.pages.filter(data__isnull=False).iterator(chunk_size=1):
             profiles = self.get_profiles(raw=page.data)
-            page.data = [
+            data = [
                 profile.update_validation(registry).dict(
                     exclude=SearchExport.PROFILE_EXCLUDES
                 )
                 for profile in profiles
             ]
+            page.data = data
+            page.count = len(data)
             page.save()
 
     def return_validation_results_to_cache(self):

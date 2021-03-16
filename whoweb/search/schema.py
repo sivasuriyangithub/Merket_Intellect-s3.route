@@ -97,6 +97,7 @@ class SearchExportNode(GuardedObjectType):
         )
 
     charged = graphene.Int(name="charge")
+    count = graphene.Int(description="Total number of profiles saved in pages.")
     file_url = graphene.String(description="Link to download as csv file.")
     json_url = graphene.String(description="Link to download as json file.")
     result_url = graphene.String(description="Link to paginated result resource.")

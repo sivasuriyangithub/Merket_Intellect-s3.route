@@ -980,6 +980,9 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             "search:download_export", kwargs={"uuid": self.uuid, "filetype": filetype}
         )
 
+    def get_result_rest_url(self):
+        return reverse("exportresult-detail", args=[self.uuid])
+
 
 class SearchExportPage(TimeStampedModel):
     export = models.ForeignKey(

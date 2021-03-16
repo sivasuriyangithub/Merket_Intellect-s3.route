@@ -99,6 +99,7 @@ class SearchExportNode(GuardedObjectType):
     charged = graphene.Int(name="charge")
     file_url = graphene.String(description="Link to download as csv file.")
     json_url = graphene.String(description="Link to download as json file.")
+    result_url = graphene.String(description="Link to paginated result resource.")
 
     def resolve_status(self: SearchExport, info):
         return self.get_status_display()
@@ -114,6 +115,9 @@ class SearchExportNode(GuardedObjectType):
 
     def resolve_json_url(self: SearchExport, info):
         return self.get_absolute_url("json")
+
+    def resolve_result_url(self: SearchExport, info):
+        return self.get_result_rest_url()
 
 
 class GradedEmailType(graphene.ObjectType):

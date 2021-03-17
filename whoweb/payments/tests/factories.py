@@ -1,6 +1,7 @@
 import factory
 from djstripe.models import Plan
-from factory import DjangoModelFactory, SubFactory, SelfAttribute, Faker
+from factory import SubFactory, SelfAttribute, Faker
+from factory.django import DjangoModelFactory
 
 from whoweb.payments.models import (
     BillingAccountMember,

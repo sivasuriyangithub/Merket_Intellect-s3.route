@@ -1,16 +1,17 @@
 from typing import Any, Sequence
+from uuid import uuid4
 
 from allauth.account.models import EmailAddress
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group as PermissionGroup
 from factory import (
-    DjangoModelFactory,
     Faker,
     post_generation,
     SubFactory,
     SelfAttribute,
     RelatedFactory,
 )
+from factory.django import DjangoModelFactory
 
 from whoweb.users.models import Group, GroupOwner, Seat, UserProfile
 
@@ -41,14 +42,7 @@ class UserFactory(DjangoModelFactory):
 
     @post_generation
     def password(self, create: bool, extracted: Sequence[Any], **kwargs):
-        password = Faker(
-            "password",
-            length=42,
-            special_chars=True,
-            digits=True,
-            upper_case=True,
-            lower_case=True,
-        ).generate(extra_kwargs={})
+        password = str(uuid4())
         self.set_password(password)
 
     class Meta:

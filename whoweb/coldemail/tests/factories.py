@@ -1,8 +1,8 @@
 from factory import (
-    DjangoModelFactory,
     SubFactory,
     LazyAttribute,
 )
+from factory.django import DjangoModelFactory
 from faker import Faker as NonFactoryFaker
 
 from whoweb.coldemail.models import (

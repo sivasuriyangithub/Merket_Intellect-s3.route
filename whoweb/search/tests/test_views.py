@@ -1,9 +1,11 @@
+import pytest
+
 from collections import OrderedDict
 from unittest.mock import patch
-
-import pytest
+from string import Template
 from graphql_relay import to_global_id
 
+from whoweb.search.models import DerivationCache
 from whoweb.payments.tests.factories import BillingAccountMemberFactory
 from whoweb.search.tests.factories import DerivationCacheRecordFactory
 
@@ -51,18 +53,15 @@ def test_derive_profile_cached_charges(derive_mock, su_client, raw_derived):
     assert resp2.json()["credits_used"] == 0
 
 
-from string import Template
-
-
 @pytest.mark.django_db
-def test_derive_profile_shows_in_feed(gqlclient, context, user):
+def test_derive_profile_shows_in_feed(gqlclient, context, user, su):
     seat = BillingAccountMemberFactory(seat_credits=10000, user=user)
     _included = DerivationCacheRecordFactory(billing_seat=seat, profile_id="wp:1")
     _excluded = DerivationCacheRecordFactory(billing_seat=BillingAccountMemberFactory())
     gql = Template(
         """
     query {
-      derivations(billingSeat:"$billing", profileId_In:"wp:1,wp:2"){
+      derivations(billingSeat:"$billing", profileId_In:["wp:1","wp:2"]){
         edges{
           node{
             profileId
@@ -72,7 +71,6 @@ def test_derive_profile_shows_in_feed(gqlclient, context, user):
     }
     """
     ).substitute(billing=to_global_id("BillingAccountMemberNode", seat.public_id))
-
     context.user = user
     executed = gqlclient.execute(gql, context=context)
     assert executed["data"]["derivations"] == OrderedDict(

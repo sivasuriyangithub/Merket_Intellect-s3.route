@@ -12,7 +12,7 @@ from whoweb.accounting.models import LedgerEntry
 from whoweb.accounting.models import TransactionKind
 
 
-class UserFactory(factory.DjangoModelFactory):
+class UserFactory(factory.django.DjangoModelFactory):
     """
     Factory for django.contrib.auth.get_user_model()
 
@@ -27,7 +27,7 @@ class UserFactory(factory.DjangoModelFactory):
     email = username = factory.Sequence(lambda n: "TransactionUser #%s" % n)
 
 
-class LedgerFactory(factory.DjangoModelFactory):
+class LedgerFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Ledger
 
@@ -36,7 +36,7 @@ class LedgerFactory(factory.DjangoModelFactory):
     account_code = factory.Sequence(lambda n: n)
 
 
-class TransactionTypeFactory(factory.DjangoModelFactory):
+class TransactionTypeFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = TransactionKind
 

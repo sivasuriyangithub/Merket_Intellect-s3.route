@@ -244,7 +244,7 @@ class ResultProfileObjectType(graphene.ObjectType):
             return self.get("_id")
 
 
-class IDInFilter(django_filters.BaseInFilter, django_filters.CharFilter):
+class IDInFilter(django_filters.BaseCSVFilter, django_filters.CharFilter):
     pass
 
 
@@ -253,10 +253,9 @@ class DerivationCacheFilter(django_filters.FilterSet):
         field_name="billing_seat__public_id", lookup_expr="exact"
     )
     profile_id = django_filters.CharFilter(field_name="profile_id", lookup_expr="exact")
-    profile_id__in = IDInFilter(field_name="profile_id")
+    profile_id__in = IDInFilter(field_name="profile_id", lookup_expr="in")
 
     class Meta:
-        # Assume you have an Animal model defined with the following fields
         model = DerivationCache
         fields = ["billing_seat", "profile_id", "profile_id__in"]
 

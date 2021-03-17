@@ -67,7 +67,6 @@ class StripePlanObjectType(GuardedObjectType):
             "metadata",
             "tiers",
             "trial_period_days",
-            "statement_descriptor",
         ]
 
 

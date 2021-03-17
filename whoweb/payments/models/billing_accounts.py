@@ -26,7 +26,6 @@ from organizations.abstract import (
     AbstractOrganization,
     AbstractOrganizationInvitation,
 )
-from proxy_overrides.related import ProxyForeignKey
 from rest_framework.reverse import reverse
 from stripe.error import InvalidRequestError
 
@@ -43,6 +42,7 @@ from whoweb.contrib.organizations.models import (
     PermissionsAbstractOrganization,
     permissions_org_user_post_save,
 )
+from whoweb.contrib.proxy_overrides.stripe import ProxyStripeForeignKey
 from whoweb.users.models import Seat, Group
 from .plans import WKPlan, WKPlanPreset, BillingPermissionGrant
 
@@ -549,7 +549,7 @@ class MultiPlanSubscription(Subscription):
     class Meta:
         proxy = True
 
-    customer = ProxyForeignKey(
+    customer = ProxyStripeForeignKey(
         MultiPlanCustomer,
         on_delete=models.CASCADE,
         related_name="subscriptions",

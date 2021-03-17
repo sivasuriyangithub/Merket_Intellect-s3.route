@@ -1,7 +1,6 @@
 import datetime
 
 from factory import (
-    DjangoModelFactory,
     SubFactory,
     Sequence,
     Iterator,
@@ -9,7 +8,7 @@ from factory import (
     Faker,
     List,
 )
-from factory.django import FileField
+from factory.django import FileField, DjangoModelFactory
 from faker import Faker as NonFactoryFaker
 from faker.providers import internet
 

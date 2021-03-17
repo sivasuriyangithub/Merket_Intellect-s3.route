@@ -1,12 +1,12 @@
 from django.utils.timezone import now
 from factory import (
-    DjangoModelFactory,
     SubFactory,
     LazyAttribute,
     RelatedFactory,
     Sequence,
     post_generation,
 )
+from factory.django import DjangoModelFactory
 from factory.fuzzy import FuzzyInteger
 from faker import Faker as NonFactoryFaker
 from faker.providers import internet

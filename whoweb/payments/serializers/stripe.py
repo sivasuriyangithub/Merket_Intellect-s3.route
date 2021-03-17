@@ -43,7 +43,6 @@ class StripePlanSerializer(serializers.ModelSerializer):
             "metadata",
             "tiers",
             "trial_period_days",
-            "statement_descriptor",
         ]
         read_only_fields = fields
 
@@ -83,7 +82,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             "created",
             "description",
             "metadata",
-            "billing",
+            "collection_method",
             "billing_cycle_anchor",
             "cancel_at_period_end",
             "canceled_at",
@@ -94,9 +93,9 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             "ended_at",
             "plan",
             "quantity",
-            "start",
+            "start_date",
             "status",
-            "tax_percent",
+            "default_tax_rates",
             "trial_end",
             "trial_start",
             "items",

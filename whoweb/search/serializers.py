@@ -100,7 +100,10 @@ class FilteredSearchQuerySerializer(serializers.ModelSerializer):
 class SearchExportSerializer(IdOrHyperlinkedModelSerializer):
     query = FilteredSearchQuerySerializer()
     results_url = serializers.HyperlinkedRelatedField(
-        view_name="exportresult-detail", read_only=True, source="uuid",
+        view_name="exportresult-detail",
+        source="*",
+        read_only=True,
+        lookup_field="uuid",
     )
     status_name = serializers.SerializerMethodField()
     for_campaign = serializers.BooleanField(source="uploadable", required=False)

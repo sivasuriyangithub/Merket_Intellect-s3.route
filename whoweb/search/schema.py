@@ -78,7 +78,7 @@ class SearchExportNode(GuardedObjectType):
     class Meta:
         model = SearchExport
         interfaces = (relay.Node,)
-        filter_fields = []
+        filter_fields = ["uuid"]
         permission_classes = [IsSuperUser | ObjectPermissions]
         filter_backends = (ObjectPermissionsFilter,)
         fields = (

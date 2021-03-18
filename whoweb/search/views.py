@@ -1,21 +1,21 @@
-import csv
 import itertools
 
+import csv
 from django.http import StreamingHttpResponse, Http404, HttpResponseBadRequest
 from django.shortcuts import redirect
 from django.views.decorators.http import require_GET
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, viewsets
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 from rest_framework_extensions.mixins import NestedViewSetMixin
 
 from whoweb.contrib.rest_framework.filters import ObjectPermissionsFilter
 from whoweb.contrib.rest_framework.permissions import IsSuperUser, ObjectPermissions
+from whoweb.payments.permissions import MemberOfBillingAccountPermissionsFilter
 from whoweb.search.models import ResultProfile
-from whoweb.search.models.export import SearchExportPage
 from .events import DOWNLOAD_VALIDATION, DOWNLOAD
 from .models import SearchExport, FilterValueList
 from .serializers import (
@@ -127,6 +127,10 @@ class SearchExportViewSet(
     queryset = SearchExport.objects.all().order_by("-created")
     serializer_class = SearchExportSerializer
     lookup_field = "uuid"
+    permission_classes = [IsSuperUser | IsAuthenticated]
+    filter_backends = (
+        ObjectPermissionsFilter | MemberOfBillingAccountPermissionsFilter,
+    )
 
     def get_permissions(self):
         if self.action == "create":
@@ -141,17 +145,18 @@ class ExportResultsSetPagination(PageNumberPagination):
     max_page_size = 100
 
 
-class SearchExportResultViewSet(
-    mixins.RetrieveModelMixin, mixins.ListModelMixin, GenericViewSet
-):
+class SearchExportResultViewSet(mixins.RetrieveModelMixin, GenericViewSet):
     pagination_class = ExportResultsSetPagination
     serializer_class = SearchExportDataSerializer
-    queryset = SearchExportPage.objects.filter(data__isnull=False)
-    permission_classes = [IsAdminUser]
+    queryset = SearchExport.objects.all()
+    lookup_field = "uuid"
+    permission_classes = [IsSuperUser | IsAuthenticated]
+    filter_backends = (
+        ObjectPermissionsFilter | MemberOfBillingAccountPermissionsFilter,
+    )
 
     def retrieve(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-
+        queryset = self.get_object().pages.filter(data__isnull=False)
         qs_page = self.paginate_queryset(queryset)
         if qs_page is not None:
             serializer = self.get_serializer(

@@ -5,7 +5,7 @@ from google.auth import compute_engine
 from google.cloud import logging as stackdriver
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
-from sentry_sdk.integrations.logging import LoggingIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration, ignore_logger
 from sentry_sdk.integrations.redis import RedisIntegration
 
 from .base import *  # noqa
@@ -236,7 +236,9 @@ sentry_sdk.init(
     .replace("/", "_"),
     send_default_pii=True,
 )
+ignore_logger("graphql.execution.utils")
 
+GRAPHENE["MIDDLEWARE"].append("whoweb.core.middleware.SentryMiddleware")
 
 # djstripe
 # ------------------------------------------------------------------------------

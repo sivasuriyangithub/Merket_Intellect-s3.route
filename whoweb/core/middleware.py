@@ -1,6 +1,7 @@
 import logging
 
 from django.http import HttpResponse, HttpResponseServerError
+from sentry_sdk import capture_exception
 
 from .loaders import Loaders
 
@@ -52,8 +53,22 @@ class HealthCheckMiddleware(object):
         return HttpResponse("OK")
 
 
-class LoaderMiddleware:
+class LoaderMiddleware(object):
     def resolve(self, next, root, info, **args):
         if not hasattr(info.context, "loaders"):
             info.context.loaders = Loaders()
         return next(root, info, **args)
+
+
+class SentryMiddleware(object):
+    """
+    Properly capture errors during query execution and send them to Sentry.
+    Then raise the error again and let Graphene handle it.
+    """
+
+    def on_error(self, error):
+        capture_exception(error)
+        raise error
+
+    def resolve(self, next, root, info, **args):
+        return next(root, info, **args).catch(self.on_error)

@@ -5,7 +5,6 @@ from django.urls import include, path
 from django.views import defaults as default_views
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView
-from graphene_django.views import GraphQLView
 from rest_framework.permissions import AllowAny
 from rest_framework.schemas import get_schema_view
 from rest_framework_extensions.routers import ExtendedDefaultRouter
@@ -16,6 +15,7 @@ from rest_framework_simplejwt.views import (
 
 from whoweb.campaigns.urls import router as campaign_router
 from whoweb.coldemail.urls import router as coldemail_router
+from whoweb.core.views import SentryEnabledGraphQLView
 from whoweb.payments.urls import router as payments_router
 from whoweb.payments.views import PaymentSourceAPIView
 from whoweb.search.urls import router as search_router
@@ -39,7 +39,7 @@ urlpatterns = [
     path("api/payment_source/", PaymentSourceAPIView.as_view(), name="paymentsource"),
     path("api/token/", TokenObtainSlidingView.as_view(), name="token_obtain"),
     path("api/token/refresh/", TokenRefreshSlidingView.as_view(), name="token_refresh"),
-    path("graphql", csrf_exempt(GraphQLView.as_view(graphiql=True))),
+    path("graphql", csrf_exempt(SentryEnabledGraphQLView.as_view(graphiql=True))),
     # Your stuff: custom urls includes go here.
     path("accounts/", include("whoweb.users.urls", namespace="users")),
     path("billing/", include("whoweb.payments.urls", namespace="billing")),

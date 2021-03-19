@@ -419,6 +419,7 @@ DJSTRIPE_SUBSCRIBER_MODEL_MIGRATION_DEPENDENCY = "0007_auto_20200228_1436"
 DJSTRIPE_SUBSCRIBER_MODEL_REQUEST_CALLBACK = billing_account_request_callback
 DJSTRIPE_USE_NATIVE_JSONFIELD = True
 DJSTRIPE_FOREIGN_KEY_TO_FIELD = "djstripe_id"
+DJSTRIPE_PRORATION_POLICY = "create_prorations"
 # Your stuff...
 # ------------------------------------------------------------------------------
 ORGS_SLUGFIELD = "autoslug.fields.AutoSlugField"

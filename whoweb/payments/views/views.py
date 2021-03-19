@@ -41,7 +41,7 @@ User = get_user_model()
 
 class PlanViewSet(mixins.RetrieveModelMixin, mixins.ListModelMixin, GenericViewSet):
     lookup_field = "public_id"
-    queryset = WKPlan.objects.all()
+    queryset = WKPlan.available_objects.all()
     serializer_class = PlanSerializer
     permission_classes = [IsSuperUser]
 

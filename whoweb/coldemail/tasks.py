@@ -88,7 +88,7 @@ def update_validation(pk, should_orphan=False):
 
 @shared_task(autoretry_for=NETWORK_ERRORS)
 def spawn_fetch_campaign_stats():
-    late = ColdCampaign.objects.filter(
+    late = ColdCampaign.available_objects.filter(
         Q(published__gte=now() - timedelta(days=14))
         & (Q(stats_fetched__lte=now() - timedelta(hours=4)) | Q(stats_fetched=None))
     ).only("pk")
@@ -98,7 +98,7 @@ def spawn_fetch_campaign_stats():
 
 @shared_task(rate_limit="30/m", autoretry_for=NETWORK_ERRORS)
 def fetch_campaign_stats(campaign_id):
-    campaign = ColdCampaign.objects.get(pk=campaign_id)
+    campaign = ColdCampaign.available_objects.get(pk=campaign_id)
     if not campaign:
         return
     if campaign.stats_fetched and campaign.stats_fetched >= now() - timedelta(hours=2):

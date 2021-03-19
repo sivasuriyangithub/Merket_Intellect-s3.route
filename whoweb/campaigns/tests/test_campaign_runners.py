@@ -68,10 +68,10 @@ def test_create_next_drip_list(remove_reply_mock):
     assert (
         CampaignList.objects.count() == 5
     )  # should be 3, but post_gen replaces root twice.
-    assert SearchExport.objects.count() == 5
+    assert SearchExport.available_objects.count() == 5
     runner.create_next_drip_list(runner.drips.first(), runner.drips.first())
-    assert CampaignList.objects.count() == 6
-    assert SearchExport.objects.count() == 6
+    assert CampaignList.available_objects.count() == 6
+    assert SearchExport.available_objects.count() == 6
 
 
 @patch("whoweb.campaigns.models.base.BaseCampaignRunner.set_reply_fields")

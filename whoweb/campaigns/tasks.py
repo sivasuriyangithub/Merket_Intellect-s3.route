@@ -13,7 +13,7 @@ NETWORK_ERRORS = [HTTPError, Timeout, ConnectionError]
 
 @shared_task(autoretry_for=NETWORK_ERRORS)
 def set_published(pk, run_id=None):
-    runner = BaseCampaignRunner.objects.get(pk=pk)
+    runner = BaseCampaignRunner.available_objects.get(pk=pk)
     if str(run_id) != str(runner.run_id):
         return
     runner.status = runner.STATUS.published
@@ -22,7 +22,7 @@ def set_published(pk, run_id=None):
 
 @shared_task(bind=True, autoretry_for=NETWORK_ERRORS)
 def publish_next_interval(self, pk, run_id=None):
-    runner = IntervalCampaignRunner.objects.get(pk=pk)
+    runner = IntervalCampaignRunner.available_objects.get(pk=pk)
     if str(run_id) != str(runner.run_id):
         return
     if runner.status == runner.STATUS.paused:
@@ -32,7 +32,7 @@ def publish_next_interval(self, pk, run_id=None):
 
 @shared_task(bind=True, autoretry_for=NETWORK_ERRORS)
 def publish_drip(self, pk, root_pk, following_pk, run_id=None, *args, **kwargs):
-    runner = BaseCampaignRunner.objects.get(pk=pk)
+    runner = BaseCampaignRunner.available_objects.get(pk=pk)
     if str(run_id) != str(runner.run_id):
         return
     if runner.status == runner.STATUS.paused:
@@ -53,7 +53,7 @@ def publish_drip(self, pk, root_pk, following_pk, run_id=None, *args, **kwargs):
 
 @shared_task(autoretry_for=NETWORK_ERRORS)
 def ensure_stats(pk):
-    runner = BaseCampaignRunner.objects.get(pk=pk)
+    runner = BaseCampaignRunner.available_objects.get(pk=pk)
     for campaign in runner.campaigns.all():
         campaign.fetch_stats()
     for campaign in runner.drips.all():
@@ -73,7 +73,9 @@ def ensure_stats(pk):
 def catch_missed_drips():
 
     for runner in (
-        BaseCampaignRunner.objects.filter(status=BaseCampaignRunner.STATUS.published)
+        BaseCampaignRunner.available_objects.filter(
+            status=BaseCampaignRunner.STATUS.published
+        )
         .exclude(messages=None)
         .exclude(campaigns=None)
     ):

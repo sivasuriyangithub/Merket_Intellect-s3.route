@@ -1,6 +1,7 @@
 import re
-import warnings
 from collections import OrderedDict
+
+import warnings
 from decimal import Decimal
 from operator import attrgetter
 from urllib.parse import urljoin

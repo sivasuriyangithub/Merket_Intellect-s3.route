@@ -53,7 +53,7 @@ class RunnerViewSet(object):
 
 
 class SimpleCampaignViewSet(RunnerViewSet, ModelViewSet):
-    queryset = SimpleDripCampaignRunner.objects.all()
+    queryset = SimpleDripCampaignRunner.available_objects.all().order_by("created")
     serializer_class = SimpleDripCampaignRunnerSerializer
     lookup_field = "public_id"
     permission_classes = [IsSuperUser]
@@ -63,7 +63,7 @@ class SimpleCampaignViewSet(RunnerViewSet, ModelViewSet):
 
 
 class IntervalCampaignSerializerViewSet(RunnerViewSet, ModelViewSet):
-    queryset = IntervalCampaignRunner.objects.all()
+    queryset = IntervalCampaignRunner.available_objects.all().order_by("created")
     lookup_field = "public_id"
     serializer_class = IntervalCampaignRunnerSerializer
     permission_classes = [IsSuperUser]

@@ -165,7 +165,8 @@ class BaseCampaignRunner(
     # enabling republishing via .resume(), even with a pending canvas.
     run_id = models.UUIDField(null=True, blank=True)
 
-    objects = PolymorphicSoftDeletableManager()
+    available_objects = PolymorphicSoftDeletableManager()
+    objects = PolymorphicManager()
     all_objects = PolymorphicManager()
 
     def __str__(self):

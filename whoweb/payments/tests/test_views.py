@@ -2,7 +2,6 @@ from unittest.mock import patch
 
 import bson
 import pytest
-from guardian.shortcuts import get_perms
 
 from whoweb.payments.models import BillingAccount
 from whoweb.payments.tests.factories import (

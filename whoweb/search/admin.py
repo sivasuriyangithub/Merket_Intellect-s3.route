@@ -317,7 +317,7 @@ class ExportAdmin(ActionsModelAdmin):
     download_json.short_description = "💾.json"
 
     def run_publication_tasks(self, request, pk):
-        export = SearchExport.objects.get(pk=pk)
+        export = SearchExport.available_objects.get(pk=pk)
         sigs = export.processing_signatures()
         res = sigs.apply_async()
         self.message_user(

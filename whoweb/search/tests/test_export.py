@@ -4,7 +4,7 @@ from unittest.mock import patch, Mock, PropertyMock
 from uuid import uuid4
 
 import pytest
-from pytest_cases import fixture_ref, pytest_parametrize_plus
+from pytest_cases import fixture_ref, parametrize_plus
 
 from whoweb.payments.tests.factories import BillingAccountMemberFactory
 from whoweb.search.models import SearchExport
@@ -46,7 +46,7 @@ def test_return_validation_results_to_cache(update_mock):
     assert update_mock.call_args[1]["json"] == {"from_datavalidation": "test_id"}
 
 
-@pytest_parametrize_plus(
+@parametrize_plus(
     "query,cols",
     [
         (fixture_ref("query_no_contact"), SearchExport.BASE_COLS),
@@ -100,7 +100,7 @@ def test_export_set_target_from_profile_ids(query_specified_profiles_in_filters)
     assert export.target == 11
 
 
-@pytest_parametrize_plus(
+@parametrize_plus(
     "q,progress,target,needed",
     [
         (
@@ -126,7 +126,7 @@ def test_num_ids_needed(q, progress, target, needed):
     assert export.num_ids_needed == needed
 
 
-@pytest_parametrize_plus(
+@parametrize_plus(
     "q,progress,skip,start_at",
     [
         (fixture_ref("query_contact_invites"), 0, 0, 0),

@@ -110,7 +110,6 @@ class SubscriptionObjectType(GuardedObjectType):
             "quantity",
             "start_date",
             "status",
-            "default_tax_rates",
             "trial_end",
             "trial_start",
             "items",

@@ -365,8 +365,8 @@ class ProfileEnrichmentSerializer(serializers.Serializer):
     user_id = serializers.CharField(allow_null=True, required=False)
     linkedin_url = serializers.URLField(allow_null=True, required=False)
     profile_id = serializers.CharField(allow_null=True, required=False)
-    get_web_profile = serializers.NullBooleanField(required=False)
-    no_cache = serializers.NullBooleanField(required=False)
+    get_web_profile = serializers.BooleanField(allow_null=True, required=False)
+    no_cache = serializers.BooleanField(allow_null=True, required=False)
     min_confidence = serializers.FloatField(allow_null=True, required=False)
 
     credits_used = serializers.IntegerField(read_only=True)
@@ -401,8 +401,8 @@ class ProfileEnrichmentBatchInputEntitySerializer(serializers.Serializer):
     user_id = serializers.CharField(allow_null=True, required=False)
     linkedin_url = serializers.URLField(allow_null=True, required=False)
     profile_id = serializers.CharField(allow_null=True, required=False)
-    get_web_profile = serializers.NullBooleanField(required=False)
-    no_cache = serializers.NullBooleanField(required=False)
+    get_web_profile = serializers.BooleanField(allow_null=True, required=False)
+    no_cache = serializers.BooleanField(allow_null=True, required=False)
     min_confidence = serializers.FloatField(allow_null=True, required=False)
 
     def validate(self, attrs):

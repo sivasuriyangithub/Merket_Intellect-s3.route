@@ -125,7 +125,9 @@ class BillingAccountSubscriptionSerializer(serializers.Serializer):
         required=False, default=None, allow_null=True, write_only=True
     )
     customer_type = serializers.CharField(write_only=True, required=False)
-    charge_immediately = serializers.NullBooleanField(required=False, write_only=True)
+    charge_immediately = serializers.BooleanField(
+        required=False, write_only=True, allow_null=True
+    )
     initiated_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
 

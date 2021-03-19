@@ -503,33 +503,8 @@ class MultiPlanCustomer(Customer):
                 ]
             )
 
-    def subscribe(
-        self,
-        plan=None,
-        items=None,
-        charge_immediately=True,
-        application_fee_percent=None,
-        coupon=None,
-        quantity=None,
-        metadata=None,
-        tax_percent=None,
-        billing_cycle_anchor=None,
-        trial_end: Union[str, None, datetime] = None,
-        trial_from_plan=None,
-        trial_period_days=None,
-    ):
-        kwargs = dict(
-            customer=self.id,
-            application_fee_percent=application_fee_percent,
-            coupon=coupon,
-            quantity=quantity,
-            metadata=metadata,
-            billing_cycle_anchor=billing_cycle_anchor,
-            tax_percent=tax_percent,
-            trial_end=trial_end,
-            trial_from_plan=trial_from_plan,
-            trial_period_days=trial_period_days,
-        )
+    def subscribe(self, plan=None, items=None, charge_immediately=True, **kwargs):
+        kwargs["customer"] = self.id
         # Convert Plan to id
         if plan is not None and isinstance(plan, StripeModel):
             plan = plan.id
@@ -563,29 +538,17 @@ class MultiPlanSubscription(Subscription):
         )
 
     def update(
-        self,
-        plan=None,
-        items=None,
-        application_fee_percent=None,
-        billing_cycle_anchor=None,
-        coupon=None,
-        prorate=djstripe_settings.PRORATION_POLICY,
-        proration_date=None,
-        metadata=None,
-        quantity=None,
-        tax_percent=None,
-        trial_end=None,
+        self, plan=None, items=None, **kwargs,
     ):
         """
         See `MultiPlanCustomer.subscribe()`
         """
-
         # Convert Plan to id
         if plan is not None and isinstance(plan, StripeModel):
             plan = plan.id
+        kwargs["plan"] = plan
 
-        kwargs = deepcopy(locals())
-        del kwargs["self"]
+        kwargs.setdefault("proration_behavior", djstripe_settings.PRORATION_POLICY)
 
         items_for_manual_deletion = []
         if items is not None:

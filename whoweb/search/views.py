@@ -44,7 +44,7 @@ class Echo:
 @require_GET
 def download(request, uuid, filetype="csv", *args, **kwargs):
     try:
-        export = SearchExport.objects.get(uuid=uuid)
+        export = SearchExport.available_objects.get(uuid=uuid)
     except SearchExport.DoesNotExist:
         raise Http404("Export not found")
     export.log_event(
@@ -96,7 +96,7 @@ def download(request, uuid, filetype="csv", *args, **kwargs):
 @require_GET
 def validate(request, uuid):
     try:
-        export = SearchExport.objects.get(uuid=uuid)
+        export = SearchExport.available_objects.get(uuid=uuid)
     except SearchExport.DoesNotExist:
         raise Http404("Export not found")
     export.log_event(
@@ -124,7 +124,7 @@ class SearchExportViewSet(
     mixins.ListModelMixin,
     GenericViewSet,
 ):
-    queryset = SearchExport.objects.all().order_by("-created")
+    queryset = SearchExport.available_objects.all().order_by("-created")
     serializer_class = SearchExportSerializer
     lookup_field = "uuid"
     permission_classes = [IsSuperUser | IsAuthenticated]
@@ -148,7 +148,7 @@ class ExportResultsSetPagination(PageNumberPagination):
 class SearchExportResultViewSet(mixins.RetrieveModelMixin, GenericViewSet):
     pagination_class = ExportResultsSetPagination
     serializer_class = SearchExportDataSerializer
-    queryset = SearchExport.objects.all()
+    queryset = SearchExport.available_objects.all()
     lookup_field = "uuid"
     permission_classes = [IsSuperUser | IsAuthenticated]
     filter_backends = (

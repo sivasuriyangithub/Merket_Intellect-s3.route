@@ -40,27 +40,27 @@ def replyto_webhook_view(request, match_id):
 
 class CampaignListViewSet(ModelViewSet):
     serializer_class = CampaignListSerializer
-    queryset = CampaignList.objects.all()
+    queryset = CampaignList.objects.all().order_by("created")
     lookup_field = "public_id"
     permission_classes = [IsSuperUser]
 
 
 class CampaignMessageViewSet(ModelViewSet):
     serializer_class = CampaignMessageSerializer
-    queryset = CampaignMessage.objects.all()
+    queryset = CampaignMessage.objects.all().order_by("created")
     lookup_field = "public_id"
     permission_classes = [IsSuperUser]
 
 
 class CampaignMessageTemplateViewSet(ModelViewSet):
     serializer_class = CampaignMessageTemplateSerializer
-    queryset = CampaignMessageTemplate.objects.all()
+    queryset = CampaignMessageTemplate.objects.all().order_by("created")
     lookup_field = "public_id"
     permission_classes = [IsSuperUser]
 
 
 class SingleEmailViewSet(ModelViewSet):
     serializer_class = SingleColdEmailSerializer
-    queryset = SingleColdEmail.objects.all()
+    queryset = SingleColdEmail.objects.all().order_by("created")
     lookup_field = "public_id"
     permission_classes = [IsSuperUser]

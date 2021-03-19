@@ -38,7 +38,7 @@ MAX_NUM_PAGES_TO_PROCESS_IN_SINGLE_TASK = 5
     autoretry_for=NETWORK_ERRORS,
 )
 def generate_pages(self, export_id):
-    export = SearchExport.objects.get(pk=export_id)
+    export = SearchExport.available_objects.get(pk=export_id)
     pages = export.generate_pages(task_context=self.request)
     return len(pages)
 
@@ -71,7 +71,7 @@ def do_process_page(self, page_pk):
 
 @shared_task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
 def spawn_do_page_process_tasks(self, prefetch_multiplier, export_id):
-    export = SearchExport.objects.get(pk=export_id)
+    export = SearchExport.available_objects.get(pk=export_id)
     if export.is_done_processing_pages:
         return "Done"
     num_pages = ceil(export.pages.count() * prefetch_multiplier)
@@ -94,14 +94,14 @@ def spawn_do_page_process_tasks(self, prefetch_multiplier, export_id):
 
 @shared_task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
 def do_post_pages_completion(self, export_id):
-    export = SearchExport.objects.get(pk=export_id)
+    export = SearchExport.available_objects.get(pk=export_id)
     return export.do_post_pages_completion(task_context=self.request)
 
 
 @shared_task(bind=True, autoretry_for=NETWORK_ERRORS)
 def validate_rows(self, export_id):
     try:
-        export = SearchExport.objects.get(pk=export_id)
+        export = SearchExport.available_objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
         return 404
     return export.upload_validation(task_context=self.request)
@@ -110,7 +110,7 @@ def validate_rows(self, export_id):
 @shared_task(autoretry_for=NETWORK_ERRORS, bind=True)
 def fetch_validation_results(self, export_id):
     try:
-        export = SearchExport.objects.get(pk=export_id)
+        export = SearchExport.available_objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
         return 404
 
@@ -122,7 +122,7 @@ def fetch_validation_results(self, export_id):
 @shared_task(bind=True, autoretry_for=NETWORK_ERRORS)
 def do_post_validation_completion(self, export_id):
     try:
-        export = SearchExport.objects.get(pk=export_id)
+        export = SearchExport.available_objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
         return 404
     return export.do_post_validation_completion(task_context=self.request)
@@ -131,7 +131,7 @@ def do_post_validation_completion(self, export_id):
 @shared_task(autoretry_for=NETWORK_ERRORS)
 def send_notification(export_id):
     try:
-        export = SearchExport.objects.get(pk=export_id)
+        export = SearchExport.available_objects.get(pk=export_id)
     except SearchExport.DoesNotExist:
         return 404
     return export.send_link()
@@ -149,7 +149,7 @@ def fetch_mx_domains(domains):
 
 @shared_task(bind=True, autoretry_for=NETWORK_ERRORS)
 def spawn_mx_group(self, export_id):
-    export = SearchExport.objects.get(pk=export_id)
+    export = SearchExport.available_objects.get(pk=export_id)
     group_signature = export.get_mx_task_group()
     if group_signature is None:
         return False
@@ -158,7 +158,7 @@ def spawn_mx_group(self, export_id):
 
 @shared_task(bind=True, autoretry_for=NETWORK_ERRORS)
 def upload_to_static_bucket(self, export_id):
-    export = SearchExport.objects.get(pk=export_id)
+    export = SearchExport.available_objects.get(pk=export_id)
     return export.upload_to_static_bucket(task_context=self.request)
 
 
@@ -274,5 +274,7 @@ def finalize_page(self, pk):
     bind=True, max_retries=250, ignore_result=False, autoretry_for=NETWORK_ERRORS
 )
 def compress_working_pages(self, export_id, page_ids):
-    export = SearchExport.objects.get(pk=export_id)  # allow DoesNotExist exception
+    export = SearchExport.available_objects.get(
+        pk=export_id
+    )  # allow DoesNotExist exception
     export.compress_working_pages(page_ids=page_ids, task_context=self.request)

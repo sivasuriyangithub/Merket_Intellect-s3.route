@@ -125,6 +125,7 @@ class WKPlanPreset(AbstractPlanModel):
     def create(self):
         return WKPlan.objects.create(
             marketing_name=self.marketing_name,
+            permission_group=self.permission_group,
             credits_per_enrich=self.credits_per_enrich,
             credits_per_work_email=self.credits_per_work_email,
             credits_per_personal_email=self.credits_per_personal_email,

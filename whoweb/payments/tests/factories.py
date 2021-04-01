@@ -37,6 +37,7 @@ class WKPlanPresetFactory(DjangoModelFactory):
     credits_per_work_email = 100
     credits_per_personal_email = 200
     credits_per_phone = 400
+    permission_group = SubFactory(GroupFactory)
 
     class Meta:
         model = WKPlanPreset

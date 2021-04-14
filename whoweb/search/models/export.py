@@ -974,14 +974,17 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         return sigs
 
     def get_absolute_url(self, filetype="csv"):
+        if self.status != self.STATUS.complete:
+            return
         if filetype == "csv":
-            return self.csv.url
+            return self.csv.url if self.csv else None
         return reverse(
             "search:download_export", kwargs={"uuid": self.uuid, "filetype": filetype}
         )
 
     def get_result_rest_url(self):
-        return reverse("exportresult-detail", args=[self.uuid])
+        if self.status == self.STATUS.complete:
+            return reverse("exportresult-detail", args=[self.uuid])
 
 
 class SearchExportPage(TimeStampedModel):

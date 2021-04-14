@@ -132,12 +132,6 @@ class SearchExportViewSet(
         ObjectPermissionsFilter | MemberOfBillingAccountPermissionsFilter,
     )
 
-    def get_permissions(self):
-        if self.action == "create":
-            return [IsSuperUser()]
-        else:
-            return [IsAdminUser()]
-
 
 class ExportResultsSetPagination(PageNumberPagination):
     page_size = 1

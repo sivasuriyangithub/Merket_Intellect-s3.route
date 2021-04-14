@@ -106,7 +106,9 @@ class SearchExportSerializer(IdOrHyperlinkedModelSerializer):
         lookup_field="uuid",
     )
     status_name = serializers.SerializerMethodField()
-    for_campaign = serializers.BooleanField(source="uploadable", required=False)
+    for_campaign = serializers.BooleanField(
+        source="uploadable", required=False, default=False
+    )
     transactions = TransactionSerializer(many=True, read_only=True)
     billing_seat = IdOrHyperlinkedRelatedField(
         view_name="billingaccountmember-detail",

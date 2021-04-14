@@ -1,5 +1,6 @@
 import django_filters
 import graphene
+from django_filters.rest_framework import FilterSet
 from graphene import relay
 from graphene.types.generic import GenericScalar
 from graphene_django import DjangoObjectType
@@ -72,15 +73,35 @@ class FilteredSearchQueryObjectType(DjangoObjectType):
         model = FilteredSearchQuery
 
 
-class SearchExportNode(GuardedObjectType):
-    query = graphene.Field(FilteredSearchQueryObjectType)
+class SearchExportFilterSet(FilterSet):
+    billing_seat = GlobalIDFilter(field_name="billing_seat__public_id")
+    billing_account = GlobalIDFilter(field_name="billing_seat__organization__public_id")
+    seat = GlobalIDFilter(field_name="billing_seat__seat__public_id")
+    network = GlobalIDFilter(field_name="billing_seat__seat__organization__public_id")
 
     class Meta:
         model = SearchExport
+        fields = (
+            "uuid",
+            "billing_seat",
+            "billing_account",
+            "seat",
+            "network",
+        )
+
+
+SearchExportStatusChoices = graphene.Enum(
+    "SearchExportStatusChoices", SearchExport.STATUS._identifier_map.items(),
+)
+
+
+class SearchExportNode(GuardedObjectType):
+    class Meta:
+        model = SearchExport
         interfaces = (relay.Node,)
-        filter_fields = ["uuid"]
-        permission_classes = [IsSuperUser | ObjectPermissions]
-        filter_backends = (ObjectPermissionsFilter,)
+        filterset_class = SearchExportFilterSet
+        permission_classes = [IsSuperUser | IsAuthenticated]
+        filter_backends = (MemberOfBillingAccountPermissionsFilter,)
         fields = (
             "uuid",
             "billing_seat",
@@ -94,15 +115,16 @@ class SearchExportNode(GuardedObjectType):
             "notify",
             "charge",
             "on_trial",
+            "created",
         )
 
+    query = graphene.Field(FilteredSearchQueryObjectType)
+    status = graphene.Field(SearchExportStatusChoices)
     charged = graphene.Int(name="charge")
+    transactions = GenericScalar()
     file_url = graphene.String(description="Link to download as csv file.")
     json_url = graphene.String(description="Link to download as json file.")
     result_url = graphene.String(description="Link to paginated result resource.")
-
-    def resolve_status(self: SearchExport, info):
-        return self.get_status_display()
 
     def resolve_charged(self: SearchExport, info):
         return self.charged

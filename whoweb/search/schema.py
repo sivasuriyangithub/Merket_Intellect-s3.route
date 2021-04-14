@@ -106,6 +106,7 @@ class SearchExportNode(GuardedObjectType):
             "uuid",
             "billing_seat",
             "query",
+            "tags",
             "status",
             "status_changed",
             "sent",
@@ -119,6 +120,7 @@ class SearchExportNode(GuardedObjectType):
         )
 
     query = graphene.Field(FilteredSearchQueryObjectType)
+    tags = graphene.List(graphene.String, resolver=lambda x, i: x.tags.all())
     status = graphene.Field(SearchExportStatusChoices)
     charged = graphene.Int(name="charge")
     transactions = GenericScalar()

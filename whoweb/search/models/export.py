@@ -1,20 +1,18 @@
-import csv
-import logging
-import uuid as uuid
-import zipfile
-from datetime import timedelta
 from io import TextIOWrapper, StringIO
-from math import ceil
 from typing import Optional, List, Iterable, Dict, Iterator, Tuple
 
-from django.core.exceptions import ValidationError
-from django.core.files.base import ContentFile
-
+import csv
+import logging
 import requests
+import uuid as uuid
+import zipfile
 from celery import group, chain
+from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import JSONField, ArrayField
+from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
 from django.core.mail import send_mail
 from django.db import models, transaction
 from django.db.models import F
@@ -24,6 +22,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from dns import resolver
 from google.cloud import storage
+from math import ceil
 from model_utils import Choices
 from model_utils.fields import MonitorField
 from model_utils.managers import QueryManagerMixin
@@ -31,10 +30,12 @@ from model_utils.models import TimeStampedModel, SoftDeletableModel
 from requests_cache import CachedSession
 from six import BytesIO
 from storages.backends.gcloud import GoogleCloudStorage
+from tagulous.models import TagField
 
 from whoweb.accounting.ledgers import wkcredits_fulfilled_ledger
 from whoweb.accounting.models import Transaction, MatchType
 from whoweb.accounting.queries import get_balances_for_object
+from whoweb.coldemail.models import ColdEmailTagModel
 from whoweb.contrib.fields import CompressedBinaryJSONField
 from whoweb.contrib.postgres.fields import EmbeddedModelField
 from whoweb.core.models import EventLoggingModel
@@ -183,6 +184,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     extra_columns = JSONField(null=True)
 
     on_trial = models.BooleanField(default=False)  # ????
+    tags = TagField(to=ColdEmailTagModel, blank=True)
 
     # Managers
     objects = SearchExportManager()

@@ -97,8 +97,9 @@ class FilteredSearchQuerySerializer(serializers.ModelSerializer):
         return instance.serialize()
 
 
-class SearchExportSerializer(IdOrHyperlinkedModelSerializer):
+class SearchExportSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
     query = FilteredSearchQuerySerializer()
+    tags = TagulousField(required=False)
     results_url = serializers.HyperlinkedRelatedField(
         view_name="exportresult-detail",
         source="*",
@@ -139,6 +140,7 @@ class SearchExportSerializer(IdOrHyperlinkedModelSerializer):
             "uuid",
             "billing_seat",
             "query",
+            "tags",
             "status_name",
             "status_changed",
             "sent",

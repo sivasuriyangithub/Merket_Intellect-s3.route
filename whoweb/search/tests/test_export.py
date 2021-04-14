@@ -434,7 +434,7 @@ def test_get_named_fetch_url():
 
 
 def test_get_absolute_url():
-    export: SearchExport = SearchExportFactory()
+    export: SearchExport = SearchExportFactory(status=SearchExport.STATUS.complete)
     assert (
         export.get_absolute_url()
         == f"https://storage.googleapis.com/test/media/exports/{str(export.uuid.hex)}/download/whoknows_search_results_2020-04-13.csv"

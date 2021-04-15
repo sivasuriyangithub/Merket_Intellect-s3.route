@@ -115,6 +115,7 @@ class SearchExportNode(GuardedObjectType):
             "sent_at",
             "progress_counter",
             "target",
+            "rows_uploaded",
             "notify",
             "charge",
             "on_trial",

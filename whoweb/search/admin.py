@@ -186,6 +186,7 @@ class ExportAdmin(ActionsModelAdmin):
         "latest_page_modified",
         "progress_counter",
         "target",
+        "rows_uploaded",
         "should_derive_email",
     )
     list_display_links = (
@@ -248,7 +249,7 @@ class ExportAdmin(ActionsModelAdmin):
     inlines = [EventTabularInline, SearchExportPageInline]
     actions_row = ("download", "download_json")
     actions_detail = ("run_publication_tasks", "download", "download_json")
-    actions = ("store_validation_results",)
+    actions = ("store_validation_results", "compute_rows_uploaded")
 
     def get_queryset(self, request):
         return (
@@ -346,6 +347,29 @@ class ExportAdmin(ActionsModelAdmin):
                 request,
                 f"Updated profiles in page data of {export} with validation results.",
                 level=messages.SUCCESS,
+            )
+
+    def compute_rows_uploaded(self, request, queryset):
+        for export in queryset:
+            if export.status != SearchExport.STATUS.complete:
+                self.message_user(
+                    request,
+                    f"Could not set row count of {export}, export is not complete.",
+                    level=messages.WARNING,
+                )
+                continue
+            if export.rows_uploaded > 0:
+                self.message_user(
+                    request, f"{export} row count already set.", level=messages.INFO,
+                )
+                continue
+            row_count = 0
+            for _ in export.generate_csv_rows():
+                row_count += 1
+            export.rows_uploaded = row_count
+            export.save()
+            self.message_user(
+                request, f"Set row count of {export}.", level=messages.SUCCESS,
             )
 
 

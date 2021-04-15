@@ -307,6 +307,7 @@ def test_upload_to_static_bucket(_):
         export.csv.url
         == f"https://storage.googleapis.com/test/media/exports/{export.uuid.hex}/download/whoknows_search_results_2020-04-13.csv"
     )
+    assert export.rows_uploaded == 1005
 
 
 @patch(
@@ -321,6 +322,7 @@ def test_upload_to_static_bucket_for_coldemail_system(_):
         export.csv.url
         == f"https://storage.googleapis.com/test/media/exports/{export.uuid.hex}/download/{export.uuid.hex}__fetch.csv"
     )
+    assert export.rows_uploaded == 1005
 
 
 def test_get_validation_status(requests_mock):

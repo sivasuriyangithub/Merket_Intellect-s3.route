@@ -174,9 +174,10 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         _("sent at"), monitor="sent", editable=False, null=True, default=None
     )
     progress_counter = models.IntegerField(
-        default=0, help_text="Number of profiles stored in completed pages."
+        default=0, help_text="Number of profiles stored in completed pages"
     )
     target = models.IntegerField(default=0)
+    rows_uploaded = models.IntegerField(default=0)
 
     notify = models.BooleanField(default=False)
     charge = models.BooleanField(default=False)
@@ -859,14 +860,17 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         self.log_event(UPLOAD_TO_BUCKET, task=task_context)
         buffer = StringIO()
         writer = csv.writer(buffer)
+        row_count = 0
         for row in self.generate_csv_rows():
             writer.writerow(row)
+            row_count += 1
         export_file = ContentFile(buffer.getvalue().encode("utf-8"))
         if self.uploadable:
             filename = f"{self.uuid.hex}__fetch.csv"
         else:
             filename = f"whoknows_search_results_{self.created.date()}.csv"
         self.csv.save(filename, export_file)
+        self.rows_uploaded = row_count
         self.status = self.STATUS.complete
         self.save()
         # Update metadata to ensure download on link-click for users.

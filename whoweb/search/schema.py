@@ -23,7 +23,7 @@ from .models import (
 from .models.profile import PERSONAL, WORK, DerivationCache
 
 DeferChoices = graphene.Enum(
-    "DeferChoices", FilteredSearchQuery.PUBLIC_DEFER_CHOICES._identifier_map.items()
+    "DeferChoices", FilteredSearchQuery.DEFER_CHOICES._identifier_map.items()
 )
 
 ContactFilterChoices = graphene.Enum(
@@ -101,7 +101,9 @@ class SearchExportNode(GuardedObjectType):
         interfaces = (relay.Node,)
         filterset_class = SearchExportFilterSet
         permission_classes = [IsSuperUser | IsAuthenticated]
-        filter_backends = (MemberOfBillingAccountPermissionsFilter,)
+        filter_backends = [
+            MemberOfBillingAccountPermissionsFilter | ObjectPermissionsFilter
+        ]
         fields = (
             "uuid",
             "billing_seat",

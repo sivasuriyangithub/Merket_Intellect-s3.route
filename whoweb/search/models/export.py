@@ -198,7 +198,9 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         return "%s (%s) %s" % (self.__class__.__name__, self.pk, self.uuid.hex)
 
     @classmethod
-    def create_from_query(cls, billing_seat: Seat, query: dict, **kwargs):
+    def create_from_query(
+        cls, billing_seat: BillingAccountMember, query: dict, **kwargs
+    ):
         """
         :raises SubscriptionError: Billing seat must be subscribed with enough credits to complete the requested export.
         :raises ValidationError: Query must include contact filters for export.

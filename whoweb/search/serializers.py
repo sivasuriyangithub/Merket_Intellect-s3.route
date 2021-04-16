@@ -165,6 +165,7 @@ class SearchExportSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
             return SearchExport.create_from_query(
                 billing_seat=validated_data["billing_seat"],
                 query=validated_data["query"],
+                tags=validated_data["tags"],
                 uploadable=validated_data["uploadable"],
                 notify=not validated_data["uploadable"],
                 charge=not validated_data["uploadable"],

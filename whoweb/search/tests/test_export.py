@@ -217,7 +217,10 @@ def test_lifecyle_charges(
 ):
     seat = BillingAccountMemberFactory(seat_credits=1500000)
     export = SearchExport.create_from_query(
-        billing_seat=seat, query=query_contact_invites_defer_validation, charge=True
+        billing_seat=seat,
+        query=query_contact_invites_defer_validation,
+        tags="a,b,c",
+        charge=True,
     )
     export.refresh_from_db()
     assert export.target == 5000

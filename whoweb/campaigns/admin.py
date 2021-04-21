@@ -6,6 +6,8 @@ from django.shortcuts import redirect
 from django.template.defaultfilters import date
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import escape
+from django.utils.safestring import mark_safe
 from inline_actions.admin import InlineActionsMixin, InlineActionsModelAdminMixin
 
 from whoweb.campaigns.events import ENQUEUED_FROM_ADMIN
@@ -42,12 +44,13 @@ class RootCampaignInline(InlineActionsMixin, admin.TabularInline):
     inline_actions = [
         "rerun",
     ]
-    fields = (
-        "coldcampaign",
+    fields = ("campaign", "campaign__status", "campaign__status_changed", "export")
+    readonly_fields = (
+        "campaign",
         "campaign__status",
         "campaign__status_changed",
+        "export",
     )
-    readonly_fields = ("campaign__status", "campaign__status_changed")
 
     verbose_name = "Cold Campaign (root)"
     verbose_name_plural = "Cold Campaigns (roots)"
@@ -59,6 +62,13 @@ class RootCampaignInline(InlineActionsMixin, admin.TabularInline):
             campaign__status_changed=F("coldcampaign__status_changed"),
         )
 
+    def campaign(self, obj: BaseCampaignRunner.campaigns.through):
+        coldcampaign = obj.coldcampaign
+        link = reverse("admin:coldemail_coldcampaign_change", args=[coldcampaign.pk])
+        return mark_safe(f'<a href="{link}">{escape(coldcampaign.__str__())}</a>')
+
+    campaign.short_description = "Cold Campaign"
+
     def campaign__status(self, obj):
         return ColdCampaign.STATUS[obj.campaign__status]
 
@@ -66,6 +76,13 @@ class RootCampaignInline(InlineActionsMixin, admin.TabularInline):
         return date(
             timezone.localtime(obj.campaign__status_changed), settings.DATETIME_FORMAT
         )
+
+    def export(self, obj: BaseCampaignRunner.campaigns.through):
+        export = obj.coldcampaign.campaign_list.export
+        link = reverse("admin:search_searchexport_change", args=[export.pk])
+        return mark_safe(f'<a href="{link}">{escape(export.__str__())}</a>')
+
+    export.short_description = "Export"
 
     def has_add_permission(self, request, obj=None):
         return False

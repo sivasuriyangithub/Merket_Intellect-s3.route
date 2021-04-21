@@ -56,6 +56,7 @@ from whoweb.search.events import (
     VALIDATION_COMPLETE_LOCKED,
     COMPRESSING_PAGES,
     UPLOAD_TO_BUCKET,
+    GENERATING_PAGES_LOCKED,
 )
 from whoweb.users.models import Seat
 from .profile import ResultProfile, WORK, PERSONAL, SOCIAL, PROFILE, VALIDATED
@@ -142,7 +143,8 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     EVENT_REVERSE_NAME = "export"
     STATUS = Choices(
         (0, "created", "Created"),
-        (2, "pages_working", "Pages Running"),
+        (2, "pages_generating", "Pages Generating"),
+        (3, "pages_working", "Pages Running"),
         (4, "pages_complete", "Pages Complete"),
         (8, "validating", "Awaiting External Validation"),
         (16, "validated", "Validation Complete"),
@@ -658,7 +660,10 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         self.log_event(GENERATING_PAGES, task=task_context)
         with transaction.atomic():
             export = self.locked()
-            export.status = SearchExport.STATUS.pages_working
+            if not export.status < SearchExport.STATUS.pages_generating:
+                self.log_event(GENERATING_PAGES_LOCKED, task=task_context)
+                return []
+            export.status = SearchExport.STATUS.pages_generating
             export.save()
             pages = export._generate_pages()
             self.log_event(GENERATING_PAGES_COMPLETE, task=task_context)

@@ -219,7 +219,7 @@ def test_lifecyle_charges(
     export = SearchExport.create_from_query(
         billing_seat=seat,
         query=query_contact_invites_defer_validation,
-        tags="a,b,c",
+        tags="",
         charge=True,
     )
     export.refresh_from_db()

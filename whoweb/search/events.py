@@ -1,6 +1,8 @@
 ENQUEUED_FROM_QUERY = 100, "Enqueued directly from query."
 ENQUEUED_FROM_ADMIN = 110, "Enqueued from Admin."
 GENERATING_PAGES = 200, "Generating pages."
+GENERATING_PAGES_LOCKED = 201, "Pages already generated."
+
 GENERATING_PAGES_COMPLETE = 220, "Finished generating pages."
 FINALIZING = 700, "Running post-page steps."
 FINALIZING_LOCKED = 701, "Failed to get lock when running post-page steps."

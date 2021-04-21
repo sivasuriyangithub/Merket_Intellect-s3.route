@@ -74,6 +74,9 @@ def spawn_do_page_process_tasks(self, prefetch_multiplier, export_id):
     export = SearchExport.available_objects.get(pk=export_id)
     if export.is_done_processing_pages:
         return "Done"
+    if export.status < SearchExport.STATUS.pages_working:
+        export.status = SearchExport.STATUS.pages_working
+        export.save()
     num_pages = ceil(export.pages.count() * prefetch_multiplier)
     if empty_pages := export.get_next_empty_page(num_pages):
         empty_page_ids = [page.pk for page in empty_pages]

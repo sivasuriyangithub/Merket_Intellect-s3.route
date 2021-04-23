@@ -509,7 +509,8 @@ class ResultProfile(BaseModel):
     ):
         if self.derivation_status == VALIDATED:
             return self.derivation_status
-
+        if not filters:
+            filters = [WORK, PERSONAL, SOCIAL, PROFILE]
         if self.id.startswith("email:"):
             email = self.id.split("email:")[-1]
         elif self.web_id:
@@ -526,10 +527,8 @@ class ResultProfile(BaseModel):
             url_args = [(key, value) for key, value in url_args.items()]
             for deferred in defer:
                 url_args.append(("defer", deferred))
-            if not filters:
-                filters = [WORK, PERSONAL, SOCIAL, PROFILE]
-            for filt in filters:
-                url_args.append(("filter", filt))
+            for filtr in filters:
+                url_args.append(("filter", filtr))
             try:
                 derivation = router.derive_email(
                     params=url_args,
@@ -560,6 +559,7 @@ class ResultProfile(BaseModel):
                     emails=[email],
                     graded_emails=[GradedEmail(email=email, grade="A")],
                     status=COMPLETE,
+                    filters=filters,
                 )
             )
         return self.derivation_status

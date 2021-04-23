@@ -217,7 +217,7 @@ class ExportAdmin(ActionsModelAdmin):
                 "classes": (),
                 "fields": (
                     ("status", "status_changed",),
-                    ("progress_counter", "target",),
+                    ("progress_counter", "target", "rows_uploaded"),
                     "queue_priority",
                     "rows_enqueued",
                     "working_count",
@@ -240,6 +240,7 @@ class ExportAdmin(ActionsModelAdmin):
         "sent_at",
         "working_count",
         "rows_enqueued",
+        "rows_uploaded",
         "queue_priority",
         "latest_page_modified",
         "status_changed",

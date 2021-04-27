@@ -336,13 +336,16 @@ class ResultProfile(BaseModel):
             values.get("_id") or values.get("user_id") or values.get("profile_id"),
         )
 
-        primary = values.get("primary_alias") or values["_id"]
-        values.setdefault(
-            "web_id",
-            primary
-            if primary and primary.startswith("wp:")
-            else values.get("web_profile_id"),
-        )
+        if primary := values.get("primary_alias") or values["_id"]:
+            values.setdefault(
+                "web_id",
+                primary if primary.startswith("wp:") else values.get("web_profile_id"),
+            )
+        for id_field in ("_id", "user_id", "profile_id", "primary_alias"):
+            if id_val := values.get(id_field):
+                if id_val.startswith("email:"):
+                    values.setdefault("email", id_val.split("email:")[-1])
+                    break
         return values
 
     @validator(
@@ -426,7 +429,7 @@ class ResultProfile(BaseModel):
         return self.invite_key
 
     @property
-    def domain(self):
+    def domain(self) -> Optional[str]:
         if self.email:
             return self.email.split("@")[1]
 
@@ -511,47 +514,11 @@ class ResultProfile(BaseModel):
             return self.derivation_status
         if not filters:
             filters = [WORK, PERSONAL, SOCIAL, PROFILE]
-        if self.id.startswith("email:"):
-            email = self.id.split("email:")[-1]
-        elif self.web_id:
-            url_args = {
-                "include_social": include_social,
-                "is_paid": True,
-                "is_domain": False,
-                "first": self.clean_proper_name(self.first_name),
-                "last": self.clean_proper_name(self.last_name),
-                "domain": self.company.encode("utf-8") if self.company else None,
-                "wp_id": self.web_id,
-                "timeout": 90,
-            }
-            url_args = [(key, value) for key, value in url_args.items()]
-            for deferred in defer:
-                url_args.append(("defer", deferred))
-            for filtr in filters:
-                url_args.append(("filter", filtr))
-            try:
-                derivation = router.derive_email(
-                    params=url_args,
-                    timeout=timeout,
-                    request_producer=f"whoweb.search.export/page/{producer}"
-                    if producer
-                    else None,
-                )
-            except requests.Timeout:
-                return RETRY
-            else:
-                derived = DerivedContact(**derivation)
-                if not hasattr(derivation, "filters"):
-                    derived.filters = filters
-                self.set_derived_contact(derived)
-                return self.derivation_status
+        try:
+            email = User.objects.get(username=self.id).email
+        except User.DoesNotExist:
+            pass
         else:
-            try:
-                email = User.objects.get(username=self.id).email
-            except User.DoesNotExist:
-                email = None
-
-        if email:
             self.set_derived_contact(
                 DerivedContact(
                     email=email,
@@ -562,6 +529,42 @@ class ResultProfile(BaseModel):
                     filters=filters,
                 )
             )
+            return self.derivation_status
+
+        url_args = {
+            "include_social": include_social,
+            "is_paid": True,
+            "wp_id": self.web_id or self.id,
+            "first": self.clean_proper_name(self.first_name),
+            "last": self.clean_proper_name(self.last_name),
+            "timeout": 90,
+            "domain": self.company.encode("utf-8") if self.company else None,
+            "is_domain": False,
+        }
+        if self.domain:
+            url_args.update(
+                {"domain": self.domain, "is_domain": True,}
+            )
+        url_args = [(key, value) for key, value in url_args.items()]
+        for deferred in defer:
+            url_args.append(("defer", deferred))
+        for filtr in filters:
+            url_args.append(("filter", filtr))
+        try:
+            derivation = router.derive_email(
+                params=url_args,
+                timeout=timeout,
+                request_producer=f"whoweb.search.export/page/{producer}"
+                if producer
+                else None,
+            )
+        except requests.Timeout:
+            return RETRY
+        else:
+            derived = DerivedContact(**derivation)
+            if not hasattr(derivation, "filters"):
+                derived.filters = filters
+            self.set_derived_contact(derived)
         return self.derivation_status
 
     @classmethod

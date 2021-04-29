@@ -81,7 +81,7 @@ class SearchExportManager(QueryManagerMixin, models.Manager):
 
 class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     DERIVATION_RATIO = 3
-    PREFETCH_MULTIPLIER = 2
+    BATCH_MULTIPLIER = 6
     PAGE_DELAY = 180
     SIMPLE_CAP = 1000
     SKIP_CODE = "MAGIC_SKIP_CODE_NO_VALIDATION_NEEDED"
@@ -641,7 +641,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             pages = self._generate_pages_scrolling(
                 scroller=search,
                 start_page=start_page,
-                num_pages_needed=num_pages * self.PREFETCH_MULTIPLIER,
+                num_pages_needed=num_pages * self.BATCH_MULTIPLIER,
             )
         else:
             num_ids_needed = min(self.num_ids_needed, len(ids))
@@ -669,10 +669,10 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             self.log_event(GENERATING_PAGES_COMPLETE, task=task_context)
             return pages
 
-    def get_next_empty_page(self, batch=1) -> Optional["SearchExportPage"]:
+    def get_empty_pages_in(self, id_batch) -> Optional["SearchExportPage"]:
         return self.pages.filter(
-            data__isnull=True, status=SearchExportPage.STATUS.created
-        )[:batch]
+            pk__in=id_batch, data__isnull=True, status=SearchExportPage.STATUS.created,
+        )
 
     def compress_working_pages(self, page_ids, task_context=None):
         self.log_event(COMPRESSING_PAGES, task=task_context, data={"pages": page_ids})
@@ -941,7 +941,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     def processing_signatures(self, on_complete=None):
         from whoweb.search.tasks import (
             generate_pages,
-            spawn_do_page_process_tasks,
+            divide_batches_into_page_process_tasks,
             do_post_pages_completion,
             validate_rows,
             fetch_validation_results,
@@ -951,24 +951,14 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             upload_to_static_bucket,
         )
 
-        batch_ratio = self.PREFETCH_MULTIPLIER
-        if self.specified_ids or batch_ratio == 1:
-            do_pages = spawn_do_page_process_tasks.si(
-                prefetch_multiplier=1, export_id=self.pk
-            )
+        if self.specified_ids:
+            batches = 1
         else:
-            do_pages = chain(
-                *[
-                    spawn_do_page_process_tasks.si(
-                        prefetch_multiplier=1 / 6, export_id=self.pk
-                    )
-                    for _ in range(6)
-                ],
-            )
+            batches = self.BATCH_MULTIPLIER
 
         sigs = (
-            generate_pages.si(export_id=self.pk).set(priority=4)
-            | do_pages
+            generate_pages.si(export_id=self.pk, batches=batches).set(priority=4)
+            | divide_batches_into_page_process_tasks.s(export_id=self.pk)
             | do_post_pages_completion.si(export_id=self.pk).set(priority=3)
         )
         if on_complete:

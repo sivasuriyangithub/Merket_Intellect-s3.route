@@ -1,8 +1,9 @@
 import logging
 from math import ceil
 
-from celery import group, shared_task
+from celery import group, shared_task, chain
 from celery.exceptions import MaxRetriesExceededError
+from django.db import transaction
 from django.db.models import F
 from google.api_core.exceptions import GoogleAPICallError
 from kombu.exceptions import OperationalError
@@ -29,6 +30,14 @@ MAX_DERIVE_RETRY = 3
 MAX_NUM_PAGES_TO_PROCESS_IN_SINGLE_TASK = 5
 
 
+def chunks(l, n):
+    """Yield n number of sequential chunks from l."""
+    d, r = divmod(len(l), n)
+    for i in range(n):
+        si = (d + 1) * (i if i < r else r) + d * (0 if i < r else i - r)
+        yield l[si : si + (d + 1 if i < r else d)]
+
+
 @shared_task(
     bind=True,
     max_retries=2000,
@@ -37,40 +46,50 @@ MAX_NUM_PAGES_TO_PROCESS_IN_SINGLE_TASK = 5
     ignore_result=False,
     autoretry_for=NETWORK_ERRORS,
 )
-def generate_pages(self, export_id):
+def generate_pages(self, export_id, batches=1):
     export = SearchExport.available_objects.get(pk=export_id)
-    pages = export.generate_pages(task_context=self.request)
-    return len(pages)
+    pages = [page.pk for page in export.generate_pages(task_context=self.request)]
+    return list(chunks(pages, batches))
 
 
-@shared_task(
-    bind=True,
-    max_retries=3000,
-    track_started=True,
-    ignore_result=False,
-    autoretry_for=NETWORK_ERRORS,
-)
-def do_process_page(self, page_pk):
-    page = SearchExportPage.objects.get(pk=page_pk)
-    if page.export.is_done_processing_pages:
-        return "Export already done"
-    if not page.export.should_derive_email:
-        return page.populate_data_directly(task_context=self.request)
-
-    if tasks := page.get_derivation_tasks():
-        page.status = SearchExportPage.STATUS.working
-        page.pending_count = len(tasks)
-        page.save()
-        chrd = group(tasks) | finalize_page.si(pk=page.pk).on_error(
-            finalize_page.si(pk=page.pk)
+@shared_task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
+def divide_batches_into_page_process_tasks(self, batches, export_id):
+    """
+    Batches keep us from overscheduling jobs, by checking for doneness between batches
+    """
+    with transaction.atomic():
+        export = (
+            SearchExport.available_objects.filter(pk=export_id)
+            .select_for_update(of=("self",))
+            .first()
         )
-        return self.replace(chrd)
-    else:
-        return "No page tasks required. Page done."
+        if export.status >= SearchExport.STATUS.pages_working:
+            return "Pages already working."
+        export.status = SearchExport.STATUS.pages_working
+        export.save()
+        do_pages = chain(
+            *[
+                group(
+                    [
+                        do_process_page.signature(
+                            args=(page_id,),
+                            immutable=True,
+                            countdown=i * SearchExport.PAGE_DELAY,
+                        )
+                        for i, page_id in enumerate(batch)
+                    ]
+                )
+                for batch in batches
+            ],
+        )
+        return self.replace(do_pages)
 
 
 @shared_task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
 def spawn_do_page_process_tasks(self, prefetch_multiplier, export_id):
+    """
+    DEPRECATED: Use divide_batches_into_page_process_tasks. Saved for active jobs.
+    """
     export = SearchExport.available_objects.get(pk=export_id)
     if export.is_done_processing_pages:
         return "Done"
@@ -78,7 +97,7 @@ def spawn_do_page_process_tasks(self, prefetch_multiplier, export_id):
         export.status = SearchExport.STATUS.pages_working
         export.save()
     num_pages = ceil(export.pages.count() * prefetch_multiplier)
-    if empty_pages := export.get_next_empty_page(num_pages):
+    if empty_pages := export.get_empty_pages_in(num_pages):
         empty_page_ids = [page.pk for page in empty_pages]
         tasks = group(
             [
@@ -93,6 +112,37 @@ def spawn_do_page_process_tasks(self, prefetch_multiplier, export_id):
         export.log_event(PAGES_SPAWNED, data={"signatures": repr(tasks)})
         return self.replace(tasks)
     return "Done with no pages found."
+
+
+@shared_task(
+    bind=True,
+    max_retries=3000,
+    track_started=True,
+    ignore_result=False,
+    autoretry_for=NETWORK_ERRORS,
+)
+def do_process_page(self, page_pk):
+    page = SearchExportPage.objects.get(pk=page_pk)
+
+    if page.export.is_done_processing_pages:
+        return "Export already done"
+    if not page.export.should_derive_email:
+        return page.populate_data_directly(task_context=self.request)
+
+    with transaction.atomic():
+        page = page.locked()
+        if page.status >= SearchExportPage.STATUS.working:
+            return "Page already running."
+        if tasks := page.get_derivation_tasks():
+            page.status = SearchExportPage.STATUS.working
+            page.pending_count = len(tasks)
+            page.save()
+            chrd = group(tasks) | finalize_page.si(pk=page.pk).on_error(
+                finalize_page.si(pk=page.pk)
+            )
+            return self.replace(chrd)
+        else:
+            return "No page tasks required. Page done."
 
 
 @shared_task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)

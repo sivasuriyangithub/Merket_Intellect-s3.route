@@ -1,3 +1,4 @@
+import itertools
 from unittest.mock import patch, PropertyMock
 
 import pytest
@@ -25,7 +26,27 @@ def test_generate_pages_task(
     pages_mock.side_effect = lambda *x, **y: SearchExportPageFactory.create_batch(
         8, export=export, data=None
     )
-    assert generate_pages.si(export.pk).apply_async().get() == 8
+    result = generate_pages.si(export.pk).apply_async().get()
+    assert len(result) == 1
+    assert len(*result) == 8
+    assert pages_mock.call_count == 1
+
+
+@patch("whoweb.search.models.SearchExport.generate_pages")
+def test_generate_pages_task_with_batches(
+    pages_mock, query_contact_invites_defer_validation, settings
+):
+    settings.CELERY_TASK_ALWAYS_EAGER = True
+
+    export: SearchExport = SearchExportFactory(
+        query=query_contact_invites_defer_validation, charge=True
+    )
+    pages_mock.side_effect = lambda *x, **y: SearchExportPageFactory.create_batch(
+        8, export=export, data=None
+    )
+    result = generate_pages.si(export.pk, batches=6).apply_async().get()
+    assert len(result) == 6
+    assert len(list(itertools.chain(*result))) == 8
     assert pages_mock.call_count == 1
 
 

@@ -77,10 +77,14 @@ def divide_batches_into_page_process_tasks(self, batches, export_id):
                             countdown=i * SearchExport.PAGE_DELAY,
                         )
                         for i, page_id in enumerate(batch)
+                        if page_id
                     ]
                 )
                 for batch in batches
             ],
+        )
+        export.log_event(
+            PAGES_SPAWNED, data={"batches": batches, "signatures": repr(do_pages)}
         )
         return self.replace(do_pages)
 

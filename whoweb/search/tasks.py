@@ -48,8 +48,13 @@ def chunks(l, n):
 )
 def generate_pages(self, export_id, batches=1):
     export = SearchExport.available_objects.get(pk=export_id)
-    pages = [page.pk for page in export.generate_pages(task_context=self.request)]
-    return list(chunks(pages, batches))
+    pages = export.generate_pages(
+        task_context=self.request
+    )  # no ids on bulk_create w/ ignore_conflicts
+    page_ids = export.pages.filter(
+        page_num__in=[page.page_num for page in pages]
+    ).values_list("pk", flat=True)
+    return list(chunks(page_ids, batches))
 
 
 @shared_task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)
@@ -77,7 +82,6 @@ def divide_batches_into_page_process_tasks(self, batches, export_id):
                             countdown=i * SearchExport.PAGE_DELAY,
                         )
                         for i, page_id in enumerate(batch)
-                        if page_id
                     ]
                 )
                 for batch in batches
@@ -86,7 +90,9 @@ def divide_batches_into_page_process_tasks(self, batches, export_id):
         export.log_event(
             PAGES_SPAWNED, data={"batches": batches, "signatures": repr(do_pages)}
         )
-        return self.replace(do_pages)
+        if any(batches):
+            return self.replace(do_pages)
+    return "Done with no pages found."
 
 
 @shared_task(bind=True, ignore_result=False, autoretry_for=NETWORK_ERRORS)

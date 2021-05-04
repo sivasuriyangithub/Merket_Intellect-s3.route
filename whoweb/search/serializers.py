@@ -1,10 +1,8 @@
 from django.db import transaction
-from django.http import Http404
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 
-from search.events import ENQUEUED_FROM_CREATE
 from whoweb.accounting.serializers import TransactionSerializer
 from whoweb.contrib.rest_framework.fields import (
     MultipleChoiceListField,
@@ -16,9 +14,9 @@ from whoweb.contrib.rest_framework.serializers import (
     IdOrHyperlinkedModelSerializer,
     TaggableMixin,
 )
-from whoweb.core.router import router
 from whoweb.payments.exceptions import PaymentRequired, SubscriptionError
 from whoweb.payments.models import BillingAccountMember
+from whoweb.search.events import ENQUEUED_FROM_CREATE
 from whoweb.search.models import (
     SearchExport,
     FilteredSearchQuery,

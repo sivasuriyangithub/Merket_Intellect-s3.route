@@ -1,4 +1,5 @@
 ENQUEUED_FROM_QUERY = 100, "Enqueued directly from query."
+ENQUEUED_FROM_CREATE = 105, "Enqueued by Create Action."
 ENQUEUED_FROM_ADMIN = 110, "Enqueued from Admin."
 GENERATING_PAGES = 200, "Generating pages."
 GENERATING_PAGES_LOCKED = 201, "Pages already generated."

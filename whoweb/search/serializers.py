@@ -1,8 +1,10 @@
+from django.db import transaction
 from django.http import Http404
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 
+from search.events import ENQUEUED_FROM_CREATE
 from whoweb.accounting.serializers import TransactionSerializer
 from whoweb.contrib.rest_framework.fields import (
     MultipleChoiceListField,
@@ -162,7 +164,7 @@ class SearchExportSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
 
     def create(self, validated_data):
         try:
-            return SearchExport.create_from_query(
+            export = SearchExport.create_from_query(
                 billing_seat=validated_data["billing_seat"],
                 query=validated_data["query"],
                 tags=validated_data.get("tags", ""),
@@ -172,6 +174,20 @@ class SearchExportSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
             )
         except SubscriptionError as e:
             raise PaymentRequired(detail=e)
+
+        tasks = export.processing_signatures()
+
+        def on_commit():
+            """
+            ATOMIC_REQUESTS is True
+            """
+            res = tasks.apply_async()
+            export.log_event(
+                evt=ENQUEUED_FROM_CREATE, signatures=str(tasks), async_result=str(res)
+            )
+
+        transaction.on_commit(on_commit)
+        return export
 
 
 class SearchExportDataSerializer(serializers.Serializer):

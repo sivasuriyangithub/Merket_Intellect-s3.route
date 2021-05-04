@@ -240,18 +240,6 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
                     f"Not enough credits to complete this export. "
                     f"{billing_seat.credits} available but {credits_to_charge} required"
                 )
-        tasks = export.processing_signatures()
-
-        def on_commit():
-            """
-            ATOMIC_REQUESTS is True
-            """
-            res = tasks.apply_async()
-            export.log_event(
-                evt=ENQUEUED_FROM_QUERY, signatures=str(tasks), async_result=str(res)
-            )
-
-        transaction.on_commit(on_commit)
         return export
 
     def locked(self, **kwargs):

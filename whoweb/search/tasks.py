@@ -48,9 +48,12 @@ def chunks(l, n):
 )
 def generate_pages(self, export_id, batches=1):
     export = SearchExport.available_objects.get(pk=export_id)
-    pages = export.generate_pages(
-        task_context=self.request
-    )  # no ids on bulk_create w/ ignore_conflicts
+    pages = export.generate_pages(task_context=self.request)
+    if not pages:
+        self.request.chain = self.request.callbacks = None
+        return "No pages generated so no need to proceed."
+
+    # No ids on bulk_create w/ ignore_conflicts, refetch from db.
     page_ids = export.pages.filter(
         page_num__in=[page.page_num for page in pages]
     ).values_list("pk", flat=True)

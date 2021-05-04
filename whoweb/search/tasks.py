@@ -41,6 +41,8 @@ def chunks(l, n):
 @shared_task(
     bind=True,
     max_retries=2000,
+    acks_late=False,
+    reject_on_worker_lost=True,
     retry_backoff=True,
     track_started=True,
     ignore_result=False,

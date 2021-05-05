@@ -56,7 +56,6 @@ from whoweb.search.events import (
     VALIDATION_COMPLETE_LOCKED,
     COMPRESSING_PAGES,
     UPLOAD_TO_BUCKET,
-    GENERATING_PAGES_LOCKED,
 )
 from whoweb.users.models import Seat
 from .profile import ResultProfile, WORK, PERSONAL, SOCIAL, PROFILE, VALIDATED
@@ -81,7 +80,7 @@ class SearchExportManager(QueryManagerMixin, models.Manager):
 
 class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     DERIVATION_RATIO = 3
-    BATCH_MULTIPLIER = 6
+    PREFETCH_MULTIPLIER = 2
     PAGE_DELAY = 180
     SIMPLE_CAP = 1000
     SKIP_CODE = "MAGIC_SKIP_CODE_NO_VALIDATION_NEEDED"
@@ -143,8 +142,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     EVENT_REVERSE_NAME = "export"
     STATUS = Choices(
         (0, "created", "Created"),
-        (2, "pages_generating", "Pages Generating"),
-        (3, "pages_working", "Pages Running"),
+        (2, "pages_working", "Pages Running"),
         (4, "pages_complete", "Pages Complete"),
         (8, "validating", "Awaiting External Validation"),
         (16, "validated", "Validation Complete"),
@@ -629,7 +627,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             pages = self._generate_pages_scrolling(
                 scroller=search,
                 start_page=start_page,
-                num_pages_needed=num_pages * self.BATCH_MULTIPLIER,
+                num_pages_needed=num_pages * self.PREFETCH_MULTIPLIER,
             )
         else:
             num_ids_needed = min(self.num_ids_needed, len(ids))
@@ -648,19 +646,16 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         self.log_event(GENERATING_PAGES, task=task_context)
         with transaction.atomic():
             export = self.locked()
-            if not export.status < SearchExport.STATUS.pages_generating:
-                self.log_event(GENERATING_PAGES_LOCKED, task=task_context)
-                return []
-            export.status = SearchExport.STATUS.pages_generating
+            export.status = SearchExport.STATUS.pages_working
             export.save()
             pages = export._generate_pages()
             self.log_event(GENERATING_PAGES_COMPLETE, task=task_context)
             return pages
 
-    def get_empty_pages_in(self, id_batch) -> Optional["SearchExportPage"]:
+    def get_next_empty_page(self, batch=1) -> Optional["SearchExportPage"]:
         return self.pages.filter(
-            pk__in=id_batch, data__isnull=True, status=SearchExportPage.STATUS.created,
-        )
+            data__isnull=True, status=SearchExportPage.STATUS.created
+        )[:batch]
 
     def compress_working_pages(self, page_ids, task_context=None):
         self.log_event(COMPRESSING_PAGES, task=task_context, data={"pages": page_ids})
@@ -929,7 +924,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     def processing_signatures(self, on_complete=None):
         from whoweb.search.tasks import (
             generate_pages,
-            divide_batches_into_page_process_tasks,
+            spawn_do_page_process_tasks,
             do_post_pages_completion,
             validate_rows,
             fetch_validation_results,
@@ -939,14 +934,24 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             upload_to_static_bucket,
         )
 
-        if self.specified_ids:
-            batches = 1
+        batch_ratio = self.PREFETCH_MULTIPLIER
+        if self.specified_ids or batch_ratio == 1:
+            do_pages = spawn_do_page_process_tasks.si(
+                prefetch_multiplier=1, export_id=self.pk
+            )
         else:
-            batches = self.BATCH_MULTIPLIER
+            do_pages = chain(
+                *[
+                    spawn_do_page_process_tasks.si(
+                        prefetch_multiplier=1 / 6, export_id=self.pk
+                    )
+                    for _ in range(6)
+                ],
+            )
 
         sigs = (
-            generate_pages.si(export_id=self.pk, batches=batches).set(priority=4)
-            | divide_batches_into_page_process_tasks.s(export_id=self.pk)
+            generate_pages.si(export_id=self.pk).set(priority=4)
+            | do_pages
             | do_post_pages_completion.si(export_id=self.pk).set(priority=3)
         )
         if on_complete:

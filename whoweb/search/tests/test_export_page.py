@@ -39,9 +39,9 @@ def test_generate_pages_specified(query_specified_profiles_in_filters):
 @pytest.mark.parametrize(
     "population,pages",
     [
-        (100, 1 * SearchExport.BATCH_MULTIPLIER),
-        (500, 2 * SearchExport.BATCH_MULTIPLIER),
-        (601, 3 * SearchExport.BATCH_MULTIPLIER),
+        (100, 1 * SearchExport.PREFETCH_MULTIPLIER),
+        (500, 2 * SearchExport.PREFETCH_MULTIPLIER),
+        (601, 3 * SearchExport.PREFETCH_MULTIPLIER),
     ],
 )
 @patch("whoweb.search.models.ScrollSearch.get_ids_for_page")
@@ -58,9 +58,9 @@ def test_generate_pages(pop_mock, get_ids, query_contact_invites, population, pa
 @pytest.mark.parametrize(
     "population,pages",
     [
-        (100, 1 * SearchExport.BATCH_MULTIPLIER),
-        (500, 2 * SearchExport.BATCH_MULTIPLIER),
-        (601, 3 * SearchExport.BATCH_MULTIPLIER),
+        (100, 1 * SearchExport.PREFETCH_MULTIPLIER),
+        (500, 2 * SearchExport.PREFETCH_MULTIPLIER),
+        (601, 3 * SearchExport.PREFETCH_MULTIPLIER),
     ],
 )
 @patch("whoweb.search.models.ScrollSearch.get_profiles_for_page")
@@ -138,18 +138,28 @@ def test_page_process_applies_group_derivations(
     assert isinstance(tasks[0], Signature)
 
 
+def test_get_next_empty_page():
+    export: SearchExport = SearchExportFactory()
+    pages: [SearchExportPage] = SearchExportPageFactory.create_batch(
+        3, export=export, data=None
+    )
+    assert list(export.get_next_empty_page()) == [pages[0]]
+    SearchExportPage.objects.filter(pk=pages[0].pk).update(data={"done": True})
+    assert list(export.get_next_empty_page()) == [pages[1]]
+
+
 def test_get_next_empty_page_batch():
     export: SearchExport = SearchExportFactory()
     pages: [SearchExportPage] = SearchExportPageFactory.create_batch(
         20, export=export, data=None
     )
-    first_set = export.get_empty_pages_in([page.pk for page in pages[:5]])
+    first_set = export.get_next_empty_page(5)
     assert first_set.count() == 5
-    second_obj_in_first_set = list(first_set)[1]
+    second_obj_in_first_set = first_set[1]
     SearchExportPage.objects.filter(pk=pages[0].pk).update(data={"done": True})
-    next_overlapping_set = export.get_empty_pages_in([page.pk for page in pages[:10]])
-    assert next_overlapping_set.count() == 9
-    first_obj_in_second_set = list(next_overlapping_set)[0]
+    next_overlapping_set = export.get_next_empty_page(5)
+    assert next_overlapping_set.count() == 5
+    first_obj_in_second_set = next_overlapping_set[0]
     assert second_obj_in_first_set == first_obj_in_second_set
 
 

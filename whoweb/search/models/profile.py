@@ -283,7 +283,7 @@ class ResultProfile(BaseModel):
     web_id: Optional[str] = None
     user_id: Optional[str] = None
     profile_id: Optional[str] = None
-    primary_alias: Optional[str] = None
+    # primary_alias: Optional[str] = None
     web_profile_id: Optional[str] = None
     derivation_status: Optional[str] = None
 
@@ -336,13 +336,11 @@ class ResultProfile(BaseModel):
             values.get("_id") or values.get("user_id") or values.get("profile_id"),
         )
 
-        if primary := values.get("primary_alias") or values["_id"]:
-            values.setdefault(
-                "web_id",
-                primary if primary.startswith("wp:") else values.get("web_profile_id"),
-            )
-        for id_field in ("_id", "user_id", "profile_id", "primary_alias"):
+        for id_field in ("_id", "user_id", "profile_id", "web_profile_id"):
             if id_val := values.get(id_field):
+                if id_val.startswith("wp:"):
+                    values.setdefault("web_id", id_val)
+                    break
                 if id_val.startswith("email:"):
                     values.setdefault("email", id_val.split("email:")[-1])
                     break

@@ -5,6 +5,9 @@ from typing import Optional, List, Dict, Any
 
 import requests
 from datetime import datetime, date
+
+from bson import ObjectId
+from bson.errors import InvalidId
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import JSONField
@@ -583,11 +586,8 @@ class ResultProfile(BaseModel):
         if _id and all([first_name, last_name, company]):
             pass
         elif _id and not all([first_name, last_name, company]):
-            lookup_by_id = router.profile_lookup(json={"profile_id": _id})
-            profiles = lookup_by_id.get("results")
-            if not profiles:
-                raise Http404("Unable to find a profile matching the supplied id.")
-            profile = ResultProfile(**profiles[0])
+            profile_data = cls._lookup_by_id(_id)
+            profile = ResultProfile(**profile_data)
         else:
             if found := profile._search_for_this():
                 profile = found
@@ -613,42 +613,16 @@ class ResultProfile(BaseModel):
         get_web_profile=True,
         no_cache=None,
     ) -> "ResultProfile":
-
-        if profile_id is None:
-            profile_id = ""
-
-        if not user_id and profile_id.startswith("user"):
-            user_id = profile_id
-
-        if not linkedin_url and "/" in profile_id:
-            linkedin_url = profile_id
-            if linkedin_url.endswith("/"):
-                linkedin_url = linkedin_url[:-1]
-
-        if not email and profile_id.startswith("email"):
-            email = profile_id
-
-        if not profile_id.startswith("wp:"):
-            profile_id = None
-
-        search = router.profile_lookup(
-            json={
-                "email": email,
-                "linked_in": linkedin_url,
-                "user_id": user_id,
-                "profile_id": profile_id,
-                "no_cache": no_cache,
-                "min_confidence": min_confidence,
-                "get_web_profile": get_web_profile,
-                "update": update,
-            },
-            timeout=110,
+        profile_data = cls._lookup_by_id(
+            profile_id,
+            email=email,
+            user_id=user_id,
+            linkedin_url=linkedin_url,
+            no_cache=no_cache,
+            min_confidence=min_confidence,
+            get_web_profile=get_web_profile,
+            update=update,
         )
-        results = search.get("results")
-        if not results:
-            raise Http404("Unable to find a profile matching the provided input.")
-        profile_data = results[0]
-
         if status := profile_data.pop("status", None):
             profile_data["returned_status"] = status
         profile = ResultProfile(**profile_data)
@@ -668,6 +642,49 @@ class ResultProfile(BaseModel):
                 SocialLink(typeName="linkedin", url=linkedin_url)
             )
         return profile
+
+    @classmethod
+    def _lookup_by_id(
+        cls, profile_id, user_id=None, email=None, linkedin_url=None, **kwargs
+    ):
+        if profile_id is None:
+            profile_id = ""
+
+        if not user_id:
+            try:
+                ObjectId(profile_id)
+            except (InvalidId, TypeError):
+                if profile_id.startswith("user"):
+                    user_id = profile_id
+            else:
+                user_id = profile_id
+
+        if not linkedin_url and "/" in profile_id:
+            linkedin_url = profile_id
+            if linkedin_url.endswith("/"):
+                linkedin_url = linkedin_url[:-1]
+
+        if not email and profile_id.startswith("email"):
+            email = profile_id
+
+        if not profile_id.startswith("wp:"):
+            profile_id = None
+
+        search = router.profile_lookup(
+            json={
+                "email": email,
+                "linked_in": linkedin_url,
+                "user_id": user_id,
+                "profile_id": profile_id,
+                **kwargs,
+            },
+            timeout=110,
+        )
+        results = search.get("results")
+        if not results:
+            raise Http404("Unable to find a profile matching the provided input.")
+        profile_data = results[0]
+        return profile_data
 
     def _search_for_this(self):
         required = []

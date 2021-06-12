@@ -583,12 +583,10 @@ class ResultProfile(BaseModel):
         profile = ResultProfile(
             _id=_id, first_name=first_name, last_name=last_name, company=company
         )
-        if _id and all([first_name, last_name, company]):
-            pass
-        elif _id and not all([first_name, last_name, company]):
-            profile_data = cls._lookup_by_id(_id)
-            profile = ResultProfile(**profile_data)
-        else:
+        # elif _id and not all([first_name, last_name, company]):
+        #     profile_data = cls._lookup_by_id(_id)
+        #     profile = ResultProfile(**profile_data)
+        if not (_id and all([first_name, last_name, company])):
             if found := profile._search_for_this():
                 profile = found
             else:
@@ -689,6 +687,11 @@ class ResultProfile(BaseModel):
     def _search_for_this(self):
         required = []
         desired = []
+
+        if self.id:
+            required.append(
+                {"field": "_id", "value": [self.id], "truth": True,}
+            )
 
         if self.first_name:
             required.append(

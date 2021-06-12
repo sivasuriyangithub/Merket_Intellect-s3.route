@@ -101,7 +101,7 @@ def test_derive_profile_no_id(
     assert resp.json()["credits_used"] == 100
 
 
-@patch("whoweb.core.router.Router.profile_lookup")
+@patch("whoweb.core.router.Router.unified_search")
 @patch("whoweb.core.router.Router.derive_email")
 def test_derive_profile_only_id(
     derive_mock, profile_search_mock, su_client, raw_derived, search_results

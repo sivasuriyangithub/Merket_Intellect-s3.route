@@ -77,7 +77,7 @@ class ColdCampaign(ColdemailBaseModel):
         )
         cold_campaign = self.api_create(**create_args)
         self.coldemail_id = cold_campaign.id
-        self.status = self.STATUS.published
+        self.status = self.CampaignObjectStatusOptions.PUBLISHED
         self.save()
 
     def publish(self, apply_tasks=True, on_complete=None):
@@ -86,7 +86,7 @@ class ColdCampaign(ColdemailBaseModel):
         if self.is_locked:
             return
 
-        self.status = self.STATUS.pending
+        self.status = self.CampaignObjectStatusOptions.PENDING
         self.save()
 
         message_sig = self.message.publish(apply_tasks=False)
@@ -118,27 +118,27 @@ class ColdCampaign(ColdemailBaseModel):
         return publish_sigs
 
     def pause(self):
-        if self.status == self.STATUS.published:
+        if self.status == self.CampaignObjectStatusOptions.PUBLISHED:
             try:
                 cold = self.api_retrieve()
                 success = cold.pause()
             except ColdEmailError:
                 success = False
             if success:
-                self.status = self.STATUS.paused
+                self.status = self.CampaignObjectStatusOptions.PAUSED
                 self.save()
                 return True
-        return self.status == self.STATUS.paused
+        return self.status == self.CampaignObjectStatusOptions.PAUSED
 
     def resume(self):
-        if self.status == self.STATUS.paused:
+        if self.status == self.CampaignObjectStatusOptions.PAUSED:
             cold = self.api_retrieve()
             success = cold.resume()
             if success:
-                self.status = self.STATUS.published
+                self.status = self.CampaignObjectStatusOptions.PUBLISHED
                 self.save()
                 return True
-        return self.status != self.STATUS.paused
+        return self.status != self.CampaignObjectStatusOptions.PAUSED
 
     def delete(self, using=None, pause_first=True, *args, **kwargs):
         if pause_first:

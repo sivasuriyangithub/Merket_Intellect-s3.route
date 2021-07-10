@@ -39,12 +39,12 @@ def test_publish(msg_mock, list_mock, cold_campaign):
 @patch("whoweb.coldemail.models.ColdCampaign.api_create")
 def test_api_upload(api_create_mock, cold_campaign):
     api_create_mock.return_value.id = "123ABC"
-    cold_campaign.status = ColdCampaign.STATUS.pending
+    cold_campaign.status = ColdCampaign.CampaignObjectStatusOptions.PENDING
     cold_campaign.send_time = datetime.utcfromtimestamp(1547591866)
     cold_campaign.save()
     cold_campaign.api_upload()
 
-    assert cold_campaign.status == ColdCampaign.STATUS.published
+    assert cold_campaign.status == ColdCampaign.CampaignObjectStatusOptions.PUBLISHED
 
     assert cold_campaign.coldemail_id == "123ABC"
     api_create_mock.assert_called_with(
@@ -82,7 +82,7 @@ def test_check_list_publication_failure(api_retrieve, api_upload, retry, cold_ca
 @patch("whoweb.coldemail.models.CampaignList.api_retrieve")
 def test_check_list_publication_success(api_retrieve, api_upload, cold_campaign):
     api_retrieve.return_value = Mock(CampaignList.api_class, total=1)
-    cold_campaign.status = cold_campaign.STATUS.pending
+    cold_campaign.status = cold_campaign.CampaignObjectStatusOptions.PENDING
     cold_campaign.save()
     check_for_list_publication(cold_campaign.campaign_list.pk)
     assert api_retrieve.call_count == 1

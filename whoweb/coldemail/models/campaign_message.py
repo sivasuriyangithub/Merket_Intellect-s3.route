@@ -22,7 +22,7 @@ class CampaignMessage(ColdemailBaseModel):
         if self.is_published:
             return
 
-        self.status = self.STATUS.pending
+        self.status = self.CampaignObjectStatusOptions.PENDING
 
         sig = publish_message.si(self.pk)
         if apply_tasks:
@@ -41,7 +41,7 @@ class CampaignMessage(ColdemailBaseModel):
             subject=(self.subject or "").encode("utf-8"),
         )
         self.coldemail_id = cold_msg.id
-        self.status = self.STATUS.published
+        self.status = self.CampaignObjectStatusOptions.PUBLISHED
         self.save()
 
 

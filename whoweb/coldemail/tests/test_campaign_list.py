@@ -60,5 +60,5 @@ def test_api_upload(create_mock, query_contact_invites):
     create_mock.assert_called_with(
         url=f"https://storage.googleapis.com/test/media/exports/{export}/download/{export}__fetch.csv"
     )
-    assert campaign_list.status == CampaignList.STATUS.published
+    assert campaign_list.status == CampaignList.CampaignObjectStatusOptions.PUBLISHED
     assert campaign_list.coldemail_id == "A"

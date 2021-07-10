@@ -3,6 +3,7 @@ from .embedded import (
     FilteredSearchFilterElement,
     FilteredSearchFilters,
     ExportOptions,
+    QuerySource,
 )
 from .scroll import ScrollSearch
 from .export import SearchExport
@@ -18,6 +19,7 @@ __all__ = [
     "ResultProfile",
     "DerivedContact",
     "ExportOptions",
+    "QuerySource",
     "DerivationCache",
     "FilterValueList",
 ]

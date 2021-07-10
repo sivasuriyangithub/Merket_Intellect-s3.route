@@ -21,16 +21,18 @@ pytestmark = pytest.mark.django_db
 def test_task_timing_args():
     send = datetime(2020, 3, 1, hour=9, minute=15, second=0, tzinfo=utc)
     rule: SendingRule = SendingRuleFactory(
-        trigger=SendingRule.TRIGGER.datetime, send_datetime=send
+        trigger=SendingRule.SendingRuleTriggerOptions.DATETIME, send_datetime=send
     )
     assert rule.task_timing_args() == {"eta": send - timedelta(seconds=600)}
 
     rule: SendingRule = SendingRuleFactory(
-        trigger=SendingRule.TRIGGER.timedelta, send_delta=180000
+        trigger=SendingRule.SendingRuleTriggerOptions.TIMEDELTA, send_delta=180000
     )
     assert rule.task_timing_args() == {"countdown": 180000 - 600}
 
-    rule: SendingRule = SendingRuleFactory(trigger=SendingRule.TRIGGER.delay)
+    rule: SendingRule = SendingRuleFactory(
+        trigger=SendingRule.SendingRuleTriggerOptions.DELAY
+    )
     assert rule.task_timing_args() == {"countdown": 300}
 
 
@@ -41,7 +43,7 @@ def test_create_campaignlist_from_runner(query_contact_invites_defer_validation)
     campaign_list = runner.create_campaign_list()
     assert campaign_list.query == runner.query
     assert campaign_list.billing_seat == runner.billing_seat
-    assert campaign_list.origin == campaign_list.ORIGIN.system
+    assert campaign_list.origin == campaign_list.OriginOptions.SYSTEM
 
 
 @patch("whoweb.campaigns.models.base.BaseCampaignRunner.set_reply_fields")
@@ -88,7 +90,7 @@ def test_create_next_drip_campaign(list_mock, reply_fields_mock):
     drip = runner.create_next_drip_campaign(root_campaign=root, following=root)
     assert runner.drips.count() == 1
     assert runner.drips.first() == drip
-    record = runner.drip_records().first()
+    record = runner.drip_records.first()
     assert record.drip == drip
     assert record.root == root
     assert record.order == 1
@@ -97,7 +99,7 @@ def test_create_next_drip_campaign(list_mock, reply_fields_mock):
     drip_two = runner.create_next_drip_campaign(root_campaign=root, following=drip)
     assert runner.drips.count() == 2
     assert runner.drips.all()[1] == drip_two
-    record = runner.drip_records()[1]
+    record = runner.drip_records[1]
     assert record.drip == drip_two
     assert record.root == root
     assert record.order == 2
@@ -107,7 +109,7 @@ def test_create_next_drip_campaign(list_mock, reply_fields_mock):
 def test_get_next_sending_rule(create_campaign_mock):
     SendingRuleFactory.reset_sequence()
     runner: "BaseCampaignRunner" = CampaignRunnerWithMessagesFactory()
-    rules = runner.sending_rules()
+    rules = runner.sending_rules
 
     ct = 0
 
@@ -139,4 +141,4 @@ def test_publish(list_mock, reply_fields):
     sigs, campaign = runner.publish(apply_tasks=False)
     assert sigs
     assert campaign
-    assert runner.status == runner.STATUS.pending
+    assert runner.status == runner.CampaignRunnerStatusOptions.PENDING

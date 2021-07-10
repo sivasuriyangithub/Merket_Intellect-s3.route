@@ -1,11 +1,11 @@
-import uuid
-from datetime import timedelta
+from enum import Enum, IntEnum
 from typing import List
 
+import uuid
+from datetime import timedelta
 from django.contrib.postgres.fields import JSONField
 from django.db import models, transaction
 from django.utils.timezone import now
-from model_utils import Choices
 from model_utils.fields import MonitorField
 from model_utils.models import SoftDeletableModel, TimeStampedModel
 from polymorphic.managers import PolymorphicManager
@@ -49,11 +49,11 @@ class SendingRule(models.Model):
         unique_together = ("runner", "index")
         ordering = ("runner", "index")
 
-    TRIGGER = Choices(
-        (0, "datetime", "At a specified time"),
-        (1, "timedelta", "Seconds after previous"),
-        (2, "delay", "A short delay after creation"),
-    )
+    class SendingRuleTriggerOptions(IntEnum):
+        DATETIME = 0
+        TIMEDELTA = 1
+        DELAY = 2
+
     runner = models.ForeignKey("BaseCampaignRunner", on_delete=models.CASCADE)
     message_template = models.ForeignKey(
         CampaignMessageTemplate,
@@ -66,18 +66,21 @@ class SendingRule(models.Model):
     index = (
         models.PositiveIntegerField()
     )  # index 0 must be DELAY or DATETIME, see method `send_time_for_rule`
-    trigger = models.PositiveSmallIntegerField(choices=TRIGGER, default=TRIGGER.delay)
+    trigger = models.PositiveSmallIntegerField(
+        choices=[(s.value, s.name) for s in SendingRuleTriggerOptions],
+        default=SendingRuleTriggerOptions.DELAY,
+    )
 
     send_datetime = models.DateTimeField(null=True, blank=True)
     send_delta = models.PositiveIntegerField(null=True, blank=True)
     include_previous = models.BooleanField(default=False, blank=True)
 
     def task_timing_args(self):
-        if self.trigger == SendingRule.TRIGGER.datetime:
+        if self.trigger == SendingRule.SendingRuleTriggerOptions.DATETIME:
             return {"eta": self.send_datetime - timedelta(seconds=600)}
-        elif self.trigger == SendingRule.TRIGGER.timedelta:
+        elif self.trigger == SendingRule.SendingRuleTriggerOptions.TIMEDELTA:
             return {"countdown": self.send_delta - 600}
-        elif self.trigger == SendingRule.TRIGGER.delay:
+        elif self.trigger == SendingRule.SendingRuleTriggerOptions.DELAY:
             return {"countdown": 300}
         return {}
 
@@ -114,15 +117,16 @@ class BaseCampaignRunner(
     PolymorphicModel,
 ):
     MIN_DRIP_DELAY = timedelta(days=1)
-    STATUS = Choices(
-        (0, "draft", "Draft"),
-        (2, "pending", "Pending"),
-        (4, "paused", "Paused"),
-        (8, "published", "Published"),
-        (16, "running", "Running"),
-        (32, "sending", "Sending"),
-        (128, "complete", "Complete"),
-    )
+
+    class CampaignRunnerStatusOptions(IntEnum):
+
+        DRAFT = 0
+        PENDING = 2
+        PAUSED = 4
+        PUBLISHED = 8
+        RUNNING = 16
+        SENDING = 32
+        COMPLETE = 128
 
     should_charge = True
     seat = models.ForeignKey(Seat, on_delete=models.CASCADE, null=True, blank=True)
@@ -148,18 +152,27 @@ class BaseCampaignRunner(
     budget = models.PositiveIntegerField()
 
     status = models.IntegerField(
-        "status", db_index=True, choices=STATUS, blank=True, default=STATUS.draft
+        "status",
+        db_index=True,
+        choices=[(s.value, s.name) for s in CampaignRunnerStatusOptions],
+        blank=True,
+        default=CampaignRunnerStatusOptions.DRAFT,
     )
     status_changed = MonitorField("status changed", monitor="status")
     is_removed_changed = MonitorField("deleted at", monitor="is_removed")
     published = MonitorField(
-        monitor="status", when=[STATUS.published], null=True, default=None, blank=True
+        monitor="status",
+        when=[CampaignRunnerStatusOptions.PUBLISHED],
+        null=True,
+        default=None,
+        blank=True,
     )
 
     tracking_params = JSONField(default=dict, null=True, blank=True)
     tags = TagField(to=ColdEmailTagModel, blank=True)
 
     from_name = models.CharField(max_length=255, default="", blank=True)
+    saved_search = models.CharField(max_length=255, default="", blank=True)
 
     # Enforce only 1 active signature chain in celery,
     # enabling republishing via .resume(), even with a pending canvas.
@@ -172,9 +185,11 @@ class BaseCampaignRunner(
     def __str__(self):
         return f"{self.__class__.__name__} {self.pk} ({self.get_status_display()})"
 
+    @property
     def sending_rules(self):
         return SendingRule.objects.filter(runner=self)
 
+    @property
     def drip_records(self):
         return DripRecord.objects.filter(runner=self)
 
@@ -190,8 +205,7 @@ class BaseCampaignRunner(
 
     def get_next_rule(self, following: ColdCampaign):
         return (
-            self.sending_rules()
-            .filter(message=following.message)
+            self.sending_rules.filter(message=following.message)
             .first()
             .get_next_by_index()
         )
@@ -215,13 +229,13 @@ class BaseCampaignRunner(
         rule = self.get_next_rule(following=following)
         if not rule:
             return
-        if self.drip_records().filter(root=root_campaign).count() >= rule.index:
+        if self.drip_records.filter(root=root_campaign).count() >= rule.index:
             return
 
         # If intended send time is absolute,
         # and the CURRENT time is not after the last campaign send time plus a minimum buffer,
         # fail the list/export creation
-        if rule.trigger == SendingRule.TRIGGER.datetime:
+        if rule.trigger == SendingRule.SendingRuleTriggerOptions.DATETIME:
             delta = now() - following.send_time
             if delta < self.MIN_DRIP_DELAY:
                 remaining = self.MIN_DRIP_DELAY - max(timedelta(0), delta)
@@ -331,7 +345,7 @@ class BaseCampaignRunner(
             for record in DripRecord.objects.filter(
                 runner=self,
                 root=root_campaign,
-                drip__status__gte=ColdCampaign.STATUS.published,
+                drip__status__gte=ColdCampaign.CampaignObjectStatusOptions.PUBLISHED,
                 drip__stats_fetched__isnull=False,
             ).prefetch_related("drip")
         ]
@@ -371,16 +385,18 @@ class BaseCampaignRunner(
 
     def send_times(self):
         for campaign in self.campaigns.all():
-            if campaign.status == ColdCampaign.STATUS.pending:
+            if campaign.status == ColdCampaign.CampaignObjectStatusOptions.PENDING:
                 yield campaign.modified
-            elif campaign.status == ColdCampaign.STATUS.published:
+            elif campaign.status == ColdCampaign.CampaignObjectStatusOptions.PUBLISHED:
                 yield campaign.published
             continue
 
     @property
     def last_sent_campaign(self):
         return (
-            self.campaigns.filter(status__gte=ColdCampaign.STATUS.published)
+            self.campaigns.filter(
+                status__gte=ColdCampaign.CampaignObjectStatusOptions.PUBLISHED
+            )
             .order_by("-send_time")
             .first()
         )
@@ -396,7 +412,7 @@ class BaseCampaignRunner(
         )
 
     def create_campaign(self, **campaign_kwargs):
-        first_message_rule = self.sending_rules().first()
+        first_message_rule = self.sending_rules.first()
 
         if self.billing_seat:
             campaign_kwargs.setdefault("billing_seat", self.billing_seat)
@@ -447,7 +463,7 @@ class BaseCampaignRunner(
         if publish_sigs := campaign.publish(apply_tasks=False, on_complete=on_complete):
             if self.run_id is None:
                 self.run_id = uuid.uuid4()
-                self.status = self.STATUS.pending
+                self.status = self.CampaignRunnerStatusOptions.PENDING
                 self.save()
 
             publish_sigs |= set_published.si(pk=self.pk, run_id=self.run_id)
@@ -498,9 +514,9 @@ class BaseCampaignRunner(
     def pause(self):
         self.log_event(PAUSE_CAMPAIGN)
         assert (
-            self.status == BaseCampaignRunner.STATUS.published
+            self.status == BaseCampaignRunner.CampaignRunnerStatusOptions.PUBLISHED
         ), "Campaign must be in PUBLISHED condition."
-        self.status = BaseCampaignRunner.STATUS.paused
+        self.status = BaseCampaignRunner.CampaignRunnerStatusOptions.PAUSED
         self.run_id = PAUSE_HEX
         self.save()
 
@@ -512,9 +528,9 @@ class BaseCampaignRunner(
         drips = DripRecord.objects.filter(runner=self, root=root_campaign)
         if self.run_id == PAUSE_HEX:
             return
-        if self.sending_rules().count() == 1:  # No drips required
+        if self.sending_rules.count() == 1:  # No drips required
             return
-        if drips.count() == self.sending_rules().count() - 1:  # All drips done
+        if drips.count() == self.sending_rules.count() - 1:  # All drips done
             return
         if drips.count() == 0:  # Drips haven't started
             if noop_after is not None:
@@ -536,10 +552,10 @@ class BaseCampaignRunner(
 
     def resume(self):
         assert (
-            self.status == ColdCampaign.STATUS.paused
+            self.status == ColdCampaign.CampaignObjectStatusOptions.PAUSED
         ), "Campaign must be in PAUSED condition."
         self.log_event(RESUME_CAMPAIGN)
-        self.status = ColdCampaign.STATUS.published
+        self.status = ColdCampaign.CampaignObjectStatusOptions.PUBLISHED
         self.run_id = uuid.uuid4()
         self.save()
         for campaign in self.campaigns.all():

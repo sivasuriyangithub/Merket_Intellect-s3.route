@@ -1,3 +1,4 @@
+from enum import Enum, IntEnum
 from io import TextIOWrapper, StringIO
 from typing import Optional, List, Iterable, Dict, Iterator, Tuple
 
@@ -23,7 +24,6 @@ from django.utils.translation import ugettext_lazy as _
 from dns import resolver
 from google.cloud import storage
 from math import ceil
-from model_utils import Choices
 from model_utils.fields import MonitorField
 from model_utils.managers import QueryManagerMixin
 from model_utils.models import TimeStampedModel, SoftDeletableModel
@@ -50,7 +50,6 @@ from whoweb.search.events import (
     SPAWN_MX,
     POPULATE_DATA,
     FINALIZE_PAGE,
-    ENQUEUED_FROM_QUERY,
     GENERATING_PAGES_COMPLETE,
     FINALIZING_LOCKED,
     VALIDATION_COMPLETE_LOCKED,
@@ -140,15 +139,16 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     UPLOADABLE_COLS = [29, 30]
 
     EVENT_REVERSE_NAME = "export"
-    STATUS = Choices(
-        (0, "created", "Created"),
-        (2, "pages_working", "Pages Running"),
-        (4, "pages_complete", "Pages Complete"),
-        (8, "validating", "Awaiting External Validation"),
-        (16, "validated", "Validation Complete"),
-        (32, "post_processed", "Post Processing Hooks Done"),
-        (128, "complete", "Export Complete"),
-    )
+
+    class ExportStatusOptions(IntEnum):
+
+        CREATED = 0
+        PAGES_WORKING = 2
+        PAGES_COMPLETE = 4
+        VALIDATING = 8
+        VALIDATED = 16
+        POST_PROCESSED = 32
+        COMPLETE = 128
 
     seat = models.ForeignKey(Seat, on_delete=models.CASCADE, null=True, blank=True)
     billing_seat = models.ForeignKey(
@@ -166,7 +166,11 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     csv = models.FileField(upload_to=download_file_location, null=True, blank=True)
 
     status = models.IntegerField(
-        _("status"), db_index=True, choices=STATUS, blank=True, default=STATUS.created
+        _("status"),
+        db_index=True,
+        choices=[(s.value, s.name) for s in ExportStatusOptions],
+        blank=True,
+        default=ExportStatusOptions.CREATED,
     )
     status_changed = MonitorField(_("status changed"), monitor="status")
     sent = models.CharField(max_length=255, editable=False)
@@ -221,11 +225,11 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
                 raise ValidationError(
                     "An export with derivations must specify contact filters."
                 )
-            if FilteredSearchQuery.CONTACT_FILTER_CHOICES.WORK in filters:
+            if FilteredSearchQuery.ContactFilterOptions.WORK in filters:
                 fee_per_row += plan.credits_per_work_email
-            if FilteredSearchQuery.CONTACT_FILTER_CHOICES.PERSONAL in filters:
+            if FilteredSearchQuery.ContactFilterOptions.PERSONAL in filters:
                 fee_per_row += plan.credits_per_personal_email
-            if FilteredSearchQuery.CONTACT_FILTER_CHOICES.PHONE in filters:
+            if FilteredSearchQuery.ContactFilterOptions.PHONE in filters:
                 fee_per_row += plan.credits_per_phone
             credits_to_charge = export.target * fee_per_row  # maximum possible
             charged = billing_seat.consume_credits(
@@ -253,7 +257,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         else:
             target = self.target
         return (
-            int(self.status) >= SearchExport.STATUS.pages_complete
+            int(self.status) >= SearchExport.ExportStatusOptions.PAGES_COMPLETE
             or self.progress_counter >= target
         )
 
@@ -276,7 +280,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     )
 
     def defer_validation(self):
-        return FilteredSearchQuery.DEFER_CHOICES.VALIDATION in self.query.defer
+        return FilteredSearchQuery.DeferOptions.VALIDATION in self.query.defer
 
     defer_validation.boolean = True
     defer_validation = cached_property(defer_validation)
@@ -646,7 +650,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         self.log_event(GENERATING_PAGES, task=task_context)
         with transaction.atomic():
             export = self.locked()
-            export.status = SearchExport.STATUS.pages_working
+            export.status = SearchExport.ExportStatusOptions.PAGES_WORKING
             export.save()
             pages = export._generate_pages()
             self.log_event(GENERATING_PAGES_COMPLETE, task=task_context)
@@ -654,7 +658,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
     def get_next_empty_page(self, batch=1) -> Optional["SearchExportPage"]:
         return self.pages.filter(
-            data__isnull=True, status=SearchExportPage.STATUS.created
+            data__isnull=True, status=SearchExportPage.PageStatusOptions.CREATED
         )[:batch]
 
     def compress_working_pages(self, page_ids, task_context=None):
@@ -665,7 +669,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     @transaction.atomic
     def do_post_pages_completion(self, task_context=None):
         export = self.locked()
-        if not export.status <= SearchExport.STATUS.pages_complete:
+        if not export.status <= SearchExport.ExportStatusOptions.PAGES_COMPLETE:
             self.log_event(FINALIZING_LOCKED, task=task_context)
             return False
         export.log_event(FINALIZING, task=task_context)
@@ -678,7 +682,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
                 evidence=(export,),
                 notes="Computed for inline-validated export at post page completion stage.",
             )
-        export.status = SearchExport.STATUS.pages_complete
+        export.status = SearchExport.ExportStatusOptions.PAGES_COMPLETE
         export.save()
         return True
 
@@ -687,12 +691,12 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         export = self.locked()
         if not export.defer_validation:
             return True
-        if not export.status <= SearchExport.STATUS.validated:
+        if not export.status <= SearchExport.ExportStatusOptions.VALIDATED:
             self.log_event(VALIDATION_COMPLETE_LOCKED, task=task_context)
             return False
         results = export.get_validation_results(only_valid=True)
         export.apply_validation_to_profiles_in_pages(validation=results)
-        export.status = SearchExport.STATUS.validated
+        export.status = SearchExport.ExportStatusOptions.VALIDATED
         export.save()
         if export.charge:
             charges = export.compute_charges()
@@ -708,7 +712,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
     def upload_validation(self, task_context=None):
         self.log_event(POST_VALIDATION, task=task_context)
-        self.status = SearchExport.STATUS.validating
+        self.status = SearchExport.ExportStatusOptions.VALIDATING
         try:
             _ = self.get_ungraded_email_rows().__next__()
         except StopIteration:
@@ -861,7 +865,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             filename = f"whoknows_search_results_{self.created.date()}.csv"
         self.csv.save(filename, export_file)
         self.rows_uploaded = row_count
-        self.status = self.STATUS.complete
+        self.status = self.ExportStatusOptions.COMPLETE
         self.save()
         # Update metadata to ensure download on link-click for users.
         if isinstance(self.csv.storage, GoogleCloudStorage):
@@ -970,7 +974,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         return sigs
 
     def get_absolute_url(self, filetype="csv"):
-        if self.status != self.STATUS.complete:
+        if self.status != self.ExportStatusOptions.COMPLETE:
             return
         if filetype == "csv":
             return self.csv.url if self.csv else None
@@ -979,7 +983,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         )
 
     def get_result_rest_url(self):
-        if self.status == self.STATUS.complete:
+        if self.status == self.ExportStatusOptions.COMPLETE:
             return reverse("exportresult-detail", args=[self.uuid])
 
 
@@ -987,11 +991,12 @@ class SearchExportPage(TimeStampedModel):
     export = models.ForeignKey(
         SearchExport, on_delete=models.CASCADE, related_name="pages"
     )
-    STATUS = Choices(
-        (0, "created", "Created"),
-        (2, "working", "Running"),
-        (4, "complete", "Complete"),
-    )
+
+    class PageStatusOptions(IntEnum):
+        CREATED = 0
+        WORKING = 2
+        COMPLETE = 4
+
     data = CompressedBinaryJSONField(null=True, editable=False)
     page_num = models.PositiveIntegerField()
     working_data = JSONField(editable=False, null=True, default=dict)
@@ -1003,7 +1008,10 @@ class SearchExportPage(TimeStampedModel):
     )
     count = models.IntegerField(default=0)
     status = models.IntegerField(
-        _("status"), choices=STATUS, blank=True, default=STATUS.created
+        _("status"),
+        choices=[(s.value, s.name) for s in PageStatusOptions],
+        blank=True,
+        default=PageStatusOptions.CREATED,
     )
     status_changed = MonitorField(_("status changed"), monitor="status")
 
@@ -1041,7 +1049,7 @@ class SearchExportPage(TimeStampedModel):
     def _populate_data_directly(self):
         if self.data:
             return
-        self.status = SearchExportPage.STATUS.working
+        self.status = SearchExportPage.PageStatusOptions.WORKING
         self.save()
         scroll = self.export.scroll
         ids = scroll.get_ids_for_page(self.page_num)
@@ -1051,7 +1059,7 @@ class SearchExportPage(TimeStampedModel):
         ]
         self.count = len(profiles)
         self.data = profiles
-        self.status = self.STATUS.complete
+        self.status = self.PageStatusOptions.COMPLETE
         self.save()
         # Sometimes search removes duplicate profiles which show up as different ids,
         # in which case we need to push the progress-based skip by the number of dupes.
@@ -1110,7 +1118,7 @@ class SearchExportPage(TimeStampedModel):
         self.working_data = None
         self.working_rows.all().delete()
         self.pending_count = 0
-        self.status = self.STATUS.complete
+        self.status = self.PageStatusOptions.COMPLETE
         self.save()
         self.export.progress_counter = F("progress_counter") + self.count
         self.export.save()

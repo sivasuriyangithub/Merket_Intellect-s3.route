@@ -16,7 +16,7 @@ def set_published(pk, run_id=None):
     runner = BaseCampaignRunner.available_objects.get(pk=pk)
     if str(run_id) != str(runner.run_id):
         return
-    runner.status = runner.STATUS.published
+    runner.status = runner.ExportStatusOptions.PUBLISHED
     runner.save()
 
 
@@ -25,7 +25,7 @@ def publish_next_interval(self, pk, run_id=None):
     runner = IntervalCampaignRunner.available_objects.get(pk=pk)
     if str(run_id) != str(runner.run_id):
         return
-    if runner.status == runner.STATUS.paused:
+    if runner.status == runner.ExportStatusOptions.PAUSED:
         return
     runner.publish(task_context=self.request)
 
@@ -35,7 +35,7 @@ def publish_drip(self, pk, root_pk, following_pk, run_id=None, *args, **kwargs):
     runner = BaseCampaignRunner.available_objects.get(pk=pk)
     if str(run_id) != str(runner.run_id):
         return
-    if runner.status == runner.STATUS.paused:
+    if runner.status == runner.ExportStatusOptions.PAUSED:
         return
     root_campaign = ColdCampaign.objects.get(pk=root_pk)
     following = ColdCampaign.objects.get(pk=following_pk)
@@ -74,7 +74,7 @@ def catch_missed_drips():
 
     for runner in (
         BaseCampaignRunner.available_objects.filter(
-            status=BaseCampaignRunner.STATUS.published
+            status=BaseCampaignRunner.CampaignRunnerStatusOptions.PUBLISHED
         )
         .exclude(messages=None)
         .exclude(campaigns=None)

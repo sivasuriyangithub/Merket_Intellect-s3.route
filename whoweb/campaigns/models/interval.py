@@ -20,7 +20,7 @@ class IntervalCampaignBase(BaseCampaignRunner):
 
     def create_cold_campaign(self, *args, **kwargs):
         if self.max_sends and len(self.campaigns) >= self.max_sends:
-            self.status = self.STATUS.complete
+            self.status = self.CampaignRunnerStatusOptions.COMPLETE
             self.save()
             return
         return super().create_cold_campaign(*args, **kwargs)

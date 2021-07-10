@@ -1,6 +1,7 @@
 from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
+from rest_framework.fields import ListField
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 
 from whoweb.accounting.serializers import TransactionSerializer
@@ -26,6 +27,7 @@ from whoweb.search.models import (
     ResultProfile,
     DerivationCache,
     FilterValueList,
+    QuerySource,
 )
 from whoweb.search.models.profile import (
     WORK,
@@ -41,6 +43,15 @@ class ExportOptionsSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExportOptions
         fields = ("webhooks", "format", "title", "metadata")
+
+    def to_representation(self, instance):
+        return instance.serialize()
+
+
+class QuerySourceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QuerySource
+        fields = ("cls", "object_id")
 
     def to_representation(self, instance):
         return instance.serialize()
@@ -72,21 +83,16 @@ class FilteredSearchFiltersSerializer(serializers.ModelSerializer):
 class FilteredSearchQuerySerializer(serializers.ModelSerializer):
     filters = FilteredSearchFiltersSerializer()
     export = ExportOptionsSerializer(required=False)
-    defer = PublicPrivateMultipleChoiceListField(
-        public_choices=FilteredSearchQuery.PUBLIC_DEFER_CHOICES,
-        choices=FilteredSearchQuery.DEFER_CHOICES,
-        required=False,
-        default=list,
-    )
-    contact_filters = MultipleChoiceListField(
-        choices=FilteredSearchQuery.CONTACT_FILTER_CHOICES, required=False, default=list
-    )
+    source = QuerySourceSerializer(required=False)
+    defer = ListField(required=False, default=list)
+    contact_filters = ListField(required=False, default=list)
 
     class Meta:
         model = FilteredSearchQuery
         fields = (
             "filters",
             "export",
+            "source",
             "defer",
             "contact_filters",
             "user_id",
@@ -158,7 +164,7 @@ class SearchExportSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
         ]
 
     def get_status_name(self, obj):
-        return SearchExport.STATUS[int(obj.status)]
+        return SearchExport.Status(int(obj.status)).name
 
     def create(self, validated_data):
         try:

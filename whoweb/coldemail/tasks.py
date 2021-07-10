@@ -53,7 +53,7 @@ def check_for_list_publication(self, list_id):
         )
 
     campaigns: [ColdCampaign] = ColdCampaign.objects.filter(
-        campaign_list=list_id, status=ColdCampaign.STATUS.pending
+        campaign_list=list_id, status=ColdCampaign.CampaignObjectStatusOptions.PENDING
     )
     for campaign in campaigns:
         with transaction.atomic():

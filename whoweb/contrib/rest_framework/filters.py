@@ -1,4 +1,4 @@
-from django_filters.rest_framework import FilterSet
+from django_filters.rest_framework import FilterSet, CharFilter, BaseInFilter
 from graphene_django.filter import GlobalIDFilter
 from rest_framework.compat import coreapi, coreschema
 from rest_framework.filters import OrderingFilter as DefaultOrderingFilter
@@ -90,6 +90,10 @@ class BaseFilterBackend(metaclass=BasePermissionMetaclass):
 
     def get_schema_operation_parameters(self, view):
         return []
+
+
+class TagsFilter(BaseInFilter, CharFilter):
+    pass
 
 
 class SearchFilter(DefaultSearchFilter, metaclass=BasePermissionMetaclass):

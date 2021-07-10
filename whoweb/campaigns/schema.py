@@ -3,30 +3,35 @@ import graphene
 from django_filters.rest_framework import FilterSet
 from graphene import relay
 from graphene.types.generic import GenericScalar
-from graphene_django import DjangoConnectionField
+from graphene_django import DjangoListField
 from graphene_django.filter import DjangoFilterConnectionField, GlobalIDFilter
 
-from whoweb.payments.permissions import MemberOfBillingAccountPermissionsFilter
 from whoweb.campaigns import models
-from whoweb.coldemail import models as coldemail_models
+from whoweb.coldemail.schema import Campaign
 from whoweb.contrib.graphene_django.types import GuardedObjectType
+from whoweb.contrib.rest_framework.filters import TagsFilter, ObscureIdFilterSet
 from whoweb.contrib.rest_framework.permissions import IsSuperUser, ObjectPermissions
+from whoweb.payments.permissions import MemberOfBillingAccountPermissionsFilter
 from whoweb.search.schema import FilteredSearchQueryObjectType
 
-CampaignRunnerStatusChoices = graphene.Enum(
-    "CampaignRunnerStatusChoices",
-    models.BaseCampaignRunner.STATUS._identifier_map.items(),
+SendingRuleTriggerChoices = graphene.Enum.from_enum(
+    models.SendingRule.SendingRuleTriggerOptions
+)
+CampaignRunnerStatusChoices = graphene.Enum.from_enum(
+    models.BaseCampaignRunner.CampaignRunnerStatusOptions
 )
 
 
-class TagsFilter(django_filters.BaseInFilter, django_filters.CharFilter):
-    pass
-
-
-class CampaignRunnerFilter(FilterSet):
+class CampaignRunnerFilter(ObscureIdFilterSet):
+    billing_seat = GlobalIDFilter(field_name="billing_seat__public_id")
     status = django_filters.TypedChoiceFilter(
-        choices=[(c[1], c[0]) for c in models.BaseCampaignRunner.STATUS._triples],
-        coerce=lambda x: getattr(models.BaseCampaignRunner.STATUS, x),
+        choices=[
+            (s.value, s.name)
+            for s in models.BaseCampaignRunner.CampaignRunnerStatusOptions
+        ],
+        coerce=lambda x: getattr(
+            models.BaseCampaignRunner.CampaignRunnerStatusOptions, x
+        ),
     )
     published = django_filters.DateRangeFilter(field_name="published",)
     published_after = django_filters.DateFilter(
@@ -36,7 +41,6 @@ class CampaignRunnerFilter(FilterSet):
         field_name="published", lookup_expr="lt"
     )
     tags = TagsFilter(field_name="tags__name")
-    id = GlobalIDFilter(field_name="public_id", lookup_expr="exact")
 
     class Meta:
         model = models.BaseCampaignRunner
@@ -48,40 +52,9 @@ class CampaignRunnerFilter(FilterSet):
         )
 
 
-class Message(GuardedObjectType):
-    class Meta:
-        model = coldemail_models.CampaignMessage
-
-
-class MessageTemplate(GuardedObjectType):
-    tags = graphene.List(graphene.String, resolver=lambda x, i: x.tags.all())
-
-    class Meta:
-        model = coldemail_models.CampaignMessageTemplate
-
-
-class ProfileLogEntry(graphene.ObjectType):
-    email = graphene.String()
-    web_id = graphene.String(name="profile_id")
-
-
-class Campaign(GuardedObjectType):
-    click_log = graphene.List(ProfileLogEntry, name="clickProfiles")
-    open_log = graphene.List(ProfileLogEntry, name="openProfiles")
-    reply_log = graphene.List(ProfileLogEntry, name="replyProfiles")
-    good_log = graphene.List(ProfileLogEntry, name="goodProfiles")
-    sent_profiles = graphene.List(graphene.String)
-
-    class Meta:
-        interfaces = (relay.Node,)
-        model = coldemail_models.ColdCampaign
-        fields = ("click_log", "open_log", "reply_log", "good_log", "sent_profiles")
-
-    def resolve_sent_profiles(self, info):
-        return (profile.id for profile in self.campaign_list.export.get_profiles())
-
-
 class SendingRule(GuardedObjectType):
+    trigger = graphene.Field(SendingRuleTriggerChoices)
+
     class Meta:
         model = models.SendingRule
 
@@ -100,7 +73,7 @@ class SimpleCampaignRunnerNode(GuardedObjectType):
     query = graphene.Field(FilteredSearchQueryObjectType)
     sending_rules = graphene.List(SendingRule)
     drips = graphene.List(DripRecord, source="drip_records")
-    campaigns = DjangoConnectionField(Campaign)
+    campaigns = DjangoListField(Campaign)
     tags = graphene.List(graphene.String, resolver=lambda x, i: x.tags.all())
     transactions = GenericScalar()
     tracking_params = graphene.List(TrackingParam)
@@ -113,8 +86,10 @@ class SimpleCampaignRunnerNode(GuardedObjectType):
         permission_classes = [IsSuperUser | ObjectPermissions]
         filter_backends = (MemberOfBillingAccountPermissionsFilter,)
         fields = (
+            "billing_seat",
             "budget",
             "query",
+            "saved_search",
             "campaigns",
             "sending_rules",
             "modified",
@@ -138,7 +113,7 @@ class IntervalCampaignRunnerNode(GuardedObjectType):
     query = graphene.Field(FilteredSearchQueryObjectType)
     sending_rules = graphene.List(SendingRule)
     drips = graphene.List(DripRecord, source="drip_records")
-    campaigns = DjangoConnectionField(Campaign)
+    campaigns = DjangoListField(Campaign)
     tags = graphene.List(graphene.String, resolver=lambda x, i: x.tags.all())
     transactions = GenericScalar()
     tracking_params = graphene.List(TrackingParam)
@@ -154,6 +129,7 @@ class IntervalCampaignRunnerNode(GuardedObjectType):
 
         fields = (
             "query",
+            "saved_search",
             "billing_seat",
             "budget",
             "title",

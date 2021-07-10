@@ -70,7 +70,7 @@ class RootCampaignInline(InlineActionsMixin, admin.TabularInline):
     campaign.short_description = "Cold Campaign"
 
     def campaign__status(self, obj):
-        return ColdCampaign.STATUS[obj.campaign__status]
+        return ColdCampaign.CampaignObjectStatusOptions[obj.campaign__status].name
 
     def campaign__status_changed(self, obj):
         return date(
@@ -90,7 +90,7 @@ class RootCampaignInline(InlineActionsMixin, admin.TabularInline):
     def rerun(self, request, obj, parent_obj=None):
         cold_campaign = obj.coldcampaign
         export = cold_campaign.campaign_list.export
-        if export.status != export.STATUS.complete:
+        if export.status != export.ExportStatusOptions.COMPLETE:
             messages.add_message(
                 request, messages.ERROR, f"Export must be completed to rerun campaign."
             )
@@ -98,7 +98,7 @@ class RootCampaignInline(InlineActionsMixin, admin.TabularInline):
         runner = parent_obj
         runner.run_id = None
         runner.save()
-        cold_campaign.status = ColdCampaign.STATUS.created
+        cold_campaign.status = ColdCampaign.CampaignObjectStatusOptions.CREATED
         cold_campaign.save()
         sigs, campaign = runner.publish(apply_tasks=False, with_campaign=cold_campaign)
         res = sigs.apply_async()
@@ -173,7 +173,7 @@ class SimpleDripCampaignRunnerAdmin(InlineActionsModelAdminMixin, ActionsModelAd
             },
         ),
         (
-            "Status Fields",
+            "StatusOptions Fields",
             {
                 "classes": (),
                 "fields": (
@@ -240,7 +240,7 @@ class IntervalCampaignRunnerAdmin(InlineActionsModelAdminMixin, ActionsModelAdmi
             },
         ),
         (
-            "Status Fields",
+            "StatusOptions Fields",
             {
                 "classes": (),
                 "fields": (

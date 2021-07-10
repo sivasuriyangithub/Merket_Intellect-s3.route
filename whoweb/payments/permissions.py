@@ -32,7 +32,7 @@ class BillingAccountMemberPermissionsFilter(BaseFilterBackend):
 class MemberOfBillingAccountPermissionsFilter(BaseFilterBackend):
     """
     A filter backend that limits results to those where the requesting user
-    has read object level permissions.
+    is a member of the billing account for the seat on the object.
     """
 
     def filter_queryset(self, request, queryset, view):

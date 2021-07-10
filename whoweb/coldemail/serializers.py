@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
+from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 
 from whoweb.contrib.rest_framework.fields import TagulousField
 from whoweb.contrib.rest_framework.serializers import (
@@ -16,7 +17,9 @@ from .models import (
 from whoweb.search.serializers import FilteredSearchQuerySerializer
 
 
-class CampaignMessageSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
+class CampaignMessageSerializer(
+    ObjectPermissionsAssignmentMixin, TaggableMixin, IdOrHyperlinkedModelSerializer
+):
     status_name = serializers.CharField(source="get_status_display", read_only=True)
     id = serializers.CharField(source="public_id", read_only=True)
     tags = TagulousField(required=False)
@@ -25,7 +28,7 @@ class CampaignMessageSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
         model = CampaignMessage
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
-            "billing_seat": {"lookup_field": "public_id"},
+            "billing_seat": {"lookup_field": "public_id", "required": True},
         }
         fields = (
             "url",
@@ -44,8 +47,18 @@ class CampaignMessageSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
         )
         read_only_fields = ("status", "status_changed", "status_name", "published")
 
+    def get_permissions_map(self, created):
+        user = self.context["request"].user
+        return {
+            "view_campaignmessage": [user],
+            "change_campaignmessage": [user],
+            "delete_campaignmessage": [user],
+        }
 
-class CampaignMessageTemplateSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
+
+class CampaignMessageTemplateSerializer(
+    ObjectPermissionsAssignmentMixin, TaggableMixin, IdOrHyperlinkedModelSerializer
+):
     id = serializers.CharField(source="public_id", read_only=True)
     tags = TagulousField(required=False)
 
@@ -53,7 +66,7 @@ class CampaignMessageTemplateSerializer(TaggableMixin, IdOrHyperlinkedModelSeria
         model = CampaignMessageTemplate
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
-            "billing_seat": {"lookup_field": "public_id"},
+            "billing_seat": {"lookup_field": "public_id", "required": True},
         }
         fields = (
             "url",
@@ -67,6 +80,14 @@ class CampaignMessageTemplateSerializer(TaggableMixin, IdOrHyperlinkedModelSeria
             "editor",
         )
 
+    def get_permissions_map(self, created):
+        user = self.context["request"].user
+        return {
+            "view_campaignmessagetemplate": [user],
+            "change_campaignmessagetemplate": [user],
+            "delete_campaignmessagetemplate": [user],
+        }
+
 
 class CampaignListSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
     query = FilteredSearchQuerySerializer()
@@ -78,7 +99,7 @@ class CampaignListSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
         model = CampaignList
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
-            "billing_seat": {"lookup_field": "public_id"},
+            "billing_seat": {"lookup_field": "public_id", "required": True},
         }
         fields = (
             "url",
@@ -127,7 +148,9 @@ class CampaignSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class SingleColdEmailSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
+class SingleColdEmailSerializer(
+    ObjectPermissionsAssignmentMixin, TaggableMixin, IdOrHyperlinkedModelSerializer
+):
     tags = TagulousField(required=False)
 
     class Meta:
@@ -149,7 +172,7 @@ class SingleColdEmailSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
         )
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
-            "billing_seat": {"lookup_field": "public_id"},
+            "billing_seat": {"lookup_field": "public_id", "required": True},
             "message": {"lookup_field": "public_id"},
         }
 
@@ -158,3 +181,11 @@ class SingleColdEmailSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
         if seat and seat != attrs["message"].billing_seat:
             raise PermissionDenied
         return attrs
+
+    def get_permissions_map(self, created):
+        user = self.context["request"].user
+        return {
+            "view_singlecoldemail": [user],
+            "change_singlecoldemail": [user],
+            "delete_singlecoldemail": [user],
+        }

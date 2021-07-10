@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 
 from whoweb.payments.models import BillingAccountMember
 from whoweb.accounting.serializers import TransactionSerializer
@@ -21,7 +22,13 @@ from .models import (
 
 
 class SendingRuleSerializer(IdOrHyperlinkedModelSerializer):
+
+    trigger = serializers.ChoiceField(
+        choices=[(s.name, s.name) for s in SendingRule.SendingRuleTriggerOptions]
+    )
+
     class Meta:
+        convert_choices_to_enum = False
         model = SendingRule
         fields = (
             "message",
@@ -46,6 +53,18 @@ class DripRecordSerializer(serializers.ModelSerializer):
 
 
 class SendingRuleMixin(object):
+    def update(self, validated_data):
+        rules = validated_data.pop("sending_rules")
+        runner = super().update(validated_data)
+        SendingRule.objects.delete(runner=runner)
+        for rule in rules:
+            idx = rule.pop("index")
+            SendingRule.objects.update_or_create(
+                runner=runner, index=idx, defaults=rule,
+            )
+        runner.refresh_from_db()
+        return runner
+
     def create(self, validated_data):
         rules = validated_data.pop("sending_rules")
         runner = super().create(validated_data)
@@ -54,12 +73,14 @@ class SendingRuleMixin(object):
             SendingRule.objects.update_or_create(
                 runner=runner, index=idx, defaults=rule,
             )
-        runner.refresh_from_db(fields=("messages",))
         return runner
 
 
 class SimpleDripCampaignRunnerSerializer(
-    TaggableMixin, SendingRuleMixin, IdOrHyperlinkedModelSerializer
+    ObjectPermissionsAssignmentMixin,
+    TaggableMixin,
+    SendingRuleMixin,
+    IdOrHyperlinkedModelSerializer,
 ):
     id = serializers.CharField(source="public_id", read_only=True)
     query = FilteredSearchQuerySerializer()
@@ -68,7 +89,6 @@ class SimpleDripCampaignRunnerSerializer(
         lookup_field="public_id",
         queryset=BillingAccountMember.objects.all(),
         required=True,
-        allow_null=False,
     )
     campaigns = CampaignSerializer(many=True, read_only=True)
     drips = DripRecordSerializer(many=True, read_only=True, source="drip_records")
@@ -87,6 +107,7 @@ class SimpleDripCampaignRunnerSerializer(
             "url",
             "id",
             "query",
+            "saved_search",
             "billing_seat",
             "budget",
             "title",
@@ -116,9 +137,20 @@ class SimpleDripCampaignRunnerSerializer(
             "published",
         ]
 
+    def get_permissions_map(self, created):
+        user = self.context["request"].user
+        return {
+            "view_simpledripcampaignrunner": [user],
+            "change_simpledripcampaignrunner": [user],
+            "delete_simpledripcampaignrunner": [user],
+        }
+
 
 class IntervalCampaignRunnerSerializer(
-    TaggableMixin, SendingRuleMixin, IdOrHyperlinkedModelSerializer
+    ObjectPermissionsAssignmentMixin,
+    TaggableMixin,
+    SendingRuleMixin,
+    IdOrHyperlinkedModelSerializer,
 ):
     id = serializers.CharField(source="public_id", read_only=True)
     query = FilteredSearchQuerySerializer()
@@ -129,8 +161,7 @@ class IntervalCampaignRunnerSerializer(
         view_name="billingaccountmember-detail",
         lookup_field="public_id",
         queryset=BillingAccountMember.objects.all(),
-        required=False,
-        allow_null=True,
+        required=True,
     )
     tags = TagulousField(required=False)
     transactions = TransactionSerializer(many=True, read_only=True)
@@ -145,6 +176,7 @@ class IntervalCampaignRunnerSerializer(
             "url",
             "id",
             "query",
+            "saved_search",
             "billing_seat",
             "budget",
             "title",
@@ -170,3 +202,11 @@ class IntervalCampaignRunnerSerializer(
             "status_name",
             "published",
         ]
+
+    def get_permissions_map(self, created):
+        user = self.context["request"].user
+        return {
+            "view_intervaldripcampaignrunner": [user],
+            "change_intervaldripcampaignrunner": [user],
+            "delete_intervaldripcampaignrunner": [user],
+        }

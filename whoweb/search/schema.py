@@ -14,51 +14,58 @@ from whoweb.contrib.rest_framework.permissions import (
     ObjectPermissions,
 )
 from whoweb.payments.permissions import MemberOfBillingAccountPermissionsFilter
-from .models import (
-    SearchExport,
-    FilteredSearchQuery,
-    ExportOptions as ExportOptionsModel,
-    FilterValueList,
-)
+from . import models
 from .models.profile import PERSONAL, WORK, DerivationCache
 
-DeferChoices = graphene.Enum(
-    "DeferChoices", FilteredSearchQuery.DEFER_CHOICES._identifier_map.items()
+DeferChoices = graphene.Enum.from_enum(models.FilteredSearchQuery.DeferOptions)
+
+ContactFilterChoices = graphene.Enum.from_enum(
+    models.FilteredSearchQuery.ContactFilterOptions
 )
 
-ContactFilterChoices = graphene.Enum(
-    "ContactFilterChoices",
-    FilteredSearchQuery.CONTACT_FILTER_CHOICES._identifier_map.items(),
-)
-
-ExportFormatChoices = graphene.Enum(
-    "ExportFormatChoices", ExportOptionsModel.FORMAT_CHOICES._identifier_map.items(),
-)
+ExportFormatChoices = graphene.Enum.from_enum(models.ExportOptions.FormatOptions,)
 
 GradedEmailTypeChoices = graphene.Enum(
-    "GradedEmailTypeChoices", [("PERSONAL", PERSONAL), ("WORK", WORK)]
+    "GradedEmailTypeOptions", [("PERSONAL", PERSONAL), ("WORK", WORK)]
 )
 
 
-class FilteredSearchFilterElement(graphene.ObjectType):
+class FilteredSearchFilterElement(DjangoObjectType):
     field = graphene.String()
     truth = graphene.Boolean()
     value = GenericScalar()
 
+    class Meta:
+        model = models.FilteredSearchFilterElement
 
-class FilteredSearchFilters(graphene.ObjectType):
+
+class FilteredSearchFilters(DjangoObjectType):
     limit = graphene.Int()
     skip = graphene.Int()
     required = graphene.List(FilteredSearchFilterElement)
     desired = graphene.List(FilteredSearchFilterElement)
     profiles = graphene.List(graphene.String)
 
+    class Meta:
+        model = models.FilteredSearchFilters
 
-class ExportOptions(graphene.ObjectType):
+
+class ExportOptions(DjangoObjectType):
     webhooks = graphene.List(graphene.String)
     title = graphene.String()
     metadata = GenericScalar()
     format = graphene.Field(ExportFormatChoices)
+
+    class Meta:
+        model = models.ExportOptions
+
+
+class QuerySource(DjangoObjectType):
+    cls = graphene.String()
+    object_id = graphene.String()
+
+    class Meta:
+        model = models.QuerySource
 
 
 class FilteredSearchQueryObjectType(DjangoObjectType):
@@ -68,9 +75,10 @@ class FilteredSearchQueryObjectType(DjangoObjectType):
     with_invite = graphene.Boolean()
     export = graphene.Field(ExportOptions)
     filters = graphene.Field(FilteredSearchFilters)
+    source = graphene.Field(QuerySource)
 
     class Meta:
-        model = FilteredSearchQuery
+        model = models.FilteredSearchQuery
 
 
 class SearchExportFilterSet(FilterSet):
@@ -80,7 +88,7 @@ class SearchExportFilterSet(FilterSet):
     network = GlobalIDFilter(field_name="billing_seat__seat__organization__public_id")
 
     class Meta:
-        model = SearchExport
+        model = models.SearchExport
         fields = (
             "uuid",
             "billing_seat",
@@ -90,14 +98,14 @@ class SearchExportFilterSet(FilterSet):
         )
 
 
-SearchExportStatusChoices = graphene.Enum(
-    "SearchExportStatusChoices", SearchExport.STATUS._identifier_map.items(),
+SearchExportStatusChoices = graphene.Enum.from_enum(
+    models.SearchExport.ExportStatusOptions
 )
 
 
 class SearchExportNode(GuardedObjectType):
     class Meta:
-        model = SearchExport
+        model = models.SearchExport
         interfaces = (relay.Node,)
         filterset_class = SearchExportFilterSet
         permission_classes = [IsSuperUser | IsAuthenticated]
@@ -131,19 +139,19 @@ class SearchExportNode(GuardedObjectType):
     json_url = graphene.String(description="Link to download as json file.")
     result_url = graphene.String(description="Link to paginated result resource.")
 
-    def resolve_charged(self: SearchExport, info):
+    def resolve_charged(self: models.SearchExport, info):
         return self.charged
 
-    def resolve_transactions(self: SearchExport, info):
+    def resolve_transactions(self: models.SearchExport, info):
         return self.transactions
 
-    def resolve_file_url(self: SearchExport, info):
+    def resolve_file_url(self: models.SearchExport, info):
         return self.get_absolute_url()
 
-    def resolve_json_url(self: SearchExport, info):
+    def resolve_json_url(self: models.SearchExport, info):
         return self.get_absolute_url("json")
 
-    def resolve_result_url(self: SearchExport, info):
+    def resolve_result_url(self: models.SearchExport, info):
         return self.get_result_rest_url()
 
 
@@ -309,7 +317,7 @@ class FilterValueListNode(GuardedObjectType):
     tags = graphene.List(graphene.String, resolver=lambda x, i: x.tags.all())
 
     class Meta:
-        model = FilterValueList
+        model = models.FilterValueList
         filter_fields = []
         interfaces = (relay.Node,)
         permission_classes = [IsSuperUser | ObjectPermissions]

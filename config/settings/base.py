@@ -381,6 +381,7 @@ GRAPHENE = {
         "graphql_jwt.middleware.JSONWebTokenMiddleware",
         "whoweb.core.middleware.LoaderMiddleware",
     ],
+    "ATOMIC_MUTATIONS": True,
 }
 GRAPHQL_JWT = {
     # "JWT_ALLOW_ARGUMENT": True,

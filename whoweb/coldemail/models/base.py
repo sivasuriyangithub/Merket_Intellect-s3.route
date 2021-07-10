@@ -1,8 +1,8 @@
+from enum import Enum, IntEnum
 from typing import Union
 
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
-from model_utils import Choices
 from model_utils.fields import MonitorField
 from model_utils.models import TimeStampedModel, SoftDeletableModel
 from tagulous.models import TagField, TagModel
@@ -31,25 +31,33 @@ class ColdemailBaseModel(
         CreateableResource, ListableResource, UpdateableResource, DeleteableResource
     ] = None
 
-    STATUS = Choices(
-        (0, "created", "Created"),
-        (2, "pending", "Pending"),
-        (4, "published", "Published"),
-        (8, "paused", "Paused"),
-    )
+    class CampaignObjectStatusOptions(IntEnum):
+        CREATED = 0
+        PENDING = 2
+        PUBLISHED = 4
+        PAUSED = 8
+
     seat = models.ForeignKey(Seat, on_delete=models.CASCADE, null=True, blank=True)
     billing_seat = models.ForeignKey(
-        BillingAccountMember, on_delete=models.CASCADE, null=True, blank=True
+        BillingAccountMember, on_delete=models.CASCADE, null=True
     )
 
     status = models.IntegerField(
-        _("status"), db_index=True, choices=STATUS, blank=True, default=STATUS.created
+        _("status"),
+        db_index=True,
+        choices=[(s.value, s.name) for s in CampaignObjectStatusOptions],
+        blank=True,
+        default=CampaignObjectStatusOptions.CREATED,
     )
     status_changed = MonitorField(_("status changed"), monitor="status")
     coldemail_id = models.CharField(max_length=100)
     is_removed_changed = MonitorField("deleted at", monitor="is_removed")
     published = MonitorField(
-        monitor="status", when=[STATUS.published], null=True, default=None, blank=True
+        monitor="status",
+        when=[CampaignObjectStatusOptions.PUBLISHED],
+        null=True,
+        default=None,
+        blank=True,
     )
     tags = TagField(to=ColdEmailTagModel, blank=True)
 
@@ -59,7 +67,7 @@ class ColdemailBaseModel(
     def __str__(self):
         return f"{self.__class__.__name__} {self.pk}" + (
             f"(Published {self.published})"
-            if self.status == self.STATUS.published
+            if self.status == self.CampaignObjectStatusOptions.PUBLISHED
             else ""
         )
 
@@ -78,8 +86,14 @@ class ColdemailBaseModel(
 
     @property
     def is_locked(self):
-        return self.status in [self.STATUS.pending, self.STATUS.published]
+        return self.status in [
+            self.CampaignObjectStatusOptions.PENDING,
+            self.CampaignObjectStatusOptions.PUBLISHED,
+        ]
 
     @property
     def is_published(self):
-        return bool(self.coldemail_id) or self.status == self.STATUS.published
+        return (
+            bool(self.coldemail_id)
+            or self.status == self.CampaignObjectStatusOptions.PUBLISHED
+        )

@@ -51,7 +51,7 @@ def dates(v):
     return parsed or None
 
 
-class SocialTypeName(Enum):
+class SocialTypeName(str, Enum):
     GOOGLE = "google"
     HI5 = "hi5"
     ANGEL = "angel"

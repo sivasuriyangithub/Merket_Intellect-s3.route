@@ -212,7 +212,7 @@ class ExportAdmin(ActionsModelAdmin):
     fieldsets = (
         (None, {"fields": ("uuid", "billing_seat", "query", "scroller",)}),
         (
-            "Status Fields",
+            "StatusOptions Fields",
             {
                 "classes": (),
                 "fields": (
@@ -352,7 +352,7 @@ class ExportAdmin(ActionsModelAdmin):
 
     def compute_rows_uploaded(self, request, queryset):
         for export in queryset:
-            if export.status != SearchExport.STATUS.complete:
+            if export.status != SearchExport.ExportStatusOptions.COMPLETE:
                 self.message_user(
                     request,
                     f"Could not set row count of {export}, export is not complete.",

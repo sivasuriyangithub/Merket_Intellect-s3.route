@@ -1,11 +1,15 @@
+import json
 import logging
+from functools import partial
 
 from django.http import HttpResponse, HttpResponseServerError
+from promise import is_thenable
 from sentry_sdk import capture_exception
 
 from .loaders import Loaders
 
-logger = logging.getLogger("probes")
+probe_logger = logging.getLogger("probes")
+logger = logging.getLogger(__name__)
 
 
 class HealthCheckMiddleware(object):
@@ -34,7 +38,7 @@ class HealthCheckMiddleware(object):
 
             connection.ensure_connection()
         except Exception as e:
-            logger.exception(e)
+            probe_logger.exception(e)
             return HttpResponseServerError("db: cannot connect to database.")
 
         # Call get_stats() to connect to each memcached instance and get it's stats.
@@ -47,7 +51,7 @@ class HealthCheckMiddleware(object):
                 if isinstance(cache, RedisCache):
                     cache.get(None)
         except Exception as e:
-            logger.exception(e)
+            probe_logger.exception(e)
             return HttpResponseServerError("cache: cannot connect to cache.")
 
         return HttpResponse("OK")
@@ -58,6 +62,30 @@ class LoaderMiddleware(object):
         if not hasattr(info.context, "loaders"):
             info.context.loaders = Loaders()
         return next(root, info, **args)
+
+
+class DebugMiddleware(object):
+    def on_error(self, error, info):
+        return
+        # self.log_request_body(info)
+
+    def resolve(self, next, root, info, **args):
+        return next(root, info, **args).catch(partial(self.on_error, info=info))
+
+    @staticmethod
+    def log_request_body(info):
+        body = info.context._body.decode("utf-8")
+        try:
+            json_body = json.loads(body)
+            logging.debug(
+                " User: %s \n Action: %s \n Variables: %s \n Body: %s",
+                info.context.user,
+                json_body["operationName"],
+                json_body["variables"],
+                json_body["query"],
+            )
+        except:
+            logging.debug(body)
 
 
 class SentryMiddleware(object):

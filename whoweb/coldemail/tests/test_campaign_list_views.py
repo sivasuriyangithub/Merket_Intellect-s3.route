@@ -12,12 +12,12 @@ def test_create_campaignlist(su_client, query_contact_invites):
         {
             "query": query_contact_invites,
             "name": "list name",
-            "origin": "1",
+            "origin": "USER",
             "tags": [],
         },
         format="json",
     )
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.content
     assert resp.json()["url"].startswith("http://testserver/ww/api/campaign/lists/")
     assert resp.json()["name"] == "list name"
 
@@ -31,13 +31,13 @@ def test_update_campaignlist(su_client, query_contact_invites):
         {
             "query": query_contact_invites,
             "name": "list name",
-            "origin": "1",
+            "origin": "USER",
             "tags": [],
         },
         format="json",
     )
     url = resp.json()["url"]
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.content
     assert resp.json()["name"] == "list name"
 
     update = su_client.patch(url, {"name": "new name"}, format="json",)
@@ -50,14 +50,14 @@ def test_delete_campaignlist(su_client, query_contact_invites):
         {
             "query": query_contact_invites,
             "name": "list name",
-            "origin": "1",
+            "origin": "USER",
             "tags": [],
         },
         format="json",
     )
     url = resp.json()["url"]
     delete = su_client.delete(url, format="json",)
-    assert delete.status_code == 204
+    assert delete.status_code == 204, resp.content
 
     listed = su_client.get("/ww/api/campaign/lists/", format="json",)
     assert len(listed.json()["results"]) == 0

@@ -2,9 +2,14 @@ import graphene
 from graphene_django.rest_framework.mutation import SerializerMutation
 from graphql_jwt.decorators import login_required
 
+from contrib.graphene_django import convert_serializer_to_input_type
 from whoweb.contrib.graphene_django.mutation import NodeSerializerMutation
 from .schema import ResultProfileObjectType
-from .serializers import DeriveContactSerializer, FilterValueListSerializer
+from .serializers import (
+    DeriveContactSerializer,
+    FilterValueListSerializer,
+    FilteredSearchFilterElementSerializer,
+)
 
 
 class DeriveContact(SerializerMutation):

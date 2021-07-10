@@ -1,9 +1,10 @@
+from enum import Enum
+
 import logging
 
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
-from model_utils import Choices
 
 from whoweb.contrib.postgres.abstract_models import AbstractEmbeddedModel
 from whoweb.contrib.postgres.fields import EmbeddedModelField, EmbeddedArrayField
@@ -46,27 +47,38 @@ class ExportOptions(AbstractEmbeddedModel):
     class Meta:
         managed = False
 
-    FORMAT_CHOICES = Choices(("nested", "NESTED", "nested"), ("flat", "FLAT", "flat"))
+    class FormatOptions(str, Enum):
+        NESTED = "nested"
+        FLAT = "flat"
+
     webhooks = ArrayField(models.URLField(), default=list, blank=True)
     title = models.CharField(max_length=255, blank=True, default="")
     metadata = JSONField(blank=True, default=dict)
     format = models.CharField(
-        default=FORMAT_CHOICES.NESTED,
+        default=FormatOptions.NESTED,
         max_length=255,
         blank=True,
-        choices=FORMAT_CHOICES,
+        choices=[(o.value, o.name) for o in FormatOptions],
     )
 
     def is_flat(self):
-        return self.format == "flat"
+        return self.format == self.FormatOptions.FLAT
+
+
+class QuerySource(AbstractEmbeddedModel):
+    class Meta:
+        managed = False
+
+    cls = models.CharField(max_length=255, blank=True, default="")
+    object_id = models.CharField(max_length=255, blank=True, default="")
 
 
 def default_contact_filters():
     return [
-        FilteredSearchQuery.CONTACT_FILTER_CHOICES.WORK,
-        FilteredSearchQuery.CONTACT_FILTER_CHOICES.PERSONAL,
-        FilteredSearchQuery.CONTACT_FILTER_CHOICES.SOCIAL,
-        FilteredSearchQuery.CONTACT_FILTER_CHOICES.PROFILE,
+        FilteredSearchQuery.ContactFilterOptions.WORK,
+        FilteredSearchQuery.ContactFilterOptions.PERSONAL,
+        FilteredSearchQuery.ContactFilterOptions.SOCIAL,
+        FilteredSearchQuery.ContactFilterOptions.PROFILE,
     ]
 
 
@@ -74,53 +86,58 @@ class FilteredSearchQuery(AbstractEmbeddedModel):
     class Meta:
         managed = False
 
-    PUBLIC_DEFER_CHOICES = Choices(
-        ("contact", "CONTACT", "Contact"),
-        ("company_counts", "COMPANY_COUNTS", "Company Counts"),
-        ("degree_levels", "DEGREE_LEVELS", "Degree Levels"),
-        ("validation", "VALIDATION", "Validation"),
-        ("phone_validation", "PHONE_VALIDATION", "Phone Validation"),
-    )  # for html serializer
-    DEFER_CHOICES = Choices(
-        ("contact", "CONTACT", "Contact"),
-        ("company_counts", "COMPANY_COUNTS", "Company Counts"),
-        ("degree_levels", "DEGREE_LEVELS", "Degree Levels"),
-        ("validation", "VALIDATION", "Validation"),
-        ("phone_validation", "PHONE_VALIDATION", "Phone Validation"),
-        ("nymeria", "ALPHA", "Nymeria Service"),
-        ("rocketreach", "BETA", "Rocketreach Service"),
-        ("toofr", "GAMMA", "Toofr (Find Emails) Service"),
-        ("anymail", "DELTA", "Anymail Service"),
-        ("pdl", "EPSILON", "PDL Service"),
-        ("fullcontact", "ZETA", "Fullcontact Service"),
-        ("pipl", "ETA", "Pipl Service"),
-        ("hunter", "THETA", "Hunter (pattern) Service"),
-        ("norbert", "IOTA", "norbert Service"),
-        ("name2domain", "KAPPA", "name2domain Service"),
-        ("clearbit", "LAMBDA", "Clearbit Service"),
-        ("gcse", "MU", "Google Custom Search Service"),
-    )
-    CONTACT_FILTER_CHOICES = Choices(
-        ("work", "WORK", "Work"),
-        ("personal", "PERSONAL", "Personal"),
-        ("social", "SOCIAL", "Social"),
-        ("phone", "PHONE", "Phone"),
-        ("profile", "PROFILE", "Profile"),
-    )
+    class PublicDeferOptions(str, Enum):
+        CONTACT = "contact"
+        COMPANY_COUNTS = "company_counts"
+        DEGREE_LEVELS = "degree_levels"
+        VALIDATION = "validation"
+        PHONE_VALIDATION = "phone_validation"
+
+    class DeferOptions(str, Enum):
+        CONTACT = "contact"
+        COMPANY_COUNTS = "company_counts"
+        DEGREE_LEVELS = "degree_levels"
+        VALIDATION = "validation"
+        PHONE_VALIDATION = "phone_validation"
+        ALPHA = "nymeria"
+        BETA = "rocketreach"
+        GAMMA = "toofr"
+        DELTA = "anymail"
+        EPSILON = "pdl"
+        ZETA = "fullcontact"
+        ETA = "pipl"
+        THETA = "hunter"
+        IOTA = "norbert"
+        KAPPA = "name2domain"
+        LAMBDA = "clearbit"
+        MU = "gcse"
+
+    class ContactFilterOptions(str, Enum):
+        WORK = "work"
+        PERSONAL = "personal"
+        SOCIAL = "social"
+        PHONE = "phone"
+        PROFILE = "profile"
+
     user_id = models.CharField(max_length=36, null=True, blank=True)
     filters = EmbeddedModelField(FilteredSearchFilters, default=FilteredSearchFilters)
     defer = ArrayField(
-        base_field=models.CharField(max_length=50, choices=DEFER_CHOICES),
+        base_field=models.CharField(
+            max_length=50, choices=[(o.value, o.name) for o in DeferOptions]
+        ),
         default=list,
         blank=True,
     )
     with_invites = models.BooleanField(default=False)
     contact_filters = ArrayField(
-        base_field=models.CharField(max_length=50, choices=CONTACT_FILTER_CHOICES),
+        base_field=models.CharField(
+            max_length=50, choices=[(o.value, o.name) for o in ContactFilterOptions]
+        ),
         default=default_contact_filters,
         blank=True,
     )
     export = EmbeddedModelField(ExportOptions, default=ExportOptions)
+    source = EmbeddedModelField(QuerySource, null=True, blank=True, default=QuerySource)
 
     def __eq__(self, other):
         if hasattr(other, "serialize"):

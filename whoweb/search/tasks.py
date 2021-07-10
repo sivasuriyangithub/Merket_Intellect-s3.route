@@ -58,7 +58,7 @@ def do_process_page(self, page_pk):
         return page.populate_data_directly(task_context=self.request)
 
     if tasks := page.get_derivation_tasks():
-        page.status = SearchExportPage.STATUS.working
+        page.status = SearchExportPage.PageStatusOptions.WORKING
         page.pending_count = len(tasks)
         page.save()
         chrd = group(tasks) | finalize_page.si(pk=page.pk).on_error(

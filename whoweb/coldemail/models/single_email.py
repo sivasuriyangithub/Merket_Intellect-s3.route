@@ -55,7 +55,7 @@ class SingleColdEmail(ColdemailBaseModel):
         )
         cold_single_email = self.api_create(**create_args)
         self.coldemail_id = cold_single_email.id
-        self.status = self.STATUS.published
+        self.status = self.CampaignObjectStatusOptions.PUBLISHED
         self.save()
         # self.save_as_inbox_message()
 

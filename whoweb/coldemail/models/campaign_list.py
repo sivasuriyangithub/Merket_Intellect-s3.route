@@ -1,8 +1,8 @@
+from enum import Enum, IntEnum
+
 from django.db import models
-from model_utils import Choices
 
 from whoweb.contrib.postgres.fields import EmbeddedModelField
-from whoweb.core.router import external_link
 from whoweb.search.models import FilteredSearchQuery, SearchExport
 from .base import ColdemailBaseModel
 from ..api import resource as api
@@ -13,12 +13,16 @@ class CampaignList(ColdemailBaseModel):
     EVENT_REVERSE_NAME = "campaign_list"
 
     api_class = api.CampaignList
-    ORIGIN = Choices(
-        (1, "user", "USER"), (2, "system", "SYSTEM"), (3, "intro", "INTRO")
-    )
+
+    class OriginOptions(IntEnum):
+        USER = 1
+        SYSTEM = 2
+        INTRO = 3
 
     name = models.CharField(max_length=255)
-    origin = models.PositiveSmallIntegerField(choices=ORIGIN, default=2)
+    origin = models.PositiveSmallIntegerField(
+        choices=[(o.value, o.name) for o in OriginOptions], default=OriginOptions.SYSTEM
+    )
     results_fetched = models.DateTimeField(null=True)
     query: FilteredSearchQuery = EmbeddedModelField(FilteredSearchQuery, null=True)
     export = models.ForeignKey(SearchExport, on_delete=models.SET_NULL, null=True)
@@ -65,11 +69,11 @@ class CampaignList(ColdemailBaseModel):
                 export_kwargs = {}
             export = self.convert_query_to_export(**export_kwargs)
 
-        self.status = self.STATUS.pending
+        self.status = self.CampaignObjectStatusOptions.PENDING
         self.save()
 
         sigs = upload_list.si(self.pk) | check_for_list_publication.si(self.pk)
-        if not export.status == export.STATUS.complete:
+        if not export.status == export.ExportStatusOptions.COMPLETE:
             sigs = export.processing_signatures(on_complete=on_complete) | sigs
 
         if apply_tasks:
@@ -83,7 +87,7 @@ class CampaignList(ColdemailBaseModel):
         self.log_event(UPLOAD_CAMPAIGN_LIST_URL, task=task_context)
         created = self.api_class.create_by_url(url=self.export.csv.url)
         self.coldemail_id = created.id
-        self.status = self.STATUS.published
+        self.status = self.CampaignObjectStatusOptions.PUBLISHED
         self.save()
 
     @property

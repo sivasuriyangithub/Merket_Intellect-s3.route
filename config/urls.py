@@ -13,6 +13,7 @@ from rest_framework_simplejwt.views import (
     TokenObtainSlidingView,
 )
 
+from whoweb.contrib.graphene_django.backends import ExceptionLocatingGraphQLCoreBackend
 from whoweb.campaigns.urls import router as campaign_router
 from whoweb.coldemail.urls import router as coldemail_router
 from whoweb.core.views import SentryEnabledGraphQLView
@@ -39,7 +40,14 @@ urlpatterns = [
     path("api/payment_source/", PaymentSourceAPIView.as_view(), name="paymentsource"),
     path("api/token/", TokenObtainSlidingView.as_view(), name="token_obtain"),
     path("api/token/refresh/", TokenRefreshSlidingView.as_view(), name="token_refresh"),
-    path("graphql", csrf_exempt(SentryEnabledGraphQLView.as_view(graphiql=True))),
+    path(
+        "graphql",
+        csrf_exempt(
+            SentryEnabledGraphQLView.as_view(
+                graphiql=True, backend=ExceptionLocatingGraphQLCoreBackend()
+            )
+        ),
+    ),
     # Your stuff: custom urls includes go here.
     path("accounts/", include("whoweb.users.urls", namespace="users")),
     path("billing/", include("whoweb.payments.urls", namespace="billing")),

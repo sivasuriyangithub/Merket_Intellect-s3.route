@@ -17,6 +17,7 @@ class SimpleCampaignRunnerMutation(NodeSerializerMutation):
         )
         only_fields = (
             "query",
+            "saved_search",
             "billing_seat",
             "budget",
             "title",
@@ -41,6 +42,7 @@ class IntervalCampaignRunnerMutation(NodeSerializerMutation):
         )
         only_fields = (
             "query",
+            "saved_search",
             "billing_seat",
             "budget",
             "title",
@@ -57,3 +59,4 @@ class IntervalCampaignRunnerMutation(NodeSerializerMutation):
 
 class Mutation(graphene.ObjectType):
     simple_campaign = SimpleCampaignRunnerMutation.Field()
+    interval_campaign = IntervalCampaignRunnerMutation.Field()

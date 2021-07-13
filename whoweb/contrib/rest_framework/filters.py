@@ -48,6 +48,9 @@ class AND:
     def __repr__(self):
         return f"{self.op1} & {self.op2}"
 
+    def get_schema_operation_parameters(self, view):
+        return []
+
 
 class OR:
     def __init__(self, op1, op2):
@@ -62,6 +65,9 @@ class OR:
 
     def __repr__(self):
         return f"{self.op1} | {self.op2}"
+
+    def get_schema_operation_parameters(self, view):
+        return []
 
 
 class BasePermissionMetaclass(OperationHolderMixin, type):

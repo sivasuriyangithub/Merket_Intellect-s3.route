@@ -6,6 +6,7 @@ from whoweb.accounting.serializers import TransactionSerializer
 from whoweb.contrib.rest_framework.fields import (
     IdOrHyperlinkedRelatedField,
     TagulousField,
+    EnumField,
 )
 from whoweb.coldemail.serializers import CampaignSerializer
 from whoweb.contrib.rest_framework.serializers import (
@@ -23,12 +24,11 @@ from .models import (
 
 class SendingRuleSerializer(IdOrHyperlinkedModelSerializer):
 
-    trigger = serializers.ChoiceField(
-        choices=[(s.name, s.name) for s in SendingRule.SendingRuleTriggerOptions]
+    trigger = EnumField(
+        SendingRule.SendingRuleTriggerOptions, to_choice=lambda x: (x.name, x.name)
     )
 
     class Meta:
-        convert_choices_to_enum = False
         model = SendingRule
         fields = (
             "message",
@@ -94,7 +94,7 @@ class SimpleDripCampaignRunnerSerializer(
     drips = DripRecordSerializer(many=True, read_only=True, source="drip_records")
     sending_rules = SendingRuleSerializer(many=True)
     status_name = serializers.CharField(source="get_status_display", read_only=True)
-    tags = TagulousField(required=False)
+    tags = TagulousField(required=False, many=True)
     transactions = TransactionSerializer(many=True, read_only=True)
 
     class Meta:
@@ -163,7 +163,7 @@ class IntervalCampaignRunnerSerializer(
         queryset=BillingAccountMember.objects.all(),
         required=True,
     )
-    tags = TagulousField(required=False)
+    tags = TagulousField(required=False, many=True)
     transactions = TransactionSerializer(many=True, read_only=True)
 
     class Meta:

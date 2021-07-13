@@ -1,6 +1,6 @@
 import django_filters
 import graphene
-from django_filters.rest_framework import FilterSet
+from django_filters.rest_framework import FilterSet, OrderingFilter
 from graphene import relay
 from graphene.types.generic import GenericScalar
 from graphene_django import DjangoListField
@@ -41,6 +41,7 @@ class CampaignRunnerFilter(ObscureIdFilterSet):
         field_name="published", lookup_expr="lt"
     )
     tags = TagsFilter(field_name="tags__name")
+    order_by = OrderingFilter(fields=("modified",))
 
     class Meta:
         model = models.BaseCampaignRunner

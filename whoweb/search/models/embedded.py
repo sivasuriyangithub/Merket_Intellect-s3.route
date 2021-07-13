@@ -82,16 +82,29 @@ def default_contact_filters():
     ]
 
 
+class PublicDeferOptions(str, Enum):
+    CONTACT = "CONTACT"
+    COMPANY_COUNTS = "COMPANY_COUNTS"
+    DEGREE_LEVELS = "DEGREE_LEVELS"
+    VALIDATION = "VALIDATION"
+    PHONE_VALIDATION = "PHONE_VALIDATION"
+    ALPHA = "NYMERIA"
+    BETA = "ROCKETREACH"
+    GAMMA = "TOOFR"
+    DELTA = "ANYMAIL"
+    EPSILON = "PDL"
+    ZETA = "FULLCONTACT"
+    ETA = "PIPL"
+    THETA = "HUNTER"
+    IOTA = "NORBERT"
+    KAPPA = "NAME2DOMAIN"
+    LAMBDA = "CLEARBIT"
+    MU = "GCSE"
+
+
 class FilteredSearchQuery(AbstractEmbeddedModel):
     class Meta:
         managed = False
-
-    class PublicDeferOptions(str, Enum):
-        CONTACT = "contact"
-        COMPANY_COUNTS = "company_counts"
-        DEGREE_LEVELS = "degree_levels"
-        VALIDATION = "validation"
-        PHONE_VALIDATION = "phone_validation"
 
     class DeferOptions(str, Enum):
         CONTACT = "contact"

@@ -1,16 +1,24 @@
+from enum import Enum
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
 from graphql_relay import from_global_id
-from rest_framework.fields import MultipleChoiceField, iter_options, to_choices_dict
+from rest_framework.fields import (
+    MultipleChoiceField,
+    iter_options,
+    to_choices_dict,
+    ChoiceField,
+)
 from rest_framework.relations import (
     HyperlinkedRelatedField,
     SlugRelatedField,
+    ManyRelatedField,
 )
 
 
 class TagulousField(SlugRelatedField):
-    def __init__(self, slug_field="name", many=True, **kwargs):
-        super().__init__(slug_field=slug_field, many=many, **kwargs)
+    def __init__(self, slug_field="name", **kwargs):
+        super().__init__(slug_field=slug_field, **kwargs)
 
     def to_internal_value(self, data):
         try:
@@ -21,7 +29,64 @@ class TagulousField(SlugRelatedField):
             self.fail("invalid")
 
     def get_queryset(self):
-        return getattr(self.parent.Meta.model, self.source).tag_model.objects.all()
+        if hasattr(self, "parent") and isinstance(self.parent, ManyRelatedField):
+            field = self.parent
+        else:
+            field = self
+        return getattr(field.parent.Meta.model, field.source).tag_model.objects.all()
+
+
+class EnumField(ChoiceField):
+    def __init__(self, enum_class, to_choice=None, to_repr=None, **kwargs):
+
+        assert issubclass(enum_class, Enum), f"Enum required, received {enum_class}"
+
+        if to_repr is None:
+            to_repr = lambda x: x.name
+        self.to_repr = to_repr
+
+        if to_choice is None:
+            to_choice = lambda x: (x.name, x.value)
+        self.to_choice = to_choice
+
+        self.enum_class = enum_class
+        kwargs["choices"] = [self.to_choice(e) for e in self.enum_class]
+        kwargs.pop("max_length", None)
+
+        super().__init__(**kwargs)
+
+    def to_internal_value(self, data):
+        try:
+            return self.enum_class[data]
+        except (KeyError, ValueError):
+            pass
+
+        try:
+            return self.enum_class(data)
+        except (KeyError, ValueError):
+            pass
+
+        self.fail("invalid_choice", input=data)
+
+    def to_representation(self, value):
+        if not value:
+            return None
+
+        return self.to_repr(value)
+
+
+class MultipleChoiceEnumField(EnumField, MultipleChoiceField):
+    def to_internal_value(self, data):
+        return {
+            super(MultipleChoiceEnumField, self).to_internal_value(item)
+            for item in data
+        }
+
+    def to_representation(self, value):
+        return {
+            super(MultipleChoiceEnumField, self).to_representation(item)
+            for item in value
+        }
 
 
 class MultipleChoiceListField(MultipleChoiceField):

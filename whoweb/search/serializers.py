@@ -6,8 +6,6 @@ from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 
 from whoweb.accounting.serializers import TransactionSerializer
 from whoweb.contrib.rest_framework.fields import (
-    MultipleChoiceListField,
-    PublicPrivateMultipleChoiceListField,
     IdOrHyperlinkedRelatedField,
     TagulousField,
 )
@@ -105,7 +103,7 @@ class FilteredSearchQuerySerializer(serializers.ModelSerializer):
 
 class SearchExportSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
     query = FilteredSearchQuerySerializer()
-    tags = TagulousField(required=False)
+    tags = TagulousField(required=False, many=True)
     results_url = serializers.HyperlinkedRelatedField(
         view_name="exportresult-detail",
         source="*",
@@ -164,7 +162,7 @@ class SearchExportSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
         ]
 
     def get_status_name(self, obj):
-        return SearchExport.Status(int(obj.status)).name
+        return SearchExport.ExportStatusOptions(int(obj.status)).name
 
     def create(self, validated_data):
         try:
@@ -458,7 +456,6 @@ class BatchProfileEnrichmentSerializer(serializers.Serializer):
 class FilterValueListSerializer(
     ObjectPermissionsAssignmentMixin, TaggableMixin, IdOrHyperlinkedModelSerializer
 ):
-    tags = TagulousField(required=False)
     # values = serializers.ListField(serializers.CharField())
     billing_seat = IdOrHyperlinkedRelatedField(
         view_name="billingaccountmember-detail",

@@ -6,6 +6,9 @@ from graphene_django.rest_framework.serializer_converter import (
     get_graphene_type_from_serializer_field,
 )
 from rest_framework import serializers
+from rest_framework.relations import SlugRelatedField, ManyRelatedField
+
+from whoweb.contrib.rest_framework.fields import TagulousField
 
 
 def convert_serializer_to_input_type(serializer_class):
@@ -43,3 +46,9 @@ serializer_converter.convert_serializer_to_input_type = convert_serializer_to_in
 @get_graphene_type_from_serializer_field.register(serializers.JSONField)
 def convert_json_field_to_generic(field):
     return GenericScalar
+
+
+@get_graphene_type_from_serializer_field.register(ManyRelatedField)
+def convert_serializer_field_to_list(field, is_input=True):
+    child_type = get_graphene_type_from_serializer_field(field.child_relation)
+    return (graphene.List, child_type)

@@ -157,6 +157,8 @@ class SingleRecipientEmailFilter(CampaignObjectFilter):
             "id",
         )
 
+    order_by = OrderingFilter(fields=("modified",))
+
 
 class SingleRecipientEmail(GuardedObjectType):
     class Meta:

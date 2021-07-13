@@ -22,7 +22,7 @@ class CampaignMessageSerializer(
 ):
     status_name = serializers.CharField(source="get_status_display", read_only=True)
     id = serializers.CharField(source="public_id", read_only=True)
-    tags = TagulousField(required=False)
+    tags = TagulousField(required=False, many=True)
 
     class Meta:
         model = CampaignMessage
@@ -60,7 +60,7 @@ class CampaignMessageTemplateSerializer(
     ObjectPermissionsAssignmentMixin, TaggableMixin, IdOrHyperlinkedModelSerializer
 ):
     id = serializers.CharField(source="public_id", read_only=True)
-    tags = TagulousField(required=False)
+    tags = TagulousField(required=False, many=True)
 
     class Meta:
         model = CampaignMessageTemplate
@@ -93,7 +93,7 @@ class CampaignListSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
     query = FilteredSearchQuerySerializer()
     status_name = serializers.CharField(source="get_status_display", read_only=True)
     id = serializers.CharField(source="public_id", read_only=True)
-    tags = TagulousField(required=False)
+    tags = TagulousField(required=False, many=True)
 
     class Meta:
         model = CampaignList
@@ -151,7 +151,7 @@ class CampaignSerializer(serializers.ModelSerializer):
 class SingleColdEmailSerializer(
     ObjectPermissionsAssignmentMixin, TaggableMixin, IdOrHyperlinkedModelSerializer
 ):
-    tags = TagulousField(required=False)
+    tags = TagulousField(required=False, many=True)
 
     class Meta:
         model = SingleColdEmail

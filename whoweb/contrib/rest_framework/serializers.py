@@ -6,9 +6,12 @@ from .fields import IdOrHyperlinkedRelatedField
 
 class TaggableMixin(object):
     def update(self, instance, validated_data):
-        if tags := validated_data.pop("tags", None) is not None:
+        tags = validated_data.pop("tags", None)
+        super().update(instance=instance, validated_data=validated_data)
+        if tags is not None:
             instance.tags = tags
-        return super().update(instance, validated_data)
+            instance.save()
+        return instance
 
     def create(self, validated_data):
         tags = validated_data.pop("tags", None)

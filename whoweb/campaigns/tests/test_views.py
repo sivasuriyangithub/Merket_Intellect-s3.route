@@ -133,5 +133,4 @@ def test_get_simplecampaign_drips(su_client):
     runner: "SimpleDripCampaignRunner" = SimpleCampaignRunnerWithDripsFactory()
     resp = su_client.get(f"/ww/api/campaign/simple/{runner.public_id}/", format="json",)
     assert resp.json()
-    print(resp.json())
     assert resp.json()["drips"][0]

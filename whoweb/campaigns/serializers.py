@@ -52,22 +52,75 @@ class DripRecordSerializer(serializers.ModelSerializer):
         fields = ("root", "drip", "order")
 
 
+class PublishableMixin(object):
+
+    publish = serializers.BooleanField(write_only=True)
+    pause = serializers.BooleanField(write_only=True)
+    resume = serializers.BooleanField(write_only=True)
+
+    def validate(self, data):
+        """
+        Check that start is before finish.
+        """
+        if (
+            sum(
+                (
+                    1 if "publish" in data else 0,
+                    1 if "pause" in data else 0,
+                    1 if "resume" in data else 0,
+                )
+            )
+            > 1
+        ):
+            raise serializers.ValidationError(
+                "Only one publication related action can be taken at a time."
+            )
+        return data
+
+    def create(self, validated_data):
+        publish = validated_data.pop("publish", False)
+        pause = validated_data.pop("pause", False)
+        resume = validated_data.pop("resume", False)
+
+        instance = super().create(validated_data)
+        if publish:
+            instance.publish()
+        elif pause:
+            instance.pause()
+        elif resume:
+            instance.resume()
+        return instance
+
+    def update(self, instance, validated_data):
+        publish = validated_data.pop("publish", False)
+        pause = validated_data.pop("pause", False)
+        resume = validated_data.pop("resume", False)
+
+        instance = super().update(instance, validated_data)
+        if publish:
+            instance.publish()
+        elif pause:
+            instance.pause()
+        elif resume:
+            instance.resume()
+        return instance
+
+
 class SendingRuleMixin(object):
-    def update(self, validated_data):
+    def create(self, validated_data):
         rules = validated_data.pop("sending_rules")
-        runner = super().update(validated_data)
-        SendingRule.objects.delete(runner=runner)
+        runner = super().create(validated_data)
         for rule in rules:
             idx = rule.pop("index")
             SendingRule.objects.update_or_create(
                 runner=runner, index=idx, defaults=rule,
             )
-        runner.refresh_from_db()
         return runner
 
-    def create(self, validated_data):
+    def update(self, instance, validated_data):
         rules = validated_data.pop("sending_rules")
-        runner = super().create(validated_data)
+        runner = super().update(instance, validated_data)
+        SendingRule.objects.filter(runner=runner).delete()
         for rule in rules:
             idx = rule.pop("index")
             SendingRule.objects.update_or_create(
@@ -80,6 +133,7 @@ class SimpleDripCampaignRunnerSerializer(
     ObjectPermissionsAssignmentMixin,
     TaggableMixin,
     SendingRuleMixin,
+    PublishableMixin,
     IdOrHyperlinkedModelSerializer,
 ):
     id = serializers.CharField(source="public_id", read_only=True)
@@ -126,6 +180,9 @@ class SimpleDripCampaignRunnerSerializer(
             "from_name",
             "created",
             "modified",
+            "publish",
+            "pause",
+            "resume",
         ]
         read_only_fields = [
             "created",
@@ -150,6 +207,7 @@ class IntervalCampaignRunnerSerializer(
     ObjectPermissionsAssignmentMixin,
     TaggableMixin,
     SendingRuleMixin,
+    PublishableMixin,
     IdOrHyperlinkedModelSerializer,
 ):
     id = serializers.CharField(source="public_id", read_only=True)
@@ -193,6 +251,9 @@ class IntervalCampaignRunnerSerializer(
             "interval_hours",
             "max_sends",
             "from_name",
+            "publish",
+            "pause",
+            "resume",
         ]
         read_only_fields = [
             "drips",

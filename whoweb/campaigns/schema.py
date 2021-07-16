@@ -5,12 +5,18 @@ from graphene import relay
 from graphene.types.generic import GenericScalar
 from graphene_django import DjangoListField
 from graphene_django.filter import DjangoFilterConnectionField, GlobalIDFilter
+from rest_framework.permissions import IsAuthenticated
 
+from whoweb.users.models import User
 from whoweb.campaigns import models
 from whoweb.coldemail.schema import Campaign
 from whoweb.contrib.graphene_django.types import GuardedObjectType
 from whoweb.contrib.rest_framework.filters import TagsFilter, ObscureIdFilterSet
-from whoweb.contrib.rest_framework.permissions import IsSuperUser, ObjectPermissions
+from whoweb.contrib.rest_framework.permissions import (
+    IsSuperUser,
+    ObjectPermissions,
+    ObjectPassesTest,
+)
 from whoweb.payments.permissions import MemberOfBillingAccountPermissionsFilter
 from whoweb.search.schema import FilteredSearchQueryObjectType
 
@@ -20,6 +26,12 @@ SendingRuleTriggerChoices = graphene.Enum.from_enum(
 CampaignRunnerStatusChoices = graphene.Enum.from_enum(
     models.BaseCampaignRunner.CampaignRunnerStatusOptions
 )
+
+
+def member_of_billing_account(viewer: User, campaign_runner: models.BaseCampaignRunner):
+    return viewer.payments_billingaccount.filter(
+        pk=campaign_runner.billing_seat.organization.pk
+    ).exists()
 
 
 class CampaignRunnerFilter(ObscureIdFilterSet):
@@ -84,7 +96,11 @@ class SimpleCampaignRunnerNode(GuardedObjectType):
         model = models.SimpleDripCampaignRunner
         interfaces = (relay.Node,)
         filterset_class = CampaignRunnerFilter
-        permission_classes = [IsSuperUser | ObjectPermissions]
+        permission_classes = [
+            ObjectPassesTest(member_of_billing_account)
+            | IsSuperUser
+            | ObjectPermissions
+        ]
         filter_backends = (MemberOfBillingAccountPermissionsFilter,)
         fields = (
             "billing_seat",
@@ -124,8 +140,11 @@ class IntervalCampaignRunnerNode(GuardedObjectType):
         model = models.IntervalCampaignRunner
         interfaces = (relay.Node,)
         filterset_class = CampaignRunnerFilter
-
-        permission_classes = [IsSuperUser | ObjectPermissions]
+        permission_classes = [
+            ObjectPassesTest(member_of_billing_account)
+            | IsSuperUser
+            | ObjectPermissions
+        ]
         filter_backends = (MemberOfBillingAccountPermissionsFilter,)
 
         fields = (

@@ -3,13 +3,28 @@ import graphene
 from django_filters.rest_framework import OrderingFilter
 from graphene import relay
 from graphene_django.filter import DjangoFilterConnectionField, GlobalIDFilter
-from rest_framework.permissions import IsAuthenticated
 
+from whoweb.users.models import User
 from whoweb.contrib.graphene_django.types import GuardedObjectType
 from whoweb.contrib.rest_framework.filters import TagsFilter, ObscureIdFilterSet
-from whoweb.contrib.rest_framework.permissions import IsSuperUser, ObjectPermissions
+from whoweb.contrib.rest_framework.permissions import (
+    IsSuperUser,
+    ObjectPermissions,
+    ObjectPassesTest,
+)
 from whoweb.payments.permissions import MemberOfBillingAccountPermissionsFilter
 from . import models
+
+
+def member_of_billing_account(viewer: User, base_model: models.base.ColdemailBaseModel):
+    return viewer.payments_billingaccount.filter(
+        pk=base_model.billing_seat.organization.pk
+    ).exists()
+
+
+CampaignObjectStatusChoices = graphene.Enum.from_enum(
+    models.base.ColdemailBaseModel.CampaignObjectStatusOptions
+)
 
 
 class CampaignObjectFilter(ObscureIdFilterSet):
@@ -58,11 +73,17 @@ class CampaignMessageTemplateFilter(CampaignObjectFilter):
 
 
 class CampaignMessageNode(GuardedObjectType):
+    status = graphene.Field(CampaignObjectStatusChoices)
+
     class Meta:
         model = models.CampaignMessage
         interfaces = (relay.Node,)
         filterset_class = CampaignMessageFilter
-        permission_classes = [IsSuperUser | IsAuthenticated]
+        permission_classes = [
+            ObjectPassesTest(member_of_billing_account)
+            | IsSuperUser
+            | ObjectPermissions
+        ]
         filter_backends = (MemberOfBillingAccountPermissionsFilter,)
         fields = (
             "billing_seat",
@@ -85,7 +106,11 @@ class CampaignMessageTemplateNode(GuardedObjectType):
         model = models.CampaignMessageTemplate
         interfaces = (relay.Node,)
         filterset_class = CampaignMessageTemplateFilter
-        permission_classes = [IsSuperUser | IsAuthenticated]
+        permission_classes = [
+            ObjectPassesTest(member_of_billing_account)
+            | IsSuperUser
+            | ObjectPermissions
+        ]
         filter_backends = (MemberOfBillingAccountPermissionsFilter,)
         fields = (
             "billing_seat",
@@ -95,7 +120,6 @@ class CampaignMessageTemplateNode(GuardedObjectType):
             "plain_content",
             "modified",
             "published",
-            "status",
         )
 
 
@@ -111,6 +135,7 @@ class Campaign(GuardedObjectType):
     good_log = graphene.List(ProfileLogEntry, name="goodProfiles")
     sent_profiles = graphene.List(graphene.String)
     message = graphene.Field(CampaignMessageNode)
+    status = graphene.Field(CampaignObjectStatusChoices)
 
     class Meta:
         interfaces = (relay.Node,)
@@ -146,6 +171,18 @@ class Campaign(GuardedObjectType):
     def resolve_sent_profiles(self, info):
         return (profile.id for profile in self.campaign_list.export.get_profiles())
 
+    def resolve_click_log(self, info):
+        return self.click_log.get("log", []) if self.click_log else []
+
+    def resolve_open_log(self, info):
+        return self.open_log.get("log", []) if self.open_log else []
+
+    def resolve_reply_log(self, info):
+        return self.reply_log.get("log", []) if self.reply_log else []
+
+    def resolve_good_log(self, info):
+        return self.good_log.get("log", []) if self.good_log else []
+
 
 class SingleRecipientEmailFilter(CampaignObjectFilter):
     class Meta:
@@ -161,10 +198,16 @@ class SingleRecipientEmailFilter(CampaignObjectFilter):
 
 
 class SingleRecipientEmail(GuardedObjectType):
+    status = graphene.Field(CampaignObjectStatusChoices)
+
     class Meta:
         interfaces = (relay.Node,)
         filterset_class = SingleRecipientEmailFilter
-        permission_classes = [IsSuperUser | IsAuthenticated]
+        permission_classes = [
+            ObjectPassesTest(member_of_billing_account)
+            | IsSuperUser
+            | ObjectPermissions
+        ]
         filter_backends = (MemberOfBillingAccountPermissionsFilter,)
         model = models.SingleColdEmail
         fields = (

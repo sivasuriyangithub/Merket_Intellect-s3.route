@@ -181,7 +181,6 @@ class BillingAccountMemberSerializer(IdOrHyperlinkedModelSerializer):
         )
 
     def create(self, validated_data):
-        print(validated_data)
         billing_account: BillingAccount = validated_data["organization"]
         seat = validated_data["seat"]
         member, created = billing_account.get_or_add_user(

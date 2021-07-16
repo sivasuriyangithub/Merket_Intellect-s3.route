@@ -149,7 +149,6 @@ class NodeSerializerMutation(ClientIDMutation):
             return cls(errors=None, node=None)
         kwargs = cls.get_serializer_kwargs(root, info, **input)
         serializer = cls._meta.serializer_class(**kwargs)
-        print(serializer.is_valid())
         if serializer.is_valid():
             return cls.perform_mutate(serializer, info)
         else:

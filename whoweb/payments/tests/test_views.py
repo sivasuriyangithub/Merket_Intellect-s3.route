@@ -68,7 +68,6 @@ def test_set_member_credits(su_client):
         {"credits": 14000, "billing_seat": seat.public_id,},
         format="json",
     )
-    print(resp.content)
     assert resp.status_code == 200
     assert resp.json()["pool_credits"] == False
     assert resp.json()["credits"] == 14000
@@ -84,7 +83,6 @@ def test_set_member_should_pool(su_client):
         {"pool": True, "billing_seat": seat.public_id,},
         format="json",
     )
-    print(resp.content)
     assert resp.status_code == 200
     assert resp.json()["pool_credits"] == True
     assert resp.json()["credits"] == 10000

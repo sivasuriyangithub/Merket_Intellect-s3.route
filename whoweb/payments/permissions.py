@@ -36,9 +36,6 @@ class MemberOfBillingAccountPermissionsFilter(BaseFilterBackend):
     """
 
     def filter_queryset(self, request, queryset, view):
-        # We want to defer this import until runtime, rather than import-time.
-        # See https://github.com/encode/django-rest-framework/issues/4608
-        # (Also see #1624 for why we need to make this import explicitly)
 
         return queryset.filter(
             billing_seat__organization_id__in=request.user.payments_billingaccount.all().values_list(

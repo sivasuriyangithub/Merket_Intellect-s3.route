@@ -573,3 +573,9 @@ class BaseCampaignRunner(
         for campaign in self.campaigns.all():
             campaign.delete(*args, **kwargs)
         return super().delete(*args, **kwargs)
+
+    def fetch_statistics(self):
+        for campaign in self.campaigns.all():
+            campaign.fetch_stats()
+        for campaign in self.drips.all():
+            campaign.fetch_stats()

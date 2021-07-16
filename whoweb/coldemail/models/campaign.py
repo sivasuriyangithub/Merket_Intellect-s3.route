@@ -247,13 +247,20 @@ class ColdCampaign(ColdemailBaseModel):
             )
         log = cold_log.log
         lookup = {el.email: el.web_id for el in lookups}
+        unique_by_email = dict()
         for entry in log:
             try:
                 entry["web_id"] = lookup[entry["email"]]
             except KeyError:
                 continue
+            else:
+                unique_by_email[entry["email"]] = {
+                    "email": entry["email"],
+                    "web_id": entry["web_id"],
+                }
 
         cold_log.log = log
+        cold_log.unique_log = list(unique_by_email.values())
         return cold_log
 
     def log_reply(self, email):

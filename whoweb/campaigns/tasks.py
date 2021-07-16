@@ -54,10 +54,7 @@ def publish_drip(self, pk, root_pk, following_pk, run_id=None, *args, **kwargs):
 @shared_task(autoretry_for=NETWORK_ERRORS)
 def ensure_stats(pk):
     runner = BaseCampaignRunner.available_objects.get(pk=pk)
-    for campaign in runner.campaigns.all():
-        campaign.fetch_stats()
-    for campaign in runner.drips.all():
-        campaign.fetch_stats()
+    runner.fetch_statistics()
 
 
 # @shared_task(autoretry_for=NETWORK_ERRORS)

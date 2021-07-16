@@ -128,10 +128,16 @@ class ProfileLogEntry(graphene.ObjectType):
 
 
 class Campaign(GuardedObjectType):
-    click_log = graphene.List(ProfileLogEntry, name="clickProfiles")
-    open_log = graphene.List(ProfileLogEntry, name="openProfiles")
-    reply_log = graphene.List(ProfileLogEntry, name="replyProfiles")
     good_log = graphene.List(ProfileLogEntry, name="goodProfiles")
+    open_log = graphene.List(ProfileLogEntry, name="openProfiles")
+    click_log = graphene.List(ProfileLogEntry, name="clickProfiles")
+    reply_log = graphene.List(ProfileLogEntry, name="replyProfiles")
+
+    unique_good_profiles = graphene.List(ProfileLogEntry)
+    unique_open_profiles = graphene.List(ProfileLogEntry)
+    unique_click_profiles = graphene.List(ProfileLogEntry)
+    unique_reply_profiles = graphene.List(ProfileLogEntry)
+
     sent_profiles = graphene.List(graphene.String)
     message = graphene.Field(CampaignMessageNode)
     status = graphene.Field(CampaignObjectStatusChoices)
@@ -160,6 +166,10 @@ class Campaign(GuardedObjectType):
             "open_log",
             "good_log",
             "reply_log",
+            "unique_good_profiles",
+            "unique_open_profiles",
+            "unique_click_profiles",
+            "unique_reply_profiles",
             "sent_profiles",
             "status",
             "status_changed",
@@ -180,6 +190,18 @@ class Campaign(GuardedObjectType):
 
     def resolve_good_log(self, info):
         return self.good_log.get("log", []) if self.good_log else []
+
+    def resolve_unique_click_profiles(self, info):
+        return self.click_log.get("unique_log", []) if self.click_log else []
+
+    def resolve_unique_open_profiles(self, info):
+        return self.open_log.get("unique_log", []) if self.open_log else []
+
+    def resolve_unique_reply_profiles(self, info):
+        return self.reply_log.get("unique_log", []) if self.reply_log else []
+
+    def resolve_unique_good_profiles(self, info):
+        return self.good_log.get("unique_log", []) if self.good_log else []
 
 
 class SingleRecipientEmailFilter(CampaignObjectFilter):

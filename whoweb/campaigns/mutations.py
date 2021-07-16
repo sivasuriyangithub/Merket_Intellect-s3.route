@@ -29,6 +29,9 @@ class SimpleCampaignRunnerMutation(NodeSerializerMutation):
             "use_credits_method",
             "open_credit_budget",
             "from_name",
+            "publish",
+            "pause",
+            "resume",
         )
 
 
@@ -54,6 +57,9 @@ class IntervalCampaignRunnerMutation(NodeSerializerMutation):
             "interval_hours",
             "max_sends",
             "from_name",
+            "publish",
+            "pause",
+            "resume",
         )
 
 

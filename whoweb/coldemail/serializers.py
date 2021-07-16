@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 
-from whoweb.contrib.rest_framework.fields import TagulousField
+from whoweb.contrib.rest_framework.fields import TagulousField, EnumField
 from whoweb.contrib.rest_framework.serializers import (
     IdOrHyperlinkedModelSerializer,
     TaggableMixin,
@@ -20,9 +20,13 @@ from whoweb.search.serializers import FilteredSearchQuerySerializer
 class CampaignMessageSerializer(
     ObjectPermissionsAssignmentMixin, TaggableMixin, IdOrHyperlinkedModelSerializer
 ):
-    status_name = serializers.CharField(source="get_status_display", read_only=True)
     id = serializers.CharField(source="public_id", read_only=True)
     tags = TagulousField(required=False, many=True)
+    status = EnumField(
+        CampaignMessage.CampaignObjectStatusOptions,
+        to_choice=lambda x: (x.name, x.name),
+        read_only=True,
+    )
 
     class Meta:
         model = CampaignMessage
@@ -41,11 +45,10 @@ class CampaignMessageSerializer(
             "editor",
             "tags",
             "status",
-            "status_name",
             "status_changed",
             "published",
         )
-        read_only_fields = ("status", "status_changed", "status_name", "published")
+        read_only_fields = ("status", "status_changed", "published")
 
     def get_permissions_map(self, created):
         user = self.context["request"].user
@@ -91,9 +94,17 @@ class CampaignMessageTemplateSerializer(
 
 class CampaignListSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
     query = FilteredSearchQuerySerializer()
-    status_name = serializers.CharField(source="get_status_display", read_only=True)
     id = serializers.CharField(source="public_id", read_only=True)
     tags = TagulousField(required=False, many=True)
+    status = EnumField(
+        CampaignList.CampaignObjectStatusOptions,
+        to_choice=lambda x: (x.name, x.name),
+        read_only=True,
+    )
+
+    origin = EnumField(
+        CampaignList.OriginOptions, to_choice=lambda x: (x.name, x.name),
+    )
 
     class Meta:
         model = CampaignList
@@ -111,20 +122,19 @@ class CampaignListSerializer(TaggableMixin, IdOrHyperlinkedModelSerializer):
             "description",
             "query",
             "status",
-            "status_name",
             "status_changed",
             "published",
         )
-        read_only_fields = ("status", "status_changed", "status_name", "published")
+        read_only_fields = ("status", "status_changed", "published")
 
 
 class CampaignSerializer(serializers.ModelSerializer):
-    status_name = serializers.CharField(source="get_status_display", read_only=True)
+    id = serializers.CharField(source="public_id", read_only=True)
 
     class Meta:
         model = ColdCampaign
         fields = (
-            "public_id",
+            "id",
             "send_time",
             "stats_fetched",
             "sent",
@@ -141,7 +151,6 @@ class CampaignSerializer(serializers.ModelSerializer):
             "good_log",
             "reply_log",
             "status",
-            "status_name",
             "status_changed",
             "published",
         )
@@ -152,12 +161,18 @@ class SingleColdEmailSerializer(
     ObjectPermissionsAssignmentMixin, TaggableMixin, IdOrHyperlinkedModelSerializer
 ):
     tags = TagulousField(required=False, many=True)
+    status = EnumField(
+        SingleColdEmail.CampaignObjectStatusOptions,
+        to_choice=lambda x: (x.name, x.name),
+        read_only=True,
+    )
+    id = serializers.CharField(source="public_id", read_only=True)
 
     class Meta:
         model = SingleColdEmail
         fields = (
             "url",
-            "public_id",
+            "id",
             "message",
             "tags",
             "email",
@@ -165,11 +180,13 @@ class SingleColdEmailSerializer(
             "test",
             "use_credits_method",
             "billing_seat",
+            "status",
             "views",
             "clicks",
             "optouts",
             "from_name",
         )
+        read_only_fields = ("status", "views", "clicks", "optouts")
         extra_kwargs = {
             "url": {"lookup_field": "public_id"},
             "billing_seat": {"lookup_field": "public_id", "required": True},

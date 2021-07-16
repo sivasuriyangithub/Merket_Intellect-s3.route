@@ -7,6 +7,7 @@ pytestmark = pytest.mark.django_db
 
 
 def test_create_campaignlist(su_client, query_contact_invites):
+    seat = BillingAccountMemberFactory()
     resp = su_client.post(
         "/ww/api/campaign/lists/",
         {
@@ -14,6 +15,7 @@ def test_create_campaignlist(su_client, query_contact_invites):
             "name": "list name",
             "origin": "USER",
             "tags": [],
+            "billing_seat": seat.public_id,
         },
         format="json",
     )
@@ -26,6 +28,7 @@ def test_create_campaignlist(su_client, query_contact_invites):
 
 
 def test_update_campaignlist(su_client, query_contact_invites):
+    seat = BillingAccountMemberFactory()
     resp = su_client.post(
         "/ww/api/campaign/lists/",
         {
@@ -33,6 +36,7 @@ def test_update_campaignlist(su_client, query_contact_invites):
             "name": "list name",
             "origin": "USER",
             "tags": [],
+            "billing_seat": seat.public_id,
         },
         format="json",
     )
@@ -45,6 +49,7 @@ def test_update_campaignlist(su_client, query_contact_invites):
 
 
 def test_delete_campaignlist(su_client, query_contact_invites):
+    seat = BillingAccountMemberFactory()
     resp = su_client.post(
         "/ww/api/campaign/lists/",
         {
@@ -52,6 +57,7 @@ def test_delete_campaignlist(su_client, query_contact_invites):
             "name": "list name",
             "origin": "USER",
             "tags": [],
+            "billing_seat": seat.public_id,
         },
         format="json",
     )

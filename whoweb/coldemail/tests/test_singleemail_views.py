@@ -38,7 +38,7 @@ def test_create_single_email(su_client):
         },
         format="json",
     )
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.content
     assert resp.json()["url"].startswith("http://testserver/ww/api/single_emails/")
     assert resp.json()["email"] == "test@email.com"
 
@@ -63,7 +63,7 @@ def test_update_single_email(su_client):
         },
         format="json",
     )
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.content
     assert resp.json()["email"] == "test@email.com"
 
     url = resp.json()["url"]
@@ -77,7 +77,7 @@ def test_delete_campaignmessage(su_client):
     delete = su_client.delete(
         f"/ww/api/single_emails/{email.public_id}/", format="json",
     )
-    assert delete.status_code == 204
+    assert delete.status_code == 204, delete.content
 
     listed = su_client.get("/ww/api/single_emails/", format="json",)
     assert len(listed.json()["results"]) == 0

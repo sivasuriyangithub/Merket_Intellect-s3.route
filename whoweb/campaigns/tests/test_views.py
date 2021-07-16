@@ -36,7 +36,7 @@ def test_create_simple_campaign(su_client, query_contact_invites):
         },
         format="json",
     )
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.content
     assert resp.json()["url"].startswith("http://testserver/ww/api/campaign/simple/")
     assert resp.json()["budget"] == 500
 
@@ -82,13 +82,13 @@ def test_create_interval_campaign(su_client, query_contact_invites):
                 {
                     "message": msg0.public_id,
                     "index": 0,
-                    "trigger": 0,
+                    "trigger": "DATETIME",
                     "send_datetime": "2017-09-29 09:15:00Z",
                 },
                 {
                     "message": msg1.public_id,
                     "index": 1,
-                    "trigger": 1,
+                    "trigger": "TIMEDELTA",
                     "send_delta": 186000,
                     "include_previous": True,
                 },
@@ -97,7 +97,7 @@ def test_create_interval_campaign(su_client, query_contact_invites):
         },
         format="json",
     )
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.content
     assert resp.json()["url"].startswith("http://testserver/ww/api/campaign/interval/")
     assert resp.json()["budget"] == 500
 

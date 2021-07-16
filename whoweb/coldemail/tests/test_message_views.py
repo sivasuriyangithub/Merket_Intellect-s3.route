@@ -35,7 +35,7 @@ def test_create_campaignmessage(su_client):
         },
         format="json",
     )
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.content
     assert resp.json()["url"].startswith("http://testserver/ww/api/campaign/messages/")
     assert resp.json()["title"] == "test"
 
@@ -61,7 +61,7 @@ def test_update_campaignmessage(su_client):
         format="json",
     )
     url = resp.json()["url"]
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.content
     assert resp.json()["title"] == "test"
 
     update = su_client.patch(url, {"title": "new title"}, format="json",)
@@ -74,7 +74,7 @@ def test_delete_campaignmessage(su_client):
     delete = su_client.delete(
         f"/ww/api/campaign/messages/{msg.public_id}/", format="json",
     )
-    assert delete.status_code == 204
+    assert delete.status_code == 204, delete.content
 
     listed = su_client.get("/ww/api/campaign/messages/", format="json",)
     assert len(listed.json()["results"]) == 0

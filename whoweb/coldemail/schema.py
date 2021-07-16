@@ -94,7 +94,6 @@ class CampaignMessageNode(GuardedObjectType):
             "modified",
             "published",
             "status",
-            # "status_name",
             "status_changed",
         )
 
@@ -163,7 +162,6 @@ class Campaign(GuardedObjectType):
             "reply_log",
             "sent_profiles",
             "status",
-            # "status_name",
             "status_changed",
             "published",
         )

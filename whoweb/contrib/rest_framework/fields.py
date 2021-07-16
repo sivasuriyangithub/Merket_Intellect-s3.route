@@ -42,11 +42,11 @@ class EnumField(ChoiceField):
         assert issubclass(enum_class, Enum), f"Enum required, received {enum_class}"
 
         if to_repr is None:
-            to_repr = lambda x: x.name
+            to_repr = lambda x: enum_class(x).name
         self.to_repr = to_repr
 
         if to_choice is None:
-            to_choice = lambda x: (x.name, x.value)
+            to_choice = lambda x: (enum_class(x).name, enum_class(x).value)
         self.to_choice = to_choice
 
         self.enum_class = enum_class

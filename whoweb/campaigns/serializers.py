@@ -53,11 +53,6 @@ class DripRecordSerializer(serializers.ModelSerializer):
 
 
 class PublishableMixin(object):
-
-    publish = serializers.BooleanField(write_only=True)
-    pause = serializers.BooleanField(write_only=True)
-    resume = serializers.BooleanField(write_only=True)
-
     def validate(self, data):
         """
         Check that start is before finish.
@@ -65,9 +60,9 @@ class PublishableMixin(object):
         if (
             sum(
                 (
-                    1 if "publish" in data else 0,
-                    1 if "pause" in data else 0,
-                    1 if "resume" in data else 0,
+                    1 if data.get("publish") else 0,
+                    1 if data.get("pause") else 0,
+                    1 if data.get("resume") else 0,
                 )
             )
             > 1
@@ -147,9 +142,12 @@ class SimpleDripCampaignRunnerSerializer(
     campaigns = CampaignSerializer(many=True, read_only=True)
     drips = DripRecordSerializer(many=True, read_only=True, source="drip_records")
     sending_rules = SendingRuleSerializer(many=True)
-    status_name = serializers.CharField(source="get_status_display", read_only=True)
     tags = TagulousField(required=False, many=True)
     transactions = TransactionSerializer(many=True, read_only=True)
+
+    publish = serializers.BooleanField(write_only=True, default=False)
+    pause = serializers.BooleanField(write_only=True, default=False)
+    resume = serializers.BooleanField(write_only=True, default=False)
 
     class Meta:
         model = SimpleDripCampaignRunner
@@ -171,7 +169,6 @@ class SimpleDripCampaignRunnerSerializer(
             "campaigns",
             "transactions",
             "status",
-            "status_name",
             "status_changed",
             "published",
             "tracking_params",
@@ -190,7 +187,6 @@ class SimpleDripCampaignRunnerSerializer(
             "drips",
             "status",
             "status_changed",
-            "status_name",
             "published",
         ]
 
@@ -214,7 +210,6 @@ class IntervalCampaignRunnerSerializer(
     query = FilteredSearchQuerySerializer()
     campaigns = CampaignSerializer(many=True, read_only=True)
     sending_rules = SendingRuleSerializer(many=True)
-    status_name = serializers.CharField(source="get_status_display", read_only=True)
     billing_seat = IdOrHyperlinkedRelatedField(
         view_name="billingaccountmember-detail",
         lookup_field="public_id",
@@ -223,6 +218,10 @@ class IntervalCampaignRunnerSerializer(
     )
     tags = TagulousField(required=False, many=True)
     transactions = TransactionSerializer(many=True, read_only=True)
+
+    publish = serializers.BooleanField(write_only=True, default=False,)
+    pause = serializers.BooleanField(write_only=True, default=False)
+    resume = serializers.BooleanField(write_only=True, default=False)
 
     class Meta:
         model = IntervalCampaignRunner
@@ -244,7 +243,6 @@ class IntervalCampaignRunnerSerializer(
             "campaigns",
             "transactions",
             "status",
-            "status_name",
             "status_changed",
             "published",
             "tracking_params",
@@ -260,14 +258,13 @@ class IntervalCampaignRunnerSerializer(
             "campaigns",
             "status",
             "status_changed",
-            "status_name",
             "published",
         ]
 
     def get_permissions_map(self, created):
         user = self.context["request"].user
         return {
-            "view_intervaldripcampaignrunner": [user],
-            "change_intervaldripcampaignrunner": [user],
-            "delete_intervaldripcampaignrunner": [user],
+            "view_intervalcampaignrunner": [user],
+            "change_intervalcampaignrunner": [user],
+            "delete_intervalcampaignrunner": [user],
         }

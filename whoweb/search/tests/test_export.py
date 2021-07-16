@@ -27,7 +27,7 @@ def validation_result_generator(only_valid=True):
         yield {"email": row[0], "profile_id": row[1], "grade": row[2]}
 
 
-def pre_validation_generator():
+def pre_validation_generator(rows=None):
     results = [
         ("a@a.com", "wp:1"),
         ("b@b.com", "wp:2"),

@@ -478,22 +478,22 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             )
         return row
 
-    def generate_csv_rows(self, rows=None):
+    def generate_csv_rows(self, rows: Iterable[ResultProfile] = None):
+        if rows is None:
+            profiles = self.get_profiles()
+        else:
+            profiles = rows
         if self.uploadable:
             mx_registry = MXDomain.registry_for_domains(
                 domains=(
                     profile.domain
-                    for profile in self.get_profiles(raw=rows)
+                    for profile in self.get_profiles()  # its ok to get registry for all profiles
                     if profile.domain
                 )
             )
 
-            profiles = (
-                profile.set_mx(mx_registry=mx_registry)
-                for profile in self.get_profiles(raw=rows)
-            )
-        else:
-            profiles = self.get_profiles(raw=rows)
+            profiles = (profile.set_mx(mx_registry=mx_registry) for profile in profiles)
+
         yield self.get_column_names()
         count = 0
         for profile in profiles:
@@ -850,12 +850,14 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     def push_to_webhooks(self, rows):
         pass
 
-    def upload_to_static_bucket(self, task_context=None):
+    def upload_to_static_bucket(
+        self, rows: Iterable[ResultProfile] = None, task_context=None
+    ):
         self.log_event(UPLOAD_TO_BUCKET, task=task_context)
         buffer = StringIO()
         writer = csv.writer(buffer)
         row_count = 0
-        for row in self.generate_csv_rows():
+        for row in self.generate_csv_rows(rows=rows):
             writer.writerow(row)
             row_count += 1
         export_file = ContentFile(buffer.getvalue().encode("utf-8"))

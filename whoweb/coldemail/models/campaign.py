@@ -237,8 +237,16 @@ class ColdCampaign(ColdemailBaseModel):
         )
 
     def _annotate_web_ids(self, cold_log):
+
+        if self.email_lookups.exists():
+            lookups = self.email_lookups.all()
+        else:
+            # probably a drip campaign, with no pages / non-csv rows to itself.
+            lookups = CampaignEmailLookup.objects.filter(
+                campaign__in=self.in_drip_drips.all().values_list("root_id", flat=True)
+            )
         log = cold_log.log
-        lookup = {el.email: el.web_id for el in self.email_lookups.all()}
+        lookup = {el.email: el.web_id for el in lookups}
         for entry in log:
             try:
                 entry["web_id"] = lookup[entry["email"]]

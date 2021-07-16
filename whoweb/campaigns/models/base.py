@@ -214,8 +214,15 @@ class BaseCampaignRunner(
         export = following.campaign_list.export
         export.pk = None
         export.save()
-        self.remove_reply_rows(export=export, root_campaign=root_campaign)
-        return CampaignList.objects.create(export=export, origin=2, seat=self.seat)
+        following.campaign_list.refresh_from_db()
+        self.remove_reply_rows(
+            export=export,
+            from_export=following.campaign_list.export,
+            root_campaign=root_campaign,
+        )
+        return CampaignList.objects.create(
+            export=export, origin=2, billing_seat=self.billing_seat
+        )
 
     # TODO: lock
     def create_next_drip_campaign(
@@ -325,17 +332,16 @@ class BaseCampaignRunner(
         )
         return sigs
 
-    def remove_reply_rows(self, export, root_campaign: ColdCampaign):
+    def remove_reply_rows(
+        self, export, from_export, root_campaign: ColdCampaign,
+    ):
         responders = self.get_responders(root_campaign=root_campaign)
-        for page in export.pages.filter(data__isnull=False).iterator(chunk_size=1):
-            profiles = self.get_profiles(raw=page.data)
-            page.data = [
-                profile.dict() for profile in profiles if profile.id not in responders
-            ]
-            page.count = len(page.data)
-            page.id = None
-            page.export = export
-            page.save()
+        profiles = (
+            profile
+            for profile in from_export.get_profiles()
+            if profile.id not in responders
+        )
+        export.upload_to_static_bucket(rows=profiles)
         return export
 
     def get_responders(self, root_campaign: ColdCampaign):

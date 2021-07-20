@@ -70,7 +70,7 @@ class RootCampaignInline(InlineActionsMixin, admin.TabularInline):
     campaign.short_description = "Cold Campaign"
 
     def campaign__status(self, obj):
-        return ColdCampaign.CampaignObjectStatusOptions[obj.campaign__status].name
+        return ColdCampaign.CampaignObjectStatusOptions(obj.campaign__status).name
 
     def campaign__status_changed(self, obj):
         return date(

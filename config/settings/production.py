@@ -16,9 +16,7 @@ from .base import env
 # https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
-ALLOWED_HOSTS = env.list(
-    "DJANGO_ALLOWED_HOSTS", default=["whoknows.com", "staging.whoknows.com"]
-)
+ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["whoknows.com",])
 USE_X_FORWARDED_HOST = True
 CSRF_TRUSTED_ORIGINS = ALLOWED_HOSTS
 

@@ -167,6 +167,7 @@ class SingleColdEmailSerializer(
         read_only=True,
     )
     id = serializers.CharField(source="public_id", read_only=True)
+    publish = serializers.BooleanField(write_only=True, default=False)
 
     class Meta:
         model = SingleColdEmail
@@ -178,13 +179,13 @@ class SingleColdEmailSerializer(
             "email",
             "send_date",
             "test",
-            "use_credits_method",
             "billing_seat",
             "status",
             "views",
             "clicks",
             "optouts",
             "from_name",
+            "publish",
         )
         read_only_fields = ("status", "views", "clicks", "optouts")
         extra_kwargs = {
@@ -206,3 +207,17 @@ class SingleColdEmailSerializer(
             "change_singlecoldemail": [user],
             "delete_singlecoldemail": [user],
         }
+
+    def create(self, validated_data):
+        publish = validated_data.pop("publish", False)
+        instance = super().create(validated_data)
+        if publish:
+            instance.publish()
+        return instance
+
+    def update(self, instance, validated_data):
+        publish = validated_data.pop("publish", False)
+        instance = super().update(instance, validated_data)
+        if publish:
+            instance.publish()
+        return instance

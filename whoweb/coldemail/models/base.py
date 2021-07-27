@@ -51,7 +51,9 @@ class ColdemailBaseModel(
     )
     status_changed = MonitorField(_("status changed"), monitor="status")
     coldemail_id = models.CharField(max_length=100)
-    is_removed_changed = MonitorField("deleted at", monitor="is_removed")
+    is_removed_changed = MonitorField(
+        "deleted at", monitor="is_removed", editable=False
+    )
     published = MonitorField(
         monitor="status",
         when=[CampaignObjectStatusOptions.PUBLISHED],

@@ -60,7 +60,6 @@ class SingleRecipientEmailMutation(NodeSerializerMutation):
             "email",
             "send_date",
             "test",
-            "use_credits_method",
             "billing_seat",
             "from_name",
         )

@@ -236,7 +236,6 @@ class SingleRecipientEmail(GuardedObjectType):
             "email",
             "send_date",
             "test",
-            "use_credits_method",
             "billing_seat",
             "views",
             "clicks",

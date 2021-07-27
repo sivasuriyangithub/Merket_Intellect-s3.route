@@ -16,10 +16,9 @@ class SingleColdEmail(ColdemailBaseModel):
 
     message = models.ForeignKey(CampaignMessage, on_delete=models.SET_NULL, null=True)
     email = models.EmailField()
-    from_name = models.CharField(max_length=255)
-    send_date = models.DateTimeField()
+    from_name = models.CharField(max_length=255, blank=True, default="")
+    send_date = models.DateTimeField(null=True, blank=True)
     test = models.BooleanField(default=False)
-    use_credits_method = models.CharField(max_length=90)
 
     views = models.PositiveIntegerField(editable=False, default=0)
     clicks = models.PositiveIntegerField(editable=False, default=0)

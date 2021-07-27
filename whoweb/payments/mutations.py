@@ -11,20 +11,7 @@ class BillingAccountMutation(NodeSerializerMutation):
             "create",
             "delete",
         )
-        only_fields = (
-            "network",
-            "billing_seat",
-            "budget",
-            "title",
-            "tags",
-            "sending_rules",
-            "drips",
-            "campaigns",
-            "tracking_params",
-            "use_credits_method",
-            "open_credit_budget",
-            "from_name",
-        )
+        only_fields = ("customer_type",)
 
 
 class Mutation(graphene.ObjectType):

@@ -54,9 +54,6 @@ class DripRecordSerializer(serializers.ModelSerializer):
 
 class PublishableMixin(object):
     def validate(self, data):
-        """
-        Check that start is before finish.
-        """
         if (
             sum(
                 (

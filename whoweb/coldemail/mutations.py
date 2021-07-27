@@ -62,6 +62,7 @@ class SingleRecipientEmailMutation(NodeSerializerMutation):
             "test",
             "billing_seat",
             "from_name",
+            "publish",
         )
 
 

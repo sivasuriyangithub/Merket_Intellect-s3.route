@@ -3,6 +3,7 @@ from collections import OrderedDict
 import graphene
 from django.db.models import Model
 from django.http import Http404
+from graphene import NonNull
 from graphene.relay.mutation import ClientIDMutation
 from graphene.types import Field, InputField
 from graphene.types.mutation import MutationOptions
@@ -93,10 +94,17 @@ class NodeSerializerMutation(ClientIDMutation):
         _meta.fields = yank_fields_from_attrs(output_fields, _as=Field)
 
         input_fields = yank_fields_from_attrs(input_fields, _as=InputField)
-        if "update" in model_operations:
-            input_fields["id"] = graphene.ID()
         if "delete" in model_operations:
-            input_fields["deleted"] = graphene.Boolean(default=False)
+            for _, field in input_fields.items():
+                if hasattr(field, "type") and isinstance(field.type, NonNull):
+                    field.description = "Required to create or modify."
+                    field._type = field.type.of_type
+            input_fields["id"] = graphene.ID(description="Required to modify.")
+            input_fields["delete"] = graphene.Boolean(
+                default=False, description="Designates an object should be deleted."
+            )
+        if "update" in model_operations:
+            input_fields["id"] = graphene.ID(description="Required to update.")
         super(NodeSerializerMutation, cls).__init_subclass_with_meta__(
             _meta=_meta, input_fields=input_fields, **options
         )
@@ -135,7 +143,7 @@ class NodeSerializerMutation(ClientIDMutation):
     def mutate_and_get_payload(cls, root, info, **input):
         lookup_field = cls._meta.lookup_field
         object_type = cls._meta.object_type
-        delete = input.pop("deleted", False)
+        delete = input.pop("delete", False)
         if "delete" in cls._meta.model_operations and lookup_field in input and delete:
             with modify_method_for_permissions(info.context, "DELETE"):
                 _type, _id = from_global_id(input[lookup_field])
@@ -148,6 +156,7 @@ class NodeSerializerMutation(ClientIDMutation):
             instance.then(lambda o: o.delete())
             return cls(errors=None, node=None)
         kwargs = cls.get_serializer_kwargs(root, info, **input)
+        print(kwargs)
         serializer = cls._meta.serializer_class(**kwargs)
         if serializer.is_valid():
             return cls.perform_mutate(serializer, info)

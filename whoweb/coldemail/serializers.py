@@ -217,7 +217,8 @@ class SingleColdEmailSerializer(
 
     def update(self, instance, validated_data):
         publish = validated_data.pop("publish", False)
-        instance = super().update(instance, validated_data)
         if publish:
             instance.publish()
+        else:
+            instance = super().update(instance, validated_data)
         return instance

@@ -19,6 +19,7 @@ from .models import (
     DripRecord,
     SimpleDripCampaignRunner,
     IntervalCampaignRunner,
+    BaseCampaignRunner,
 )
 
 
@@ -74,9 +75,9 @@ class PublishableMixin(object):
         pause = validated_data.pop("pause", False)
         resume = validated_data.pop("resume", False)
 
-        instance = super().create(validated_data)
+        instance: BaseCampaignRunner = super().create(validated_data)
         if publish:
-            instance.publish()
+            instance.publish(apply_tasks=False)
         elif pause:
             instance.pause()
         elif resume:
@@ -88,13 +89,14 @@ class PublishableMixin(object):
         pause = validated_data.pop("pause", False)
         resume = validated_data.pop("resume", False)
 
-        instance = super().update(instance, validated_data)
         if publish:
-            instance.publish()
+            instance.publish(apply_tasks=False)
         elif pause:
             instance.pause()
         elif resume:
             instance.resume()
+        else:
+            instance = super().update(instance, validated_data)
         return instance
 
 
@@ -122,10 +124,10 @@ class SendingRuleMixin(object):
 
 
 class SimpleDripCampaignRunnerSerializer(
+    PublishableMixin,
     ObjectPermissionsAssignmentMixin,
     TaggableMixin,
     SendingRuleMixin,
-    PublishableMixin,
     IdOrHyperlinkedModelSerializer,
 ):
     id = serializers.CharField(source="public_id", read_only=True)
@@ -197,10 +199,10 @@ class SimpleDripCampaignRunnerSerializer(
 
 
 class IntervalCampaignRunnerSerializer(
+    PublishableMixin,
     ObjectPermissionsAssignmentMixin,
     TaggableMixin,
     SendingRuleMixin,
-    PublishableMixin,
     IdOrHyperlinkedModelSerializer,
 ):
     id = serializers.CharField(source="public_id", read_only=True)

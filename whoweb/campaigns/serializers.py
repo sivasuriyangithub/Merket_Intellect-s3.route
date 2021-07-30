@@ -38,9 +38,11 @@ class SendingRuleSerializer(IdOrHyperlinkedModelSerializer):
             "send_datetime",
             "send_delta",
             "include_previous",
+            "message_template",
         )
         extra_kwargs = {
             "message": {"lookup_field": "public_id"},
+            "message_template": {"lookup_field": "public_id"},
         }
 
 

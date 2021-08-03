@@ -266,12 +266,19 @@ class BaseCampaignRunner(
             campaign_list=campaign_list,
             title="{} - m{}".format(title, rule.index),
         )
-        cold_campaign = ColdCampaign.objects.create(**campaign_kwargs)
-        cold_campaign = self.set_reply_fields(cold_campaign)
-        DripRecord.objects.create(
-            runner=self, root=root_campaign, drip=cold_campaign, order=rule.index
-        )
-        return cold_campaign
+        with transaction.atomic():
+            cold_campaign = ColdCampaign.objects.create(**campaign_kwargs)
+            drip_record, created = DripRecord.objects.get_or_create(
+                runner=self,
+                root=root_campaign,
+                order=rule.index,
+                defaults={"drip": cold_campaign},
+            )
+            if created:
+                self.set_reply_fields(cold_campaign)
+            else:
+                cold_campaign.delete()
+        return drip_record.drip
 
     def publish_drip(
         self,

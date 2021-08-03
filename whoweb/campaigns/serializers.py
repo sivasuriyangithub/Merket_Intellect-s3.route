@@ -104,7 +104,7 @@ class PublishableMixin(object):
 
 class SendingRuleMixin(object):
     def create(self, validated_data):
-        rules = validated_data.pop("sending_rules")
+        rules = validated_data.pop("sending_rules", [])
         runner = super().create(validated_data)
         for rule in rules:
             idx = rule.pop("index")
@@ -114,7 +114,7 @@ class SendingRuleMixin(object):
         return runner
 
     def update(self, instance, validated_data):
-        rules = validated_data.pop("sending_rules")
+        rules = validated_data.pop("sending_rules", [])
         runner = super().update(instance, validated_data)
         SendingRule.objects.filter(runner=runner).delete()
         for rule in rules:

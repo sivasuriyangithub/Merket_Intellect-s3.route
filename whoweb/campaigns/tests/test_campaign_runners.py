@@ -30,6 +30,10 @@ def test_task_timing_args():
     )
     assert rule.task_timing_args() == {"countdown": 180000 - 600}
 
+    assert rule.task_timing_args(timedelta_from=send) == {
+        "eta": send + timedelta(seconds=180000)
+    }
+
     rule: SendingRule = SendingRuleFactory(
         trigger=SendingRule.SendingRuleTriggerOptions.DELAY
     )

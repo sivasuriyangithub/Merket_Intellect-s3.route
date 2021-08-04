@@ -1,5 +1,5 @@
 from enum import Enum, IntEnum
-from typing import List
+from typing import List, Optional
 
 import uuid
 from datetime import timedelta
@@ -75,10 +75,12 @@ class SendingRule(models.Model):
     send_delta = models.PositiveIntegerField(null=True, blank=True)
     include_previous = models.BooleanField(default=False, blank=True)
 
-    def task_timing_args(self):
+    def task_timing_args(self, timedelta_from=None):
         if self.trigger == SendingRule.SendingRuleTriggerOptions.DATETIME:
             return {"eta": self.send_datetime - timedelta(seconds=600)}
         elif self.trigger == SendingRule.SendingRuleTriggerOptions.TIMEDELTA:
+            if timedelta_from:
+                return {"eta": timedelta_from + timedelta(seconds=self.send_delta)}
             return {"countdown": self.send_delta - 600}
         elif self.trigger == SendingRule.SendingRuleTriggerOptions.DELAY:
             return {"countdown": 300}
@@ -224,7 +226,6 @@ class BaseCampaignRunner(
             export=export, origin=2, billing_seat=self.billing_seat
         )
 
-    # TODO: lock
     def create_next_drip_campaign(
         self,
         root_campaign: ColdCampaign,
@@ -232,7 +233,7 @@ class BaseCampaignRunner(
         campaign_kwargs=None,
         *args,
         **kwargs,
-    ):
+    ) -> Optional[ColdCampaign]:
         rule = self.get_next_rule(following=following)
         if not rule:
             return
@@ -283,15 +284,18 @@ class BaseCampaignRunner(
     def publish_drip(
         self,
         root_campaign: ColdCampaign,
-        following: ColdCampaign,
+        following: Optional[ColdCampaign],
+        using_existing: Optional[ColdCampaign] = None,
         task_context=None,
         *args,
         **kwargs,
     ):
-
-        drip_campaign = self.create_next_drip_campaign(
-            root_campaign=root_campaign, following=following, *args, **kwargs
-        )
+        if using_existing:
+            drip_campaign = using_existing
+        else:
+            drip_campaign = self.create_next_drip_campaign(
+                root_campaign=root_campaign, following=following, *args, **kwargs
+            )
         if drip_campaign:
             publish_sigs = drip_campaign.publish(apply_tasks=False)
         else:
@@ -327,7 +331,9 @@ class BaseCampaignRunner(
             return
 
         sigs = ensure_stats.signature(
-            args=(self.pk,), immutable=True, **rule.task_timing_args(),
+            args=(self.pk,),
+            immutable=True,
+            **rule.task_timing_args(timedelta_from=following.send_time),
         ) | publish_drip.si(
             self.pk,
             root_pk=root_campaign.pk,
@@ -457,7 +463,7 @@ class BaseCampaignRunner(
         apply_tasks=True,
         on_complete=None,
         task_context=None,
-        with_campaign=None,
+        using_existing=None,
         *args,
         **kwargs,
     ):
@@ -467,8 +473,8 @@ class BaseCampaignRunner(
         from whoweb.campaigns.tasks import set_published, ensure_stats
 
         self.log_event(PUBLISH_CAMPAIGN, task=task_context)
-        if with_campaign:
-            campaign = with_campaign
+        if using_existing:
+            campaign = using_existing
         else:
             campaign = self.create_campaign()
         if not campaign:

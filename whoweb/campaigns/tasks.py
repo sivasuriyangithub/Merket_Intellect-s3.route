@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from celery import shared_task
+from django.db import transaction
 
 from requests import HTTPError, Timeout
 
@@ -32,23 +33,24 @@ def publish_next_interval(self, pk, run_id=None):
 
 @shared_task(bind=True, autoretry_for=NETWORK_ERRORS)
 def publish_drip(self, pk, root_pk, following_pk, run_id=None, *args, **kwargs):
-    runner = BaseCampaignRunner.available_objects.get(pk=pk)
-    if str(run_id) != str(runner.run_id):
-        return
-    if runner.status == runner.CampaignRunnerStatusOptions.PAUSED:
-        return
-    root_campaign = ColdCampaign.objects.get(pk=root_pk)
-    following = ColdCampaign.objects.get(pk=following_pk)
-    try:
-        runner.publish_drip(
-            root_campaign=root_campaign,
-            following=following,
-            task_context=self.request,
-            *args,
-            **kwargs,
-        )
-    except DripTooSoonError as e:
-        raise self.retry(countdown=e.countdown)
+    with transaction.atomic():
+        runner = BaseCampaignRunner.available_objects.select_for_update().get(pk=pk)
+        if str(run_id) != str(runner.run_id):
+            return
+        if runner.status == runner.CampaignRunnerStatusOptions.PAUSED:
+            return
+        root_campaign = ColdCampaign.objects.get(pk=root_pk)
+        following = ColdCampaign.objects.get(pk=following_pk)
+        try:
+            runner.publish_drip(
+                root_campaign=root_campaign,
+                following=following,
+                task_context=self.request,
+                *args,
+                **kwargs,
+            )
+        except DripTooSoonError as e:
+            raise self.retry(countdown=e.countdown)
 
 
 @shared_task(autoretry_for=NETWORK_ERRORS)

@@ -22,19 +22,77 @@ from .models import (
 )
 
 
+def campaign_link(coldcampaign):
+    link = reverse("admin:coldemail_coldcampaign_change", args=[coldcampaign.pk])
+    return mark_safe(f'<a href="{link}">{escape(coldcampaign.__str__())}</a>')
+
+
+def export_link(coldcampaign):
+    export = coldcampaign.campaign_list.export
+    link = reverse("admin:search_searchexport_change", args=[export.pk])
+    return mark_safe(f'<a href="{link}">{escape(export.__str__())}</a>')
+
+
 class SendingRuleInline(admin.TabularInline):
     model = SendingRule
     extra = 0
 
 
-class DripRecordInline(admin.TabularInline):
+class DripRecordInline(InlineActionsMixin, admin.TabularInline):
     model = DripRecord
     extra = 0
     can_delete = False
-    readonly_fields = ("root", "drip", "order")
+    fields = (
+        "root",
+        "drip_campaign",
+        "export",
+        "order",
+    )
+    readonly_fields = ("root", "drip_campaign", "order", "export")
+    inline_actions = [
+        "rerun_drip",
+    ]
 
     def has_add_permission(self, request, obj=None):
         return False
+
+    def drip_campaign(self, obj: BaseCampaignRunner.drips.through):
+        return campaign_link(obj.drip)
+
+    drip_campaign.short_description = "Drip"
+
+    def export(self, obj: BaseCampaignRunner.drips.through):
+        return export_link(obj.drip)
+
+    def rerun_drip(
+        self,
+        request,
+        obj: BaseCampaignRunner.drips.through,
+        parent_obj: BaseCampaignRunner = None,
+    ):
+        cold_campaign = obj.drip
+        export = cold_campaign.campaign_list.export
+        if export.status != export.ExportStatusOptions.COMPLETE:
+            messages.add_message(
+                request, messages.ERROR, f"Export must be completed to rerun campaign."
+            )
+
+        cold_campaign.status = ColdCampaign.CampaignObjectStatusOptions.CREATED
+        cold_campaign.save()
+        publish_sigs = parent_obj.publish_drip(
+            root_campaign=obj.root, following=None, using_existing=cold_campaign
+        )
+        messages.add_message(
+            request, messages.SUCCESS, f"{cold_campaign} successfully republished.",
+        )
+        messages.add_message(request, messages.INFO, f"Result ID: {publish_sigs}")
+        change_url = reverse(
+            "admin:{}_{}_change".format(
+                parent_obj._meta.app_label, parent_obj._meta.model_name,
+            ),
+            args=[parent_obj.pk],
+        )
+        return redirect(change_url)
 
 
 class RootCampaignInline(InlineActionsMixin, admin.TabularInline):
@@ -63,9 +121,7 @@ class RootCampaignInline(InlineActionsMixin, admin.TabularInline):
         )
 
     def campaign(self, obj: BaseCampaignRunner.campaigns.through):
-        coldcampaign = obj.coldcampaign
-        link = reverse("admin:coldemail_coldcampaign_change", args=[coldcampaign.pk])
-        return mark_safe(f'<a href="{link}">{escape(coldcampaign.__str__())}</a>')
+        return campaign_link(obj.coldcampaign)
 
     campaign.short_description = "Cold Campaign"
 
@@ -78,9 +134,7 @@ class RootCampaignInline(InlineActionsMixin, admin.TabularInline):
         )
 
     def export(self, obj: BaseCampaignRunner.campaigns.through):
-        export = obj.coldcampaign.campaign_list.export
-        link = reverse("admin:search_searchexport_change", args=[export.pk])
-        return mark_safe(f'<a href="{link}">{escape(export.__str__())}</a>')
+        return export_link(obj.coldcampaign)
 
     export.short_description = "Export"
 
@@ -100,7 +154,7 @@ class RootCampaignInline(InlineActionsMixin, admin.TabularInline):
         runner.save()
         cold_campaign.status = ColdCampaign.CampaignObjectStatusOptions.CREATED
         cold_campaign.save()
-        sigs, campaign = runner.publish(apply_tasks=False, with_campaign=cold_campaign)
+        sigs, campaign = runner.publish(apply_tasks=False, using_existing=cold_campaign)
         res = sigs.apply_async()
         messages.add_message(
             request,

@@ -3,10 +3,11 @@ import graphene
 from django_filters.rest_framework import FilterSet
 from graphene import relay
 from graphene.types.generic import GenericScalar
-from graphene_django import DjangoObjectType
+from graphene_django import DjangoObjectType, DjangoConnectionField
 from graphene_django.filter import DjangoFilterConnectionField, GlobalIDFilter
 from rest_framework.permissions import IsAuthenticated
 
+from whoweb.accounting.types import TransactionObjectType
 from whoweb.contrib.graphene_django.types import GuardedObjectType
 from whoweb.contrib.rest_framework.filters import ObjectPermissionsFilter
 from whoweb.contrib.rest_framework.permissions import (
@@ -134,7 +135,7 @@ class SearchExportNode(GuardedObjectType):
     tags = graphene.List(graphene.String, resolver=lambda x, i: x.tags.all())
     status = graphene.Field(SearchExportStatusChoices)
     charged = graphene.Int(name="charge")
-    transactions = GenericScalar()
+    transactions = graphene.List(TransactionObjectType)
     file_url = graphene.String(description="Link to download as csv file.")
     json_url = graphene.String(description="Link to download as json file.")
     result_url = graphene.String(description="Link to paginated result resource.")

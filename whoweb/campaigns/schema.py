@@ -1,13 +1,12 @@
 import django_filters
 import graphene
-from django_filters.rest_framework import FilterSet, OrderingFilter
+from django_filters.rest_framework import OrderingFilter
 from graphene import relay
 from graphene.types.generic import GenericScalar
-from graphene_django import DjangoListField
+from graphene_django import DjangoListField, DjangoConnectionField
 from graphene_django.filter import DjangoFilterConnectionField, GlobalIDFilter
-from rest_framework.permissions import IsAuthenticated
 
-from whoweb.users.models import User
+from whoweb.accounting.types import TransactionObjectType
 from whoweb.campaigns import models
 from whoweb.coldemail.schema import Campaign
 from whoweb.contrib.graphene_django.types import GuardedObjectType
@@ -19,6 +18,7 @@ from whoweb.contrib.rest_framework.permissions import (
 )
 from whoweb.payments.permissions import MemberOfBillingAccountPermissionsFilter
 from whoweb.search.schema import FilteredSearchQueryObjectType
+from whoweb.users.models import User
 
 SendingRuleTriggerChoices = graphene.Enum.from_enum(
     models.SendingRule.SendingRuleTriggerOptions
@@ -88,7 +88,7 @@ class SimpleCampaignRunnerNode(GuardedObjectType):
     drips = graphene.List(DripRecord, source="drip_records")
     campaigns = DjangoListField(Campaign)
     tags = graphene.List(graphene.String, resolver=lambda x, i: x.tags.all())
-    transactions = GenericScalar()
+    transactions = graphene.List(TransactionObjectType)
     tracking_params = graphene.List(TrackingParam)
     status = graphene.Field(CampaignRunnerStatusChoices)
 
@@ -96,6 +96,7 @@ class SimpleCampaignRunnerNode(GuardedObjectType):
         model = models.SimpleDripCampaignRunner
         interfaces = (relay.Node,)
         filterset_class = CampaignRunnerFilter
+        # noinspection PyCompatibility
         permission_classes = [
             ObjectPassesTest(member_of_billing_account)
             | IsSuperUser
@@ -132,7 +133,7 @@ class IntervalCampaignRunnerNode(GuardedObjectType):
     drips = graphene.List(DripRecord, source="drip_records")
     campaigns = DjangoListField(Campaign)
     tags = graphene.List(graphene.String, resolver=lambda x, i: x.tags.all())
-    transactions = GenericScalar()
+    transactions = graphene.List(TransactionObjectType)
     tracking_params = graphene.List(TrackingParam)
     status = graphene.Field(CampaignRunnerStatusChoices)
 

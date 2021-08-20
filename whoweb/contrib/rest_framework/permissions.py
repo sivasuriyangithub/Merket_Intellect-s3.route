@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from typing import Type
 
 from rest_framework import permissions
 import logging
@@ -18,7 +19,7 @@ class IsSuperUser(permissions.BasePermission):
         return self.has_permission(request, view)
 
 
-def ObjectPassesTest(func):
+def ObjectPassesTest(func: callable) -> Type[permissions.BasePermission]:
     class Passes(permissions.BasePermission):
         # def has_permission(self, request, view):
         #     return False

@@ -1,8 +1,10 @@
-import django_filters
 import graphene
 from djstripe.models import SubscriptionItem, Plan, Product
+from graphene_django import DjangoConnectionField
 from graphene_django.filter import DjangoFilterConnectionField, GlobalIDFilter
 
+from whoweb.accounting.models import Transaction, MatchType
+from whoweb.accounting.types import TransactionObjectType
 from whoweb.contrib.graphene_django.types import GuardedObjectType, ObscureIdNode
 from whoweb.contrib.rest_framework.filters import (
     ObjectPermissionsFilter,
@@ -132,6 +134,9 @@ class BillingAccountNode(GuardedObjectType):
     network = graphene.Field(NetworkNode)
     subscription = graphene.Field(SubscriptionObjectType)
     seats = DjangoFilterConnectionField(SeatNode)
+    transactions = graphene.List(
+        TransactionObjectType, resolver=lambda s, i: s.transactions.all()
+    )
 
     class Meta:
         model = BillingAccount
@@ -153,6 +158,9 @@ class BillingAccountMemberFilterSet(ObscureIdFilterSet):
 class BillingAccountMemberNode(GuardedObjectType):
     billing_account = graphene.Field(BillingAccountNode, source="organization")
     credits = graphene.Int()
+    transactions = graphene.List(
+        TransactionObjectType, resolver=lambda s, i: s.transactions.all()
+    )
 
     class Meta:
         model = BillingAccountMember

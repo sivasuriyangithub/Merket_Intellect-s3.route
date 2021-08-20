@@ -3,6 +3,7 @@ from typing import Optional, Union
 
 from datetime import datetime, timedelta
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.postgres.fields import JSONField
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -36,7 +37,12 @@ from whoweb.accounting.ledgers import (
     wkcredits_sold_ledger,
     wkcredits_expired_ledger,
 )
-from whoweb.accounting.models import LedgerEntry
+from whoweb.accounting.models import (
+    LedgerEntry,
+    Transaction,
+    MatchType,
+    TransactionRelatedObject,
+)
 from whoweb.contrib.fields import ObscureIdMixin
 from whoweb.contrib.organizations.models import (
     PermissionsAbstractOrganization,
@@ -61,6 +67,11 @@ class BillingAccount(
     plan_history = JSONField(null=True, blank=True, default=dict)
     credit_pool = models.IntegerField(default=0, blank=True)
     customer_type = models.CharField(max_length=50, blank=True)
+    transactions = GenericRelation(
+        TransactionRelatedObject,
+        object_id_field="related_object_id",
+        content_type_field="related_object_content_type",
+    )
 
     class Meta:
         verbose_name = _("billing account")
@@ -398,6 +409,11 @@ class BillingAccountMember(
     seat_credits = models.IntegerField(default=0)
     pool_credits = models.BooleanField(default=False)
     tracker = FieldTracker(fields=["is_admin"])
+    transactions = GenericRelation(
+        TransactionRelatedObject,
+        object_id_field="related_object_id",
+        content_type_field="related_object_content_type",
+    )
 
     class Meta:
         verbose_name = _("billing account member")

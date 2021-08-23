@@ -141,12 +141,11 @@ class NodeSerializerMutation(ClientIDMutation):
 
     @classmethod
     def mutate_and_get_payload(cls, root, info, **input):
-        lookup_field = cls._meta.lookup_field
         object_type = cls._meta.object_type
         delete = input.pop("delete", False)
-        if "delete" in cls._meta.model_operations and lookup_field in input and delete:
+        if "delete" in cls._meta.model_operations and "id" in input and delete:
             with modify_method_for_permissions(info.context, "DELETE"):
-                _type, _id = from_global_id(input[lookup_field])
+                _type, _id = from_global_id(input["id"])
                 instance = object_type.get_node(info, _id)
             if not instance:
                 raise Http404(

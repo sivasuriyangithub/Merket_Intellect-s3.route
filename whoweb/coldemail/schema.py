@@ -6,7 +6,11 @@ from graphene_django.filter import DjangoFilterConnectionField, GlobalIDFilter
 
 from whoweb.users.models import User
 from whoweb.contrib.graphene_django.types import GuardedObjectType
-from whoweb.contrib.rest_framework.filters import TagsFilter, ObscureIdFilterSet
+from whoweb.contrib.rest_framework.filters import (
+    TagsFilter,
+    ObscureIdFilterSet,
+    ObjectPermissionsFilter,
+)
 from whoweb.contrib.rest_framework.permissions import (
     IsSuperUser,
     ObjectPermissions,
@@ -84,7 +88,9 @@ class CampaignMessageNode(GuardedObjectType):
             | IsSuperUser
             | ObjectPermissions
         ]
-        filter_backends = (MemberOfBillingAccountPermissionsFilter,)
+        filter_backends = (
+            ObjectPermissionsFilter | MemberOfBillingAccountPermissionsFilter,
+        )
         fields = (
             "billing_seat",
             "title",
@@ -110,7 +116,9 @@ class CampaignMessageTemplateNode(GuardedObjectType):
             | IsSuperUser
             | ObjectPermissions
         ]
-        filter_backends = (MemberOfBillingAccountPermissionsFilter,)
+        filter_backends = (
+            ObjectPermissionsFilter | MemberOfBillingAccountPermissionsFilter,
+        )
         fields = (
             "billing_seat",
             "title",

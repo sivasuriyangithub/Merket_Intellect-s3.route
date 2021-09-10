@@ -15,6 +15,7 @@ from whoweb.campaigns.models.base import (
     BaseCampaignRunner,
     SendingRule,
     DripRecord,
+    IcebreakerTemplate,
 )
 from whoweb.campaigns.models.simple import SimpleDripCampaignRunner
 from whoweb.coldemail.tests.factories import CampaignMessageFactory, ColdCampaignFactory
@@ -32,12 +33,20 @@ class CampaignRunnerFactory(DjangoModelFactory):
         model = BaseCampaignRunner
 
 
+class IcebreakerTemplateFactory(DjangoModelFactory):
+    class Meta:
+        model = IcebreakerTemplate
+
+    text = "ID: {{profile.id}}"
+
+
 class SendingRuleFactory(DjangoModelFactory):
     class Meta:
         model = SendingRule
 
     runner = SubFactory(CampaignRunnerFactory)
     message = SubFactory(CampaignMessageFactory)
+    icebreaker_template = SubFactory(IcebreakerTemplateFactory)
     index = Sequence(int)
     send_datetime = LazyAttribute(lambda o: now() if o.index == 0 else None)
 

@@ -20,7 +20,15 @@ from .models import (
     SimpleDripCampaignRunner,
     IntervalCampaignRunner,
     BaseCampaignRunner,
+    IcebreakerTemplate,
 )
+
+
+class IcebreakerTemplateSerializer(IdOrHyperlinkedModelSerializer):
+    class Meta:
+        model = IcebreakerTemplate
+        fields = ("text", "billing_seat", "url", "id")
+        read_only_fields = fields
 
 
 class SendingRuleSerializer(IdOrHyperlinkedModelSerializer):
@@ -39,10 +47,12 @@ class SendingRuleSerializer(IdOrHyperlinkedModelSerializer):
             "send_delta",
             "include_previous",
             "message_template",
+            "icebreaker_template",
         )
         extra_kwargs = {
             "message": {"lookup_field": "public_id"},
             "message_template": {"lookup_field": "public_id"},
+            "icebreaker_template": {"lookup_field": "public_id"},
         }
 
 

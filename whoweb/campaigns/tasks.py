@@ -2,12 +2,11 @@ from datetime import timedelta
 
 from celery import shared_task
 from django.db import transaction
-
 from requests import HTTPError, Timeout
 
-from whoweb.coldemail.models import ColdCampaign
 from whoweb.campaigns.models import IntervalCampaignRunner
 from whoweb.campaigns.models.base import BaseCampaignRunner, DripTooSoonError
+from whoweb.coldemail.models import ColdCampaign
 
 NETWORK_ERRORS = [HTTPError, Timeout, ConnectionError]
 
@@ -70,7 +69,6 @@ def ensure_stats(pk):
 
 @shared_task(autoretry_for=NETWORK_ERRORS)
 def catch_missed_drips():
-
     for runner in (
         BaseCampaignRunner.available_objects.filter(
             status=BaseCampaignRunner.CampaignRunnerStatusOptions.PUBLISHED
@@ -83,3 +81,13 @@ def catch_missed_drips():
                 root_campaign=campaign, noop_after=timedelta(weeks=2)
             ):
                 drip_tasks.apply_async()
+
+
+@shared_task(autoretry_for=NETWORK_ERRORS)
+def on_complete_generate_icebreakers(
+    self, pk, rule_index, campaign_id=None, export_id=None, *args, **kwargs
+):
+    runner = BaseCampaignRunner.available_objects.get(pk=pk)
+    runner.generate_icebreakers(
+        rule_index, campaign_id=campaign_id, export_id=export_id,
+    )

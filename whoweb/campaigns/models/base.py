@@ -1,11 +1,12 @@
-from enum import Enum, IntEnum
-from typing import List, Optional
-
 import uuid
 from datetime import timedelta
+from enum import IntEnum
+from typing import List, Optional
+
 from django.contrib.postgres.fields import JSONField
 from django.db import models, transaction
 from django.utils.timezone import now
+from jinja2 import Template
 from model_utils.fields import MonitorField
 from model_utils.models import SoftDeletableModel, TimeStampedModel
 from polymorphic.managers import PolymorphicManager
@@ -20,6 +21,7 @@ from whoweb.campaigns.events import (
     PAUSE_CAMPAIGN,
     RESUME_CAMPAIGN,
 )
+from whoweb.campaigns.models.icebreaker import IcebreakerTemplate
 from whoweb.coldemail.models import (
     ReplyTo,
     ColdEmailTagModel,
@@ -34,6 +36,7 @@ from whoweb.contrib.postgres.fields import EmbeddedModelField
 from whoweb.core.models import EventLoggingModel
 from whoweb.payments.models import BillingAccountMember
 from whoweb.search.models import FilteredSearchQuery, ScrollSearch
+from whoweb.search.models import SearchExport
 from whoweb.users.models import Seat
 
 PAUSE_HEX = uuid.UUID(int=0)
@@ -63,6 +66,9 @@ class SendingRule(models.Model):
         blank=True,
     )
     message = models.ForeignKey(CampaignMessage, on_delete=models.CASCADE)
+    icebreaker_template = models.ForeignKey(
+        IcebreakerTemplate, on_delete=models.SET_NULL, null=True, blank=True
+    )
     index = (
         models.PositiveIntegerField()
     )  # index 0 must be DELAY or DATETIME, see method `send_time_for_rule`
@@ -470,7 +476,11 @@ class BaseCampaignRunner(
         """
         :rtype: (celery.canvas.Signature | celery.result.AsyncResult | None,  Campaign | None)
         """
-        from whoweb.campaigns.tasks import set_published, ensure_stats
+        from whoweb.campaigns.tasks import (
+            set_published,
+            ensure_stats,
+            on_complete_generate_icebreakers,
+        )
 
         self.log_event(PUBLISH_CAMPAIGN, task=task_context)
         if using_existing:
@@ -479,6 +489,8 @@ class BaseCampaignRunner(
             campaign = self.create_campaign()
         if not campaign:
             return None, None
+        if on_complete is None:
+            on_complete = on_complete_generate_icebreakers.s(pk=self.pk, rule_index=0)
         if publish_sigs := campaign.publish(apply_tasks=False, on_complete=on_complete):
             if self.run_id is None:
                 self.run_id = uuid.uuid4()
@@ -592,3 +604,17 @@ class BaseCampaignRunner(
             campaign.fetch_stats()
         for campaign in self.drips.all():
             campaign.fetch_stats()
+
+    def generate_icebreakers(self, rule_index, export_id):
+        export = SearchExport.objects.get(pk=export_id)
+        sending_rule = self.sending_rules.get(index=rule_index)
+        template = Template(sending_rule.icebreaker_template.text)
+
+        for page, profiles in export.get_profiles_by_page():
+            page.data = [
+                profile.generate_icebreaker(template, sender_profile=None).dict(
+                    exclude=SearchExport.PROFILE_EXCLUDES
+                )
+                for profile in profiles
+            ]
+            page.save()

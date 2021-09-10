@@ -4,6 +4,7 @@ from unittest.mock import patch
 import pytest
 from django.utils.timezone import utc
 
+from whoweb.search.tests.factories import SearchExportFactory, SearchExportPageFactory
 from whoweb.search.models import SearchExport
 from whoweb.coldemail.models import CampaignList
 from whoweb.coldemail.tests.factories import CampaignListFactory, ColdCampaignFactory
@@ -146,3 +147,20 @@ def test_publish(list_mock, reply_fields):
     assert sigs
     assert campaign
     assert runner.status == runner.CampaignRunnerStatusOptions.PENDING
+
+
+def test_generate_icebreakers(raw_derived):
+    SendingRuleFactory.reset_sequence()
+    runner: "BaseCampaignRunner" = CampaignRunnerWithMessagesFactory()
+    export: SearchExport = SearchExportFactory()
+    SearchExportPageFactory.create_batch(
+        1, export=export, count=50, data=raw_derived[:50]
+    )
+    runner.generate_icebreakers(0, export.pk)
+    profiles = list(export.get_profiles())
+    assert (
+        profiles[0].icebreaker == "ID: wp:4XJFtuYgV6ZU756WQH9n96K75EUZdZhbQ3Z5iDK7Wz97"
+    )
+    assert (
+        profiles[1].icebreaker == "ID: wp:J8ccNBtnoJx35dznq6VunSi1zKiHX9xB2chdQ1tHuSa7"
+    )

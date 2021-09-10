@@ -96,7 +96,8 @@ class ColdCampaign(ColdemailBaseModel):
             export_kwargs["extra_columns"] = {
                 "route_id": reply_route.coldemail_route_id
             }
-
+        if on_complete is not None:
+            on_complete = on_complete.clone(kwargs={"campaign_id": self.pk})
         list_sigs = self.campaign_list.publish(
             apply_tasks=False, on_complete=on_complete, export_kwargs=export_kwargs
         )

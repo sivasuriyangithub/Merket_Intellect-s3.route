@@ -116,6 +116,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         28: "Twitter",
         29: "domain",
         30: "mxdomain",
+        31: "icebreaker",
     }
     PROFILE_EXCLUDES = {
         "relevance_score",
@@ -136,7 +137,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     INTRO_COLS = [0]
     BASE_COLS = list(range(1, 10)) + [25]
     DERIVATION_COLS = list(range(10, 25)) + [26, 27, 28]
-    UPLOADABLE_COLS = [29, 30]
+    UPLOADABLE_COLS = [29, 30, 31]
 
     EVENT_REVERSE_NAME = "export"
 
@@ -394,7 +395,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
 
     def get_raw_by_page(self) -> Iterator[Iterable[ResultProfile]]:
         for page in self.pages.filter(data__isnull=False).iterator(chunk_size=1):
-            yield page.data
+            yield page, page.data
 
     def get_profiles(self, raw=None) -> Iterator[ResultProfile]:
         if raw is None:
@@ -408,8 +409,8 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
     ) -> Iterator[Iterator[ResultProfile]]:
         if raw_by_page is None:
             raw_by_page = self.get_raw_by_page()
-        for page_of_profiles in raw_by_page:
-            yield self.get_profiles(raw=page_of_profiles)
+        for page, page_of_profiles in raw_by_page:
+            yield page, self.get_profiles(raw=page_of_profiles)
 
     def get_ungraded_email_rows(self, profiles=None) -> Iterator[Tuple[str, str]]:
         if profiles is None:
@@ -473,9 +474,11 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
                 return
             row = [key] + row
         if self.uploadable:
-            row += [profile.domain or "", profile.mx_domain or "",] + list(
-                self.extra_columns.values() if self.extra_columns else []
-            )
+            row += [
+                profile.domain or "",
+                profile.mx_domain or "",
+                profile.icebreaker or "",
+            ] + list(self.extra_columns.values() if self.extra_columns else [])
         return row
 
     def generate_csv_rows(self, rows: Iterable[ResultProfile] = None):
@@ -832,7 +835,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         from whoweb.search.tasks import fetch_mx_domains
 
         tasks = []
-        for page_profiles in self.get_profiles_by_page():
+        for page, page_profiles in self.get_profiles_by_page():
             domains = []
             emails = (
                 email
@@ -960,8 +963,6 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             | do_pages
             | do_post_pages_completion.si(export_id=self.pk).set(priority=3)
         )
-        if on_complete:
-            sigs |= on_complete
         if self.defer_validation:
             sigs |= (
                 validate_rows.si(export_id=self.pk)
@@ -970,6 +971,8 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             )
         if self.uploadable:
             sigs |= spawn_mx_group.si(export_id=self.pk)
+        if on_complete:
+            sigs |= on_complete.clone(kwargs={"export_id": self.pk})
         sigs |= upload_to_static_bucket.si(export_id=self.pk)
         if self.notify:
             sigs |= send_notification.si(export_id=self.pk).set(priority=3)
@@ -1028,11 +1031,13 @@ class SearchExportPage(TimeStampedModel):
             _, created = WorkingExportRow.objects.update_or_create(
                 page=page,
                 profile_id=profile.id,
-                defaults={"data": profile.dict(exclude=SearchExport.PROFILE_EXCLUDES)},
+                defaults={
+                    "data": profile.dict()
+                },  # exclude=SearchExport.PROFILE_EXCLUDES
             )
         else:
             WorkingExportRow.objects.create(
-                page=page, data=profile.dict(exclude=SearchExport.PROFILE_EXCLUDES)
+                page=page, data=profile.dict()  # exclude=SearchExport.PROFILE_EXCLUDES
             )
             created = True
         if page:

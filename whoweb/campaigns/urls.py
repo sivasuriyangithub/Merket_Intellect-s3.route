@@ -6,6 +6,9 @@ app_name = "campaigns"
 
 router = SimpleRouter()
 router.register(
+    r"campaign/icebreakers", views.IcebreakerTemplateViewSet,
+)
+router.register(
     r"campaign/simple", views.SimpleCampaignViewSet,
 )
 router.register(

@@ -440,4 +440,5 @@ def all_uploadable_column_headers():
         "twitter",
         "domain",
         "mxdomain",
+        "icebreaker",
     ]

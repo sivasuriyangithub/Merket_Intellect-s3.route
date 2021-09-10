@@ -324,6 +324,7 @@ class ResultProfile(BaseModel):
     twitter: str = ""
     invite_key: Optional[str] = None
     mx_domain: Optional[str] = None
+    icebreaker: Optional[str] = ""
 
     derivation_requested_email: bool = False
     derivation_requested_phone: bool = False
@@ -437,6 +438,10 @@ class ResultProfile(BaseModel):
     def set_mx(self, mx_registry=None):
         if mx_registry and self.domain:
             self.mx_domain = mx_registry.get(self.domain, None)
+        return self
+
+    def generate_icebreaker(self, template, sender_profile=None) -> "ResultProfile":
+        self.icebreaker = template.render(sender_profile=sender_profile, profile=self)
         return self
 
     @validator("graded_emails", pre=True)

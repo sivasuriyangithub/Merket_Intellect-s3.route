@@ -4,10 +4,11 @@ from rest_framework.viewsets import ModelViewSet
 
 from whoweb.payments.exceptions import SubscriptionError, PaymentRequired
 from whoweb.contrib.rest_framework.permissions import IsSuperUser
-from .models import SimpleDripCampaignRunner, IntervalCampaignRunner
+from .models import SimpleDripCampaignRunner, IntervalCampaignRunner, IcebreakerTemplate
 from .serializers import (
     SimpleDripCampaignRunnerSerializer,
     IntervalCampaignRunnerSerializer,
+    IcebreakerTemplateSerializer,
 )
 
 
@@ -50,6 +51,13 @@ class RunnerViewSet(object):
         runner.resume()
         runner.refresh_from_db()
         return Response(self.get_serializer(runner).data)
+
+
+class IcebreakerTemplateViewSet(ModelViewSet):
+    queryset = IcebreakerTemplate.available_objects.all().order_by("created")
+    serializer_class = IcebreakerTemplateSerializer
+    lookup_field = "public_id"
+    permission_classes = [IsSuperUser]
 
 
 class SimpleCampaignViewSet(RunnerViewSet, ModelViewSet):

@@ -2,15 +2,18 @@ import django_filters
 import graphene
 from django_filters.rest_framework import OrderingFilter
 from graphene import relay
-from graphene.types.generic import GenericScalar
-from graphene_django import DjangoListField, DjangoConnectionField
+from graphene_django import DjangoListField
 from graphene_django.filter import DjangoFilterConnectionField, GlobalIDFilter
 
 from whoweb.accounting.types import TransactionObjectType
 from whoweb.campaigns import models
 from whoweb.coldemail.schema import Campaign
 from whoweb.contrib.graphene_django.types import GuardedObjectType
-from whoweb.contrib.rest_framework.filters import TagsFilter, ObscureIdFilterSet
+from whoweb.contrib.rest_framework.filters import (
+    TagsFilter,
+    ObscureIdFilterSet,
+    BaseFilterBackend,
+)
 from whoweb.contrib.rest_framework.permissions import (
     IsSuperUser,
     ObjectPermissions,
@@ -32,6 +35,20 @@ def member_of_billing_account(viewer: User, campaign_runner: models.BaseCampaign
     return viewer.payments_billingaccount.filter(
         pk=campaign_runner.billing_seat.organization.pk
     ).exists()
+
+
+class IsGlobalPermissionsFilter(BaseFilterBackend):
+    """
+    A filter backend that limits results to those where the requesting user
+    is a member of the billing account for the seat on the object.
+    """
+
+    def filter_queryset(self, request, queryset, view):
+        return queryset.filter(billing_seat=None)
+
+
+def is_global(viewer: User, template: models.IcebreakerTemplate):
+    return template.billing_seat is None
 
 
 class CampaignRunnerFilter(ObscureIdFilterSet):
@@ -62,6 +79,20 @@ class CampaignRunnerFilter(ObscureIdFilterSet):
             "published",
             "billing_seat",
             "id",
+        )
+
+
+class IcebreakerTemplate(GuardedObjectType):
+    class Meta:
+        model = models.IcebreakerTemplate
+        permission_classes = [
+            ObjectPassesTest(member_of_billing_account)
+            | IsSuperUser
+            | ObjectPermissions
+            | ObjectPassesTest(is_global)
+        ]
+        filter_backends = (
+            MemberOfBillingAccountPermissionsFilter | IsGlobalPermissionsFilter
         )
 
 

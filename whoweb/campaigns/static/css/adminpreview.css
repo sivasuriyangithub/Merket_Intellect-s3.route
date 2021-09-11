@@ -1,0 +1,11 @@
+.template_preview{
+  all: unset;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  display: block;
+}
+.template_preview.error {
+  padding: 10px;
+  color: red;
+  background-color: bisque;
+}

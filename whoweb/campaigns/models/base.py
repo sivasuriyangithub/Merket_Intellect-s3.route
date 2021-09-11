@@ -608,7 +608,7 @@ class BaseCampaignRunner(
     def generate_icebreakers(self, rule_index, export_id):
         export = SearchExport.objects.get(pk=export_id)
         sending_rule = self.sending_rules.get(index=rule_index)
-        template = Template(sending_rule.icebreaker_template.text)
+        template = sending_rule.icebreaker_template.get_template()
 
         for page, profiles in export.get_profiles_by_page():
             page.data = [

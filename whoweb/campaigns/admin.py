@@ -1,24 +1,32 @@
+import json
+
 from admin_actions.admin import ActionsModelAdmin
 from django.conf import settings
 from django.contrib import admin, messages
+from django.contrib.admin import ModelAdmin
 from django.db.models import F
+from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.template.defaultfilters import date
-from django.urls import reverse
+from django.urls import reverse, path
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
+from django.utils.text import Truncator
 from inline_actions.admin import InlineActionsMixin, InlineActionsModelAdminMixin
 
 from whoweb.campaigns.events import ENQUEUED_FROM_ADMIN
 from whoweb.coldemail.models import ColdCampaign
 from whoweb.core.admin import EventTabularInline
+from whoweb.search.models import ResultProfile
+from .jinja_filters import environment
 from .models import (
     SimpleDripCampaignRunner,
     IntervalCampaignRunner,
     SendingRule,
     DripRecord,
     BaseCampaignRunner,
+    IcebreakerTemplate,
 )
 
 
@@ -307,3 +315,73 @@ class IntervalCampaignRunnerAdmin(InlineActionsModelAdminMixin, ActionsModelAdmi
         ),
     )
     readonly_fields = ("pk", "status_changed", "scroll", "published", "public_id")
+
+
+@admin.register(IcebreakerTemplate)
+class IcebreakerTemplateAdmin(ModelAdmin):
+    list_display = ("pk", "public_id", "text_preview", "is_global")
+    list_display_links = (
+        "pk",
+        "public_id",
+    )
+
+    fieldsets = (
+        (None, {"fields": ("public_id", "text", "template_preview")}),
+        ("Ownership", {"classes": ("collapse",), "fields": ("billing_seat",),},),
+    )
+    readonly_fields = ("public_id", "template_preview")
+
+    class Media:
+        js = ["js/jquery.adminpreview.js"]
+        css = dict(all=["css/adminpreview.css"])
+
+    def text_preview(self, obj):
+        return Truncator(obj.text).chars(40)
+
+    text_preview.short_description = "Body"
+
+    def is_global(self, obj):
+        return obj.billing_seat is None
+
+    is_global.boolean = True
+
+    def template_preview(self, obj):
+        return mark_safe(
+            '<label for="sender_id">Sender ID:</label><input type="text" id="sender_id" name="sender_id"'
+            '<label for="recipient_id">Recipient ID:</label><input type="text" id="recipient_id" name="recipient_id"'
+            '<br/><br/><button type="button" class="previewslide btn btn-default" id="preview/">Preview</button>'
+        )
+
+    template_preview.allow_tags = True
+    template_preview.short_description = ""
+
+    def get_preview(self, request, object_id):
+        if request.method == "POST":
+            json_data = json.loads(request.body)
+            sender_id = json_data.get("sender_id")
+            recipient_id = json_data.get("recipient_id")
+
+            sender = ResultProfile.enrich(profile_id=sender_id)
+            recipient = ResultProfile.enrich(profile_id=recipient_id)
+
+            try:
+                template = environment().from_string(json_data["template"])
+                recipient.generate_icebreaker(template=template, sender_profile=sender)
+            except Exception as e:
+                return HttpResponse(
+                    f"<div class='template_preview error'>Error: {e}</div>"
+                )
+            return HttpResponse(
+                f"<div class='template_preview'>{recipient.icebreaker}</div>"
+            )
+
+    def get_urls(self):
+        info = self.model._meta.app_label, self.model._meta.model_name
+
+        return [
+            path(
+                "<path:object_id>/change/preview/",
+                self.admin_site.admin_view(self.get_preview),
+                name="%s_%s_preview" % info,
+            )
+        ] + super(IcebreakerTemplateAdmin, self).get_urls()

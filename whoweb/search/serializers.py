@@ -205,6 +205,7 @@ class SearchExportDataSerializer(serializers.Serializer):
 
 class ResultProfileSerializer(serializers.Serializer):
     id = serializers.CharField(source="_id", allow_null=True)
+    updated = serializers.DateTimeField(allow_null=True)
     relevance_score = serializers.CharField(allow_null=True)
     first_name = serializers.CharField(allow_null=True)
     last_name = serializers.CharField(allow_null=True)

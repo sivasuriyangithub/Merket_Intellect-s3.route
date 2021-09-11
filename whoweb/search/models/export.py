@@ -132,6 +132,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
         "total_experience",
         "business_function",
         "diversity",
+        "updated",
     }
     INTRO_COLS = [0]
     BASE_COLS = list(range(1, 10)) + [25]

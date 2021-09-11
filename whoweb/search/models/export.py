@@ -15,6 +15,7 @@ from django.contrib.postgres.fields import JSONField, ArrayField
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.mail import send_mail
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models, transaction
 from django.db.models import F
 from django.template.loader import render_to_string
@@ -818,7 +819,7 @@ class SearchExport(EventLoggingModel, TimeStampedModel, SoftDeletableModel):
             profiles = self.get_profiles(raw=page.data)
             page.data = [
                 profile.update_validation(registry).dict(
-                    exclude=SearchExport.PROFILE_EXCLUDES
+                    exclude=[] if self.uploadable else SearchExport.PROFILE_EXCLUDES
                 )
                 for profile in profiles
             ]
@@ -1184,4 +1185,4 @@ class WorkingExportRow(models.Model):
         SearchExportPage, on_delete=models.CASCADE, related_name="working_rows"
     )
     profile_id = models.CharField(max_length=255, blank=True, null=True, default="")
-    data = JSONField(default=dict)
+    data = JSONField(default=dict, encoder=DjangoJSONEncoder)

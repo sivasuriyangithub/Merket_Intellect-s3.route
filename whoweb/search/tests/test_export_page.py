@@ -268,8 +268,9 @@ def test_save_profile(result_profile_derived):
     page: SearchExportPage = SearchExportPageFactory()
     SearchExportPage.save_profile(page.pk, result_profile_derived)
     assert page.working_rows.count() == 1
-    assert page.working_rows.first().data == result_profile_derived.dict(
-        exclude=SearchExport.PROFILE_EXCLUDES
+    assert (
+        ResultProfile(**page.working_rows.first().data).dict()
+        == result_profile_derived.dict()
     )
 
 

@@ -239,6 +239,7 @@ class DiversityType(graphene.ObjectType):
 
 class ResultProfileObjectType(graphene.ObjectType):
     id = graphene.String()
+    updated = graphene.DateTime()
     relevance_score = graphene.String()
     first_name = graphene.String()
     last_name = graphene.String()

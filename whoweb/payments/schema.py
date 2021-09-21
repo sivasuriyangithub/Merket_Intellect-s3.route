@@ -134,7 +134,7 @@ class BillingAccountNode(GuardedObjectType):
     network = graphene.Field(NetworkNode)
     subscription = graphene.Field(SubscriptionObjectType)
     seats = DjangoFilterConnectionField(SeatNode)
-    transactions = graphene.List(
+    transactions = DjangoFilterConnectionField(
         TransactionObjectType, resolver=lambda s, i: s.transactions.all()
     )
 
@@ -158,7 +158,7 @@ class BillingAccountMemberFilterSet(ObscureIdFilterSet):
 class BillingAccountMemberNode(GuardedObjectType):
     billing_account = graphene.Field(BillingAccountNode, source="organization")
     credits = graphene.Int()
-    transactions = graphene.List(
+    transactions = DjangoFilterConnectionField(
         TransactionObjectType, resolver=lambda s, i: s.transactions.all()
     )
 

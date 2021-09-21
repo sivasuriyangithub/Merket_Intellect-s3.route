@@ -289,6 +289,7 @@ class ResultProfile(BaseModel):
     # primary_alias: Optional[str] = None
     web_profile_id: Optional[str] = None
     derivation_status: Optional[str] = None
+    updated: Optional[datetime] = None
 
     first_name: str = ""
     last_name: str = ""

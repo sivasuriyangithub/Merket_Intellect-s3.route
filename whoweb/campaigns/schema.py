@@ -202,6 +202,14 @@ class IntervalCampaignRunnerNode(GuardedObjectType):
         )
 
 
+class CampaignRunner(graphene.Union):
+    class Meta:
+        types = (
+            SimpleCampaignRunnerNode,
+            IntervalCampaignRunnerNode,
+        )
+
+
 class Query(graphene.ObjectType):
     simple_campaigns = DjangoFilterConnectionField(SimpleCampaignRunnerNode)
     interval_campaigns = DjangoFilterConnectionField(IntervalCampaignRunnerNode)

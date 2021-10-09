@@ -1,6 +1,7 @@
 import logging
 import time
 from calendar import timegm
+from typing import Optional
 
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericRelation
@@ -8,6 +9,7 @@ from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.utils.timezone import now
 
+from whoweb.search.models import SearchExport
 from whoweb.core.router import router
 from .reply import ReplyTo
 from .base import ColdemailBaseModel
@@ -50,6 +52,10 @@ class ColdCampaign(ColdemailBaseModel):
     open_log = JSONField(null=True, blank=True)
     good_log = JSONField(null=True, blank=True)
     reply_log = JSONField(null=True, blank=True)
+
+    @property
+    def export(self) -> Optional[SearchExport]:
+        return self.campaign_list.export if self.campaign_list.export else None
 
     def api_upload(self, task_context=None):
         self.log_event(UPLOAD_CAMPAIGN, task=task_context)

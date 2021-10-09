@@ -3,7 +3,7 @@ import graphene
 from django_filters.rest_framework import FilterSet
 from graphene import relay
 from graphene.types.generic import GenericScalar
-from graphene_django import DjangoObjectType, DjangoConnectionField
+from graphene_django import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField, GlobalIDFilter
 from rest_framework.permissions import IsAuthenticated
 
@@ -87,6 +87,7 @@ class SearchExportFilterSet(FilterSet):
     billing_account = GlobalIDFilter(field_name="billing_seat__organization__public_id")
     seat = GlobalIDFilter(field_name="billing_seat__seat__public_id")
     network = GlobalIDFilter(field_name="billing_seat__seat__organization__public_id")
+    is_campaign_related = django_filters.BooleanFilter(field_name="uploadable")
 
     class Meta:
         model = models.SearchExport
@@ -96,6 +97,7 @@ class SearchExportFilterSet(FilterSet):
             "billing_account",
             "seat",
             "network",
+            "is_campaign_related",
         )
 
 
@@ -139,6 +141,7 @@ class SearchExportNode(GuardedObjectType):
     file_url = graphene.String(description="Link to download as csv file.")
     json_url = graphene.String(description="Link to download as json file.")
     result_url = graphene.String(description="Link to paginated result resource.")
+    related_campaign = graphene.Field("whoweb.campaigns.schema.CampaignRunner")
 
     def resolve_charged(self: models.SearchExport, info):
         return self.charged
@@ -154,6 +157,15 @@ class SearchExportNode(GuardedObjectType):
 
     def resolve_result_url(self: models.SearchExport, info):
         return self.get_result_rest_url()
+
+    def resolve_related_campaign(self: models.SearchExport, info):
+        if not self.uploadable:
+            return None
+        from whoweb.campaigns.models import BaseCampaignRunner
+
+        return BaseCampaignRunner.objects.filter(
+            campaigns__campaign_list__export=self
+        ).first()
 
 
 class GradedEmailType(graphene.ObjectType):

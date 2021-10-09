@@ -4,6 +4,7 @@ from django_filters.rest_framework import OrderingFilter
 from graphene import relay
 from graphene_django.filter import DjangoFilterConnectionField, GlobalIDFilter
 
+from whoweb.search.schema import SearchExportNode
 from whoweb.users.models import User
 from whoweb.contrib.graphene_django.types import GuardedObjectType
 from whoweb.contrib.rest_framework.filters import (
@@ -136,6 +137,7 @@ class ProfileLogEntry(graphene.ObjectType):
 
 
 class Campaign(GuardedObjectType):
+    search_export = graphene.Field(SearchExportNode)
     good_log = graphene.List(ProfileLogEntry, name="goodProfiles")
     open_log = graphene.List(ProfileLogEntry, name="openProfiles")
     click_log = graphene.List(ProfileLogEntry, name="clickProfiles")
@@ -161,6 +163,7 @@ class Campaign(GuardedObjectType):
             "modified",
             "send_time",
             "stats_fetched",
+            "search_export",
             "sent",
             "views",
             "clicks",

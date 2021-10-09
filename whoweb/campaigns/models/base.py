@@ -47,6 +47,11 @@ class DripTooSoonError(Exception):
         self.countdown = countdown
 
 
+def get_icebreaker_default():
+    if obj := IcebreakerTemplate.objects.filter(is_global_default=True).first():
+        return obj.pk
+
+
 class SendingRule(models.Model):
     class Meta:
         unique_together = ("runner", "index")
@@ -67,7 +72,11 @@ class SendingRule(models.Model):
     )
     message = models.ForeignKey(CampaignMessage, on_delete=models.CASCADE)
     icebreaker_template = models.ForeignKey(
-        IcebreakerTemplate, on_delete=models.SET_NULL, null=True, blank=True
+        IcebreakerTemplate,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        default=get_icebreaker_default,
     )
     index = (
         models.PositiveIntegerField()
@@ -608,8 +617,9 @@ class BaseCampaignRunner(
     def generate_icebreakers(self, rule_index, export_id):
         export = SearchExport.objects.get(pk=export_id)
         sending_rule = self.sending_rules.get(index=rule_index)
+        if not sending_rule.icebreaker_template:
+            return
         template = sending_rule.icebreaker_template.get_template()
-
         for page, profiles in export.get_profiles_by_page():
             page.data = [
                 profile.generate_icebreaker(template, sender_profile=None).dict(

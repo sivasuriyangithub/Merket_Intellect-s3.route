@@ -18,6 +18,12 @@ class IcebreakerTemplate(ObscureIdMixin, SoftDeletableModel):
         ),
         default="",
     )
+    is_global_default = models.NullBooleanField(default=None, unique=True)
 
     def get_template(self):
         return environment().from_string(self.text)
+
+    def save(self, *args, **kwargs):
+        if self.is_global_default is False:
+            self.is_the_chosen_one = None
+        super(IcebreakerTemplate, self).save(*args, **kwargs)

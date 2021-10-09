@@ -319,7 +319,7 @@ class IntervalCampaignRunnerAdmin(InlineActionsModelAdminMixin, ActionsModelAdmi
 
 @admin.register(IcebreakerTemplate)
 class IcebreakerTemplateAdmin(ModelAdmin):
-    list_display = ("pk", "public_id", "text_preview", "is_global")
+    list_display = ("pk", "public_id", "text_preview", "is_global", "is_global_default")
     list_display_links = (
         "pk",
         "public_id",
@@ -327,6 +327,7 @@ class IcebreakerTemplateAdmin(ModelAdmin):
 
     fieldsets = (
         (None, {"fields": ("public_id", "text", "template_preview")}),
+        (None, {"fields": ("is_global_default",)}),
         ("Ownership", {"classes": ("collapse",), "fields": ("billing_seat",),},),
     )
     readonly_fields = ("public_id", "template_preview")

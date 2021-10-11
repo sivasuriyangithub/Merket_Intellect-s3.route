@@ -5,6 +5,7 @@ from datetime import timedelta
 
 import environ
 
+
 ROOT_DIR = environ.Path(__file__) - 3  # (whoweb/config/settings/base.py - 3 = whoweb/)
 APPS_DIR = ROOT_DIR.path("whoweb")
 
@@ -261,7 +262,8 @@ LOGGING = {
         "verbose": {
             "format": "%(levelname)s %(asctime)s %(module)s "
             "%(process)d %(thread)d %(message)s"
-        }
+        },
+        "json": {"()": "whoweb.contrib.logging.DjangoJsonFormatter",},
     },
     "handlers": {
         "console": {
@@ -271,6 +273,13 @@ LOGGING = {
         }
     },
     "root": {"level": env("DJANGO_LOG_LEVEL", default="INFO"), "handlers": ["console"]},
+    "loggers": {
+        "django.request": {
+            "handlers": ["console"],
+            "level": env("DJANGO_LOG_LEVEL", default="INFO"),
+            "propagate": False,
+        }
+    },
 }
 
 # Celery

@@ -85,7 +85,7 @@ def catch_missed_drips():
 
 @shared_task(autoretry_for=NETWORK_ERRORS)
 def on_complete_generate_icebreakers(
-    self, pk, rule_index, campaign_id=None, export_id=None, *args, **kwargs
+    pk, rule_index, campaign_id=None, export_id=None, *args, **kwargs
 ):
     runner = BaseCampaignRunner.available_objects.get(pk=pk)
     runner.generate_icebreakers(

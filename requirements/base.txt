@@ -16,6 +16,7 @@ requests-cache
 python-dateutil==2.8.1
 pydantic==1.8.1 # https://github.com/samuelcolvin/pydantic
 django-cryptography==1.0 # https://github.com/georgemarshall/django-cryptography
+python-json-logger
 
 # Django
 # ------------------------------------------------------------------------------

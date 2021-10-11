@@ -155,7 +155,6 @@ class NodeSerializerMutation(ClientIDMutation):
             instance.then(lambda o: o.delete())
             return cls(errors=None, node=None)
         kwargs = cls.get_serializer_kwargs(root, info, **input)
-        print(kwargs)
         serializer = cls._meta.serializer_class(**kwargs)
         if serializer.is_valid():
             return cls.perform_mutate(serializer, info)

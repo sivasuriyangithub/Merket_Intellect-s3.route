@@ -499,7 +499,7 @@ class BaseCampaignRunner(
         if not campaign:
             return None, None
         if on_complete is None:
-            on_complete = on_complete_generate_icebreakers.s(pk=self.pk, rule_index=0)
+            on_complete = on_complete_generate_icebreakers.si(pk=self.pk, rule_index=0)
         if publish_sigs := campaign.publish(apply_tasks=False, on_complete=on_complete):
             if self.run_id is None:
                 self.run_id = uuid.uuid4()

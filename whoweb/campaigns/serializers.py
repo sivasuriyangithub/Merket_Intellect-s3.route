@@ -89,7 +89,7 @@ class PublishableMixin(object):
 
         instance: BaseCampaignRunner = super().create(validated_data)
         if publish:
-            instance.publish(apply_tasks=False)
+            instance.publish()
         elif pause:
             instance.pause()
         elif resume:
@@ -102,7 +102,7 @@ class PublishableMixin(object):
         resume = validated_data.pop("resume", False)
 
         if publish:
-            instance.publish(apply_tasks=False)
+            instance.publish()
         elif pause:
             instance.pause()
         elif resume:
